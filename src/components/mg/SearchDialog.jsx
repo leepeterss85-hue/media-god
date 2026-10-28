@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
+import { catalogueSourceKey, createCatalogueSourceChecker, SOURCE_CHECK_BATCH } from "@/components/mg/catalogueSourceAvailability";
 import { getFreeTvChannels } from "@/components/mg/freeTvPlaylist";
 import { searchTmdbId } from "@/components/mg/searchMediaIdentity";
 import { Image } from "@/components/ui/image";
@@ -36,6 +37,7 @@ const searchThumbnailUrl = (url) =>
 const RECENT_SEARCHES_KEY = "mg:recent-searches:v1";
 const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000;
 const searchCache = new Map();
+const catalogueSourceChecker = createCatalogueSourceChecker((name, payload) => base44.functions.invoke(name, payload));
 
 const readRecentSearches = () => {
   if (typeof window === "undefined") return [];
@@ -610,6 +612,9 @@ export default function SearchDialog({
   );
 
   const [mediaFilter, setMediaFilter] = useState("all");
+  const [sourcesFoundOnly, setSourcesFoundOnly] = useState(false);
+  const [sourceCheckLimit, setSourceCheckLimit] = useState(SOURCE_CHECK_BATCH);
+  const [sourceCheckResults, setSourceCheckResults] = useState({});
   const [yearFilter, setYearFilter] = useState("");
   const [visibleResultCount, setVisibleResultCount] = useState(SEARCH_RESULT_PAGE_SIZE);
   const [recentSearches, setRecentSearches] = useState(readRecentSearches);
@@ -617,6 +622,8 @@ export default function SearchDialog({
   useEffect(() => {
     setVisibleResultCount(SEARCH_RESULT_PAGE_SIZE);
   }, [query, mediaFilter, yearFilter, open]);
+
+  useEffect(() => { setSourceCheckLimit(SOURCE_CHECK_BATCH); }, [query, yearFilter, open]);
 
   const requestRef =
     useRef(
@@ -928,6 +935,40 @@ export default function SearchDialog({
       );
   }, [mediaFilter, query, results, yearFilter]);
 
+  // This mode checks the user's selected movie search results only. Each
+  // batch runs at most two concurrent addon lookups, avoiding a Fire Stick
+  // stall and avoiding hundreds of background requests for TMDB posters.
+  const sourceCheckCandidates = useMemo(() =>
+    filteredMediaResults.filter((item) => item.media_type === "movie" && catalogueSourceKey(item)),
+  [filteredMediaResults]);
+
+  const sourceCheckWindow = useMemo(() =>
+    sourceCheckCandidates.slice(0, sourceCheckLimit),
+  [sourceCheckCandidates, sourceCheckLimit]);
+
+  useEffect(() => {
+    if (!open || !sourcesFoundOnly || loading) return undefined;
+    let cancelled = false;
+    sourceCheckWindow.forEach((item) => {
+      const key = catalogueSourceKey(item);
+      setSourceCheckResults((current) => current[key] ? current : { ...current, [key]: "checking" });
+      void catalogueSourceChecker.check(item).then((status) => {
+        if (!cancelled) setSourceCheckResults((current) => ({ ...current, [key]: status }));
+      });
+    });
+    return () => { cancelled = true; };
+  }, [open, sourcesFoundOnly, loading, sourceCheckWindow]);
+
+  const searchedSourceCount = sourceCheckWindow.filter((item) => {
+    const status = sourceCheckResults[catalogueSourceKey(item)];
+    return status && status !== "checking";
+  }).length;
+  const sourcedMediaResults = useMemo(() =>
+    sourcesFoundOnly
+      ? sourceCheckWindow.filter((item) => sourceCheckResults[catalogueSourceKey(item)] === "found")
+      : filteredMediaResults,
+  [sourcesFoundOnly, sourceCheckWindow, sourceCheckResults, filteredMediaResults]);
+
   const liveResults = useMemo(
     () => {
       const cleanQuery = String(query || "")
@@ -969,12 +1010,12 @@ export default function SearchDialog({
    * text.
    */
   const combinedSearchResults = useMemo(() => {
-    if (mediaFilter !== "all") {
-      return filteredMediaResults;
+    if (sourcesFoundOnly || mediaFilter !== "all") {
+      return sourcedMediaResults;
     }
 
     return [
-      ...filteredMediaResults,
+      ...sourcedMediaResults,
       ...liveResults,
     ].sort((a, b) => {
       const relevance =
@@ -1000,10 +1041,11 @@ export default function SearchDialog({
       );
     });
   }, [
-    filteredMediaResults,
+    sourcedMediaResults,
     liveResults,
     mediaFilter,
     query,
+    sourcesFoundOnly,
   ]);
 
   if (!open) {
@@ -1174,7 +1216,10 @@ export default function SearchDialog({
               <button
                 key={id}
                 type="button"
-                onClick={() => setMediaFilter(id)}
+                onClick={() => {
+                  setMediaFilter(id);
+                  if (id !== "movie") setSourcesFoundOnly(false);
+                }}
                 aria-pressed={mediaFilter === id}
                 className={`min-h-9 rounded-full px-3 text-xs font-bold transition ${
                   mediaFilter === id
@@ -1185,6 +1230,20 @@ export default function SearchDialog({
                 {label}
               </button>
             ))}
+
+            <button
+              type="button"
+              aria-pressed={sourcesFoundOnly}
+              data-mg-sources-found-filter="true"
+              onClick={() => {
+                setSourcesFoundOnly((current) => !current);
+                setMediaFilter("movie");
+                setSourceCheckLimit(SOURCE_CHECK_BATCH);
+              }}
+              className={`min-h-9 rounded-full px-3 text-xs font-bold transition focus:outline-none focus:ring-2 focus:ring-mg-green/70 ${sourcesFoundOnly ? "bg-mg-green text-black" : "bg-white/5 text-white/65 hover:text-white hover:bg-white/10"}`}
+            >
+              Sources found
+            </button>
 
             <input
               inputMode="numeric"

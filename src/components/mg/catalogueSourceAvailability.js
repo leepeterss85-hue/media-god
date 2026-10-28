@@ -34,7 +34,7 @@ export function classifyCatalogueSourceResult(data) {
     const url = String(stream.src || stream.url || '').trim();
     // A plausible direct URL is a discovered candidate, not validated video.
     return /^https:\/\//i.test(url) &&
-      !/\.(?:m3u8|mp4|mkv)(?:\?|$)/i.test(url) === false &&
+      /\.(?:m3u8|mp4|mkv)(?:\?|$)/i.test(url) &&
       !/\b(?:youtube|trailer|captcha|cloudflare)\b/i.test(url);
   });
   if (found) return 'found';
