@@ -2,6 +2,7 @@ import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
 import { catalogueSourceChecker, showBrowseTitleWithSourceEvidence } from "@/components/mg/catalogueSourceCheckerClient";
+import { createRollingSourceChecks } from "@/components/mg/rollingSourceChecks";
 import React, {
   useEffect,
   useMemo,
@@ -790,35 +791,18 @@ export default function HomeDashboard({ onOpenTvService }) {
   const [sourceAvailabilityEpoch, setSourceAvailabilityEpoch] = useState(0);
 
   useEffect(() => {
-    // Only check a small selection of recent movie discovery cards. Never
-    // prefetch streams for an entire TMDB catalogue or block Home rendering.
-    const checkVisibleNewMovies = () => {
-      if (document.visibilityState === 'hidden') return;
-      const recent = (rows.newMovies || []).filter((item) => mediaTypeOf(item) === 'movie').slice(0, 6);
-      const trending = (rows.trending || []).filter((item) => mediaTypeOf(item) === 'movie').slice(0, 2);
-      const seen = new Set();
-      [...recent, ...trending].forEach((item) => {
-        const key = `${mediaTypeOf(item)}:${mediaId(item)}:${item.year || ''}`;
-        if (!mediaId(item) || seen.has(key)) return;
-        seen.add(key);
-        void catalogueSourceChecker.check(item);
-      });
-    };
     const stopListening = catalogueSourceChecker.subscribe(() =>
       setSourceAvailabilityEpoch((version) => version + 1)
     );
-    checkVisibleNewMovies();
-    const timer = window.setInterval(checkVisibleNewMovies, 10 * 60 * 1000);
-    window.addEventListener('focus', checkVisibleNewMovies);
-    window.addEventListener('online', checkVisibleNewMovies);
-    document.addEventListener('visibilitychange', checkVisibleNewMovies);
-    return () => {
-      stopListening();
-      window.clearInterval(timer);
-      window.removeEventListener('focus', checkVisibleNewMovies);
-      window.removeEventListener('online', checkVisibleNewMovies);
-      document.removeEventListener('visibilitychange', checkVisibleNewMovies);
-    };
+    const stopChecks = createRollingSourceChecks(
+      () => [
+        ...(rows.todayMovies || []), ...(rows.newMovies || []),
+        ...(rows.trending || []), ...(rows.popularMovies || []),
+        ...(rows.topRated || []),
+      ].filter((item) => mediaTypeOf(item) === 'movie'),
+      (item) => catalogueSourceChecker.check(item)
+    );
+    return () => { stopListening(); stopChecks(); };
   }, [rows.newMovies, rows.trending]);
 
   const completedHistoryTitles = useMemo(() => {

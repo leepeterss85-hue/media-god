@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Mic, Plus, Check, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { catalogueSourceChecker, showBrowseTitleWithSourceEvidence } from "@/components/mg/catalogueSourceCheckerClient";
+import { createRollingSourceChecks } from "@/components/mg/rollingSourceChecks";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -67,17 +68,10 @@ export default function MoviesView() {
 
   useEffect(() => {
     if (loading || !movies.length) return undefined;
-    // Limit this to the first page's visible films. Do not scan every TMDB
-    // poster or add background source work to Fire TV navigation.
-    const scanFirstBatch = () => {
-      if (document.visibilityState === 'hidden') return;
-      movies.slice(0, 8).forEach((movie) =>
-        void catalogueSourceChecker.check({ ...movie, media_type: 'movie' })
-      );
-    };
-    scanFirstBatch();
-    window.addEventListener('focus', scanFirstBatch);
-    return () => window.removeEventListener('focus', scanFirstBatch);
+    return createRollingSourceChecks(
+      () => movies,
+      (movie) => catalogueSourceChecker.check({ ...movie, media_type: 'movie' })
+    );
   }, [movies, loading]);
 
   const displayedMovies = useMemo(() => movies.filter((movie) =>
