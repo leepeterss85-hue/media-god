@@ -25,7 +25,8 @@ const isHealthyEmptyAddonResponse = data => {
       !Array.isArray(diagnostics) || diagnostics.length !== checked) return false;
   return diagnostics.every(item =>
     item && item.status === 'no_playable_streams' &&
-    Number(item.stream_count) === 0 && Number(item.playable_count) === 0
+    Number(item.stream_count) === 0 && Number(item.playable_count) === 0 &&
+    (data.fast_mode !== false || /Manifest status: ok\b/.test(String(item.message || '')))
   );
 };
 

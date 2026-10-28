@@ -1,7 +1,7 @@
 import CatalogueRetryNotice from "@/components/mg/CatalogueRetryNotice";
 import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Mic, Plus, Check, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { catalogueSourceChecker, showBrowseTitleWithSourceEvidence } from "@/components/mg/catalogueSourceCheckerClient";
@@ -80,11 +80,9 @@ export default function MoviesView() {
     return () => window.removeEventListener('focus', scanFirstBatch);
   }, [movies, loading]);
 
-  // Incrementing sourceAvailabilityEpoch triggers a render when checks finish.
-  void sourceAvailabilityEpoch;
-  const displayedMovies = movies.filter((movie) =>
+  const displayedMovies = useMemo(() => movies.filter((movie) =>
     showBrowseTitleWithSourceEvidence({ ...movie, media_type: 'movie' })
-  );
+  ), [movies, sourceAvailabilityEpoch]);
 
   useEffect(() => {
     const requestId = ++requestRef.current;

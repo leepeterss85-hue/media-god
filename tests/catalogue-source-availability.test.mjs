@@ -77,8 +77,8 @@ test('Search has an opt-in movie source filter; other media and playback paths s
 const healthyEmpty = fast_mode => ({
   streams: [], fast_mode, addons_checked: 2, addons_available: 2,
   diagnostics: [
-    {name:'Comet',status:'no_playable_streams',stream_count:0,playable_count:0},
-    {name:'Torrentio',status:'no_playable_streams',stream_count:0,playable_count:0},
+    {name:'Comet',status:'no_playable_streams',stream_count:0,playable_count:0,message: fast_mode ? 'Addon returned zero streams. Manifest status: skipped_fast.' : 'Addon returned zero streams. Manifest status: ok.'},
+    {name:'Torrentio',status:'no_playable_streams',stream_count:0,playable_count:0,message: fast_mode ? 'Addon returned zero streams. Manifest status: skipped_fast.' : 'Addon returned zero streams. Manifest status: ok.'},
   ],
 });
 
@@ -86,6 +86,7 @@ test('confirmed empty requires successful exhaustive checks; outages and partial
   const { isComprehensiveAddonNoSourceResult } = await import('../src/components/mg/catalogueSourceAvailability.js');
   assert.equal(isComprehensiveAddonNoSourceResult(healthyEmpty(false)), true);
   assert.equal(isComprehensiveAddonNoSourceResult(healthyEmpty(true)), false);
+  assert.equal(isComprehensiveAddonNoSourceResult({...healthyEmpty(false),diagnostics:[{...healthyEmpty(false).diagnostics[0],message:'Addon returned zero streams. Manifest status: unreachable.'},healthyEmpty(false).diagnostics[1]]}),false);
   assert.equal(isComprehensiveAddonNoSourceResult({ ...healthyEmpty(false),addons_checked:1 }),false);
   assert.equal(isComprehensiveAddonNoSourceResult({ ...healthyEmpty(false),addons_available:3 }),false);
   assert.equal(isComprehensiveAddonNoSourceResult({ ...healthyEmpty(false),diagnostics:[{
