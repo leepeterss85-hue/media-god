@@ -1294,6 +1294,34 @@ export default function SearchDialog({
           )}
         </div>
 
+        {sourcesFoundOnly && query.trim().length >= 2 && !loading && (
+          <div className="px-4 py-2 border-b border-white/10 bg-white/[0.03] text-xs text-white/65" data-mg-source-check-status="true" role="status" aria-live="polite">
+            <p>
+              Checking movie addon sources: {searchedSourceCount}/{sourceCheckWindow.length} checked · {sourcedMediaResults.length} with sources found.
+              This finds reported cached/direct candidates, not guaranteed playback.
+              TV shows need an exact episode; choose TV Shows to search normally.
+            </p>
+            {searchedSourceCount === sourceCheckWindow.length && sourcedMediaResults.length === 0 && sourceCheckWindow.length > 0 && (
+              <p className="mt-1 text-amber-200/80">No confirmed candidates in this batch. This does not mean the title is unavailable on other players.</p>
+            )}
+            {sourceCheckLimit < sourceCheckCandidates.length && (
+              <button
+                type="button"
+                className="mt-2 min-h-9 rounded-full border border-mg-green/40 px-3 text-mg-green focus:outline-none focus:ring-2 focus:ring-mg-green"
+                onClick={() => setSourceCheckLimit((count) => count + SOURCE_CHECK_BATCH)}
+                disabled={searchedSourceCount < sourceCheckWindow.length}
+              >
+                Check next {Math.min(SOURCE_CHECK_BATCH, sourceCheckCandidates.length - sourceCheckLimit)} movies
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => { setSourcesFoundOnly(false); setMediaFilter("all"); }}
+              className="ml-2 mt-2 min-h-9 rounded-full px-3 text-white/80 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green"
+            >Show all titles</button>
+          </div>
+        )}
+
         <div className="max-h-[75svh] sm:max-h-[68vh] overflow-y-auto overscroll-contain">
           {(loading || liveLoading) &&
             query.trim().length >= 2 && (
@@ -1335,6 +1363,7 @@ export default function SearchDialog({
             !liveError &&
             query.trim().length >= 2 &&
             filteredMediaResults.length === 0 &&
+            !sourcesFoundOnly &&
             (mediaFilter !== "all" || liveResults.length === 0) && (
               <div className="p-8 3xl:p-12 text-center text-white/40 text-sm 3xl:text-lg">
                 No movies, TV shows or live channels found for &quot;
