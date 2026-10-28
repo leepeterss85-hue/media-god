@@ -4,6 +4,7 @@ import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useRef, useState } from "react";
 import { Search, Mic, Plus, Check, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { catalogueSourceChecker, showBrowseTitleWithSourceEvidence } from "@/components/mg/catalogueSourceCheckerClient";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -40,6 +41,7 @@ const selectClass =
 
 export default function MoviesView() {
   const [movies, setMovies] = useState([]);
+  const [sourceAvailabilityEpoch, setSourceAvailabilityEpoch] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -55,6 +57,34 @@ export default function MoviesView() {
   const requestRef = useRef(0);
   const debouncedQuery = useDebouncedValue(query, 180);
   const streamingRegion = country || detectStreamingRegion();
+
+  useEffect(() => {
+    const unsub = catalogueSourceChecker.subscribe(() =>
+      setSourceAvailabilityEpoch((value) => value + 1)
+    );
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (loading || !movies.length) return undefined;
+    // Limit this to the first page's visible films. Do not scan every TMDB
+    // poster or add background source work to Fire TV navigation.
+    const scanFirstBatch = () => {
+      if (document.visibilityState === 'hidden') return;
+      movies.slice(0, 8).forEach((movie) =>
+        void catalogueSourceChecker.check({ ...movie, media_type: 'movie' })
+      );
+    };
+    scanFirstBatch();
+    window.addEventListener('focus', scanFirstBatch);
+    return () => window.removeEventListener('focus', scanFirstBatch);
+  }, [movies, loading]);
+
+  // Incrementing sourceAvailabilityEpoch triggers a render when checks finish.
+  void sourceAvailabilityEpoch;
+  const displayedMovies = movies.filter((movie) =>
+    showBrowseTitleWithSourceEvidence({ ...movie, media_type: 'movie' })
+  );
 
   useEffect(() => {
     const requestId = ++requestRef.current;
@@ -220,7 +250,7 @@ export default function MoviesView() {
         </div>
       ) : (
         <div data-mg-library-grid="true" className={gridClass}>
-          {movies.map((movie) => (
+          {displayedMovies.map((movie) => (
             <article key={movie.id} className="mg-fire-tv-library-card group min-w-0">
               <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
                 <PosterImage
