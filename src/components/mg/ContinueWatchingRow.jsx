@@ -249,6 +249,8 @@ const resolveTmdbIdQuickly = async (meta) => {
 export default function ContinueWatchingRow({ onOpenDetail }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncError, setSyncError] = useState("");
+  const displayedProfileRef = useRef(activeHouseholdProfileId());
   const [sourcePicker, setSourcePicker] = useState(null);
   const [downloadPicker, setDownloadPicker] = useState(null);
   const player = usePlayer();
@@ -261,10 +263,15 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
   const load = () => {
     const version = ++loadVersionRef.current;
     const requestedProfile = activeHouseholdProfileId();
+    if (displayedProfileRef.current !== requestedProfile) {
+      displayedProfileRef.current = requestedProfile;
+      setItems([]);
+    }
     profiledLibrary.ContinueWatching
       .list("-updated_date", 250)
       .then((rows) => {
         if (version !== loadVersionRef.current || requestedProfile !== activeHouseholdProfileId()) return;
+        setSyncError("");
         const entries = [...(rows || [])]
           .map((item) => ({
             item,
@@ -335,7 +342,16 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
         // device may still be writing that row; explicit Remove is the only
         // action that deletes account history.
       })
-      .catch(() => {})
+      .catch((error) => {
+        if (version !== loadVersionRef.current || requestedProfile !== activeHouseholdProfileId()) return;
+        const status = Number(error?.status || error?.response?.status);
+        if (status === 401 || status === 403 || /Sign in/.test(error?.message || "")) {
+          setItems([]);
+          setSyncError("Sign in again to load your account’s Continue Watching.");
+        } else {
+          setSyncError("Continue Watching could not refresh. The saved list may be out of date.");
+        }
+      })
       .finally(() => { if (version === loadVersionRef.current) setLoading(false); });
   };
 
@@ -625,7 +641,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     [items]
   );
 
-  if (loading || displayItems.length === 0) {
+  if (loading || (displayItems.length === 0 && !syncError)) {
     return null;
   }
 
