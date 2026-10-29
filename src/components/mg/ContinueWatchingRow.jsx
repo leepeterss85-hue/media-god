@@ -262,7 +262,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     const version = ++loadVersionRef.current;
     const requestedProfile = activeHouseholdProfileId();
     profiledLibrary.ContinueWatching
-      .list("-updated_date", 100)
+      .list("-updated_date", 250)
       .then((rows) => {
         if (version !== loadVersionRef.current || requestedProfile !== activeHouseholdProfileId()) return;
         const entries = [...(rows || [])]

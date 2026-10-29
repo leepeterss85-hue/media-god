@@ -187,7 +187,7 @@ export default function RecentlyWatchedRow({ onOpenDetail }) {
   const load = () => {
     const version = ++loadVersionRef.current;
     profiledLibrary.ContinueWatching
-      .list("-updated_date", 100)
+      .list("-updated_date", 250)
       .then((rows) => {
         if (version !== loadVersionRef.current) return;
         const completed = [];

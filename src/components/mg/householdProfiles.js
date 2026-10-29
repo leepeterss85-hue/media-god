@@ -42,7 +42,11 @@ export const mergeAccountHouseholdProfiles = remote => {
     seen.add(p.id);
     return true;
   }).slice(0, 5);
+  const before = JSON.stringify(readHouseholdProfiles().slice(1));
   storage()?.setItem(PROFILES_KEY, JSON.stringify(valid));
+  if (before !== JSON.stringify(valid) && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(PROFILE_CHANGED_EVENT));
+  }
   return [MAIN, ...valid];
 };
 

@@ -341,7 +341,7 @@ export default function ContinueWatchingAssist() {
           // for the SAME TMDB movie or episode. Reuse its account history row
           // instead of making two separate Continue Watching entries.
           if (!existing?.length) {
-            const accountRows = await profiledLibrary.ContinueWatching.list("-updated_date", 100);
+            const accountRows = await profiledLibrary.ContinueWatching.list("-updated_date", 250);
             existing = (accountRows || []).filter((row) =>
               sameContent(parseContentKey(row), context)
             );
@@ -468,7 +468,7 @@ export default function ContinueWatchingAssist() {
       try {
         const rows = await profiledLibrary.ContinueWatching.list(
           "-updated_date",
-          100
+          250
         );
 
         if (token !== state.lookupToken || state.context !== context) {
