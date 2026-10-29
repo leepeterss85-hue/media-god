@@ -7,6 +7,7 @@ import { secrets } from 'base44:runtime';
 const MAX_MONTHLY_REQUESTS = 6000;
 const MAX_DAILY_REQUESTS = 180;
 const MAX_PER_RUN = 2;
+const MAX_CATALOGUE_ROWS = 20;
 const TMDB = 'https://api.themoviedb.org/3';
 export default async function(req: Request) {
   if (req.method !== 'POST') return Response.json({error:'POST required'}, {status:405});
@@ -40,7 +41,10 @@ export default async function(req: Request) {
   if (!response.ok) return Response.json({status:'tmdb-unavailable'});
   const data = await response.json();
   let checked = 0;
-  for (const movie of (data.results||[]).slice(0,MAX_PER_RUN)) {
+  // Scan a wider discovery window so already-cached titles do not prevent
+  // newer releases from being checked. Network checks remain strictly capped.
+  for (const movie of (data.results||[]).slice(0,MAX_CATALOGUE_ROWS)) {
+    if (checked >= MAX_PER_RUN) break;
     const id = Number(movie.id);
     if (!Number.isInteger(id)||id<=0) continue;
     const key = `movie:${id}`;
