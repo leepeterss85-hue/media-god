@@ -13,7 +13,7 @@ test("Main history is preserved and new household profiles isolate three collect
   const data = Object.fromEntries(
     ["Favorite", "WatchlistItem", "ContinueWatching"].map(name => [
       name,
-      [{ id: name + ":old", title: "Saved in Main", content_key: "mg2|legacy" }],
+      [{ id: name + ":old", created_by_id: "account-a", title: "Saved in Main", content_key: "mg2|legacy" }],
     ])
   );
   let lastId = 1;
@@ -25,7 +25,7 @@ test("Main history is preserved and new household profiles isolate three collect
         filter: async criteria => rows.filter(row =>
           Object.entries(criteria).every(([field, value]) => row[field] === value)),
         create: async value => {
-          const record = { id: name + ":" + ++lastId, ...value };
+          const record = { id: name + ":" + ++lastId, created_by_id: "account-a", ...value };
           rows.push(record);
           return record;
         },
@@ -41,7 +41,7 @@ test("Main history is preserved and new household profiles isolate three collect
     ])
   );
   const context = {
-    base44: { entities },
+    base44: { entities, auth: { me: async () => ({ id: "account-a" }) } },
     window: { localStorage: storage, dispatchEvent: () => {} },
     crypto: { randomUUID: () => "a1234567-aaaa-4444-bbbb-cccccccccccc" },
     CustomEvent: class {},

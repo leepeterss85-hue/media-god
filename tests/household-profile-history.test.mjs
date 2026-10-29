@@ -18,14 +18,14 @@ test("Continue Watching and Recently Watched never load another profile's rows",
 
 test("legacy Main history and new profile history are isolated in the shared account", async () => {
   const memory = new Map();
-  const rows = [{ id: "old", profile_id: "main", content_key: "movie-1" }];
+  const rows = [{ id: "old", created_by_id: "account-a", profile_id: "main", content_key: "movie-1" }];
   const entity = {
     list: async () => rows,
     filter: async (criteria) => rows.filter(row =>
       Object.entries(criteria).every(([key, value]) => row[key] === value)
     ),
     create: async (data) => {
-      const row = { id: String(rows.length + 1), ...data };
+      const row = { id: String(rows.length + 1), created_by_id: "account-a", ...data };
       rows.push(row);
       return row;
     },
@@ -43,7 +43,7 @@ test("legacy Main history and new profile history are isolated in the shared acc
     exports: module.exports,
     require: (name) => {
       assert.equal(name, "@/api/base44Client");
-      return { base44: { entities: {
+      return { base44: { auth: { me: async () => ({ id: "account-a" }) }, entities: {
         ContinueWatching: entity,
         WatchlistItem: entity,
         Favorite: entity,
@@ -85,7 +85,7 @@ test("legacy Main history and new profile history are isolated in the shared acc
 
   // Rows written before household profiles existed had no profile_id.
   // They must remain visible to Main, but never appear in Guest history.
-  rows.push({ id: "legacy", content_key: "movie-2" });
+  rows.push({ id: "legacy", created_by_id: "account-a", content_key: "movie-2" });
   assert.equal((await profiledLibrary.ContinueWatching.list()).length, 2);
   selectHouseholdProfile(added.id);
   assert.equal((await profiledLibrary.ContinueWatching.list()).length, 1);
