@@ -37,6 +37,7 @@ import { COUNTRY_OPTIONS, countryLabel } from "@/components/mg/countryOptions";
 import { getStreamingRegionDetails, getStreamingRegionOverride, setStreamingRegionOverride } from "@/components/mg/streamingRegion";
 import { fetchLatestNativeRelease } from "@/components/mg/nativeReleaseInfo";
 import HouseholdProfilesPanel from "@/components/mg/HouseholdProfilesPanel";
+import ContinueWatchingSyncPanel from "@/components/mg/ContinueWatchingSyncPanel";
 import {
   readTrackPreferences,
   writeTrackPreferences,
@@ -2442,6 +2443,7 @@ export default function SettingsView() {
       </div>
 
       <HouseholdProfilesPanel />
+      <ContinueWatchingSyncPanel />
 
       <section className="mt-6 rounded-xl border border-white/10 bg-mg-card/60 p-4 text-xs text-white/55" aria-label="About and data credits">
         <h3 className="font-bold text-white/80">About &amp; data credits</h3>
