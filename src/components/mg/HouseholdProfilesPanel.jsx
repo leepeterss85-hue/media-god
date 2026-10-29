@@ -32,7 +32,7 @@ export default function HouseholdProfilesPanel() {
     window.location.reload();
   };
 
-  const add = event => {
+  const add = async event => {
     event.preventDefault();
     const added = createHouseholdProfile(name);
     if (!added) {
@@ -40,7 +40,13 @@ export default function HouseholdProfilesPanel() {
       return;
     }
     setProfiles(readHouseholdProfiles());
-    saveHouseholdProfilesToAccount().catch(() => {});
+    try {
+      await saveHouseholdProfilesToAccount();
+    } catch {
+      // Keep the local profile and tell the user it is not yet shared.
+      setError('Profile saved on this device, but account sync failed. Reopen Settings to retry.');
+      return;
+    }
     setSelected(added.id);
     setName("");
     setError("");

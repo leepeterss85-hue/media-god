@@ -96,7 +96,8 @@ export const profileOwnsRow = (row, profileId = activeHouseholdProfileId()) =>
  * Same-account household preferences, not separate authenticated identities.
  * The Base44 entities still enforce per-account RLS. We filter everything
  * before displaying it, scope new writes and preserve all legacy rows as Main.
- * The household profile names/IDs are local to each device.
+ * Profile names/IDs are shared via account preferences when synced;
+ * active selection remains local to each device.
  */
 const scopedEntity = name => {
   const target = base44.entities[name];
