@@ -661,6 +661,11 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
         </div>
       </div>
 
+      {syncError && <div role="status" className="mb-3 flex flex-wrap items-center gap-3 text-xs text-amber-200">
+        <span>{syncError}</span>
+        <button type="button" onClick={load} className="min-h-11 rounded-lg border border-white/20 px-3 text-white">Retry sync</button>
+      </div>}
+
       <div
         className="mg-fire-tv-resume-row flex gap-4 3xl:gap-6 overflow-x-auto overscroll-x-contain pb-4 scrollbar-hide snap-x snap-proximity"
         data-mg-tv-row="true"
