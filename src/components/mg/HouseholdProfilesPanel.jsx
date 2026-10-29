@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { UserRound, Plus } from "lucide-react";
 import {
   activeHouseholdProfileId,
   createHouseholdProfile,
   readHouseholdProfiles,
   selectHouseholdProfile,
+  syncHouseholdProfilesFromAccount,
+  saveHouseholdProfilesToAccount,
 } from "@/components/mg/householdProfiles";
 
 export default function HouseholdProfilesPanel() {
@@ -12,6 +14,14 @@ export default function HouseholdProfilesPanel() {
   const [selected, setSelected] = useState(activeHouseholdProfileId);
   const [name, setName] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    syncHouseholdProfilesFromAccount().then(rows => {
+      if (mounted) setProfiles(rows);
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   const switchTo = id => {
     if (id === selected || !selectHouseholdProfile(id)) return;
@@ -30,6 +40,7 @@ export default function HouseholdProfilesPanel() {
       return;
     }
     setProfiles(readHouseholdProfiles());
+    saveHouseholdProfilesToAccount().catch(() => {});
     setSelected(added.id);
     setName("");
     setError("");
@@ -71,7 +82,7 @@ export default function HouseholdProfilesPanel() {
       </form>
       {error && <p role="alert" className="mt-2 text-xs text-red-300">{error}</p>}
       <p className="mt-2 text-[11px] text-white/40">
-        Profile names are saved on this device. Profiles share the current Media God account; they are not separate secure logins.
+        Profile names sync with your Media God account. Your selected profile remains specific to this device; profiles are not separate secure logins.
       </p>
     </section>
   );

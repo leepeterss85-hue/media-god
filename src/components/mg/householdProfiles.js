@@ -30,6 +30,39 @@ export const activeHouseholdProfileId = () => {
 export const activeHouseholdProfile = () =>
   readHouseholdProfiles().find(p => p.id === activeHouseholdProfileId()) || MAIN;
 
+// Share the catalogue of household profiles through the signed-in account.
+// Device-specific selection is deliberately retained to avoid switching a
+// currently playing stream on another device.
+export const mergeAccountHouseholdProfiles = remote => {
+  if (!Array.isArray(remote)) return readHouseholdProfiles();
+  const seen = new Set();
+  const valid = [...remote, ...readHouseholdProfiles().slice(1)].filter(p => {
+    if (!p || p.id === 'main' || !/^[a-z0-9-]{6,50}$/i.test(p.id) ||
+        typeof p.name !== 'string' || !p.name.trim() || seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  }).slice(0, 5);
+  storage()?.setItem(PROFILES_KEY, JSON.stringify(valid));
+  return [MAIN, ...valid];
+};
+
+export const syncHouseholdProfilesFromAccount = async () => {
+  const user = await base44.auth.me();
+  const remote = user?.preferences?.mediaGodHouseholdProfiles;
+  return Array.isArray(remote) ? mergeAccountHouseholdProfiles(remote) : readHouseholdProfiles();
+};
+
+export const saveHouseholdProfilesToAccount = async () => {
+  const user = await base44.auth.me();
+  if (!user) throw new Error('Sign in to sync profiles');
+  const remote = user?.preferences?.mediaGodHouseholdProfiles;
+  const merged = mergeAccountHouseholdProfiles(Array.isArray(remote) ? remote : []);
+  await base44.auth.updateMe({preferences: {
+    ...(user.preferences || {}), mediaGodHouseholdProfiles: merged.slice(1),
+  }});
+  return merged;
+};
+
 const notify = () => {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(PROFILE_CHANGED_EVENT, {
