@@ -1,5 +1,5 @@
 import { readEmbedBookmark } from "./embedWatchingHistory";
-import { profiledLibrary } from "@/components/mg/householdProfiles";
+import { profiledLibrary, activeHouseholdProfileId } from "@/components/mg/householdProfiles";
 import { watchContinueWatchingChanges } from "@/components/mg/continueWatchingSync";
 import React, {
   useEffect,
@@ -260,10 +260,11 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
 
   const load = () => {
     const version = ++loadVersionRef.current;
+    const requestedProfile = activeHouseholdProfileId();
     profiledLibrary.ContinueWatching
       .list("-updated_date", 100)
       .then((rows) => {
-        if (version !== loadVersionRef.current) return;
+        if (version !== loadVersionRef.current || requestedProfile !== activeHouseholdProfileId()) return;
         const entries = [...(rows || [])]
           .map((item) => ({
             item,
