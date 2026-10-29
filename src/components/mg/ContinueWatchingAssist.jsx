@@ -482,10 +482,6 @@ export default function ContinueWatchingAssist() {
           }))
           .filter(({ meta }) => sameContent(meta, context))
           .sort((a, b) => {
-            if (a.meta.canonical !== b.meta.canonical) {
-              return a.meta.canonical ? -1 : 1;
-            }
-
             const aDate = new Date(
               a.row?.updated_date || a.row?.created_date || 0
             ).getTime();

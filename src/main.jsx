@@ -7,6 +7,7 @@ import FireTvPlayerTakeover from '@/components/mg/FireTvPlayerTakeover.jsx'
 import PlaybackReliabilityAssist from '@/components/mg/PlaybackReliabilityAssist.jsx'
 import PlayerEpisodeQuickNav from '@/components/mg/PlayerEpisodeQuickNav.jsx'
 import ContinueWatchingAssist from '@/components/mg/ContinueWatchingAssist.jsx'
+import { syncHouseholdProfilesFromAccount } from '@/components/mg/householdProfiles.js'
 import { installFireTvStableMode } from '@/components/mg/fireTvStableMode.js'
 import { createFireTvRepeatLimiter } from '@/components/mg/fireTvRepeatLimiter.js'
 import {
@@ -630,6 +631,10 @@ window.addEventListener('mg:tv-remote-detected', installFireTvStableMode)
 installFireTvBackHandler()
 installFireTvMediaLifecycle()
 installFireTvHistoryBackGuard()
+
+// Refresh the shared profile catalogue at startup on phone, web and Fire TV.
+// Failure is non-blocking; existing local profiles remain available offline.
+syncHouseholdProfilesFromAccount().catch(() => {})
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <>
