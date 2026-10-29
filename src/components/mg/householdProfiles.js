@@ -105,6 +105,24 @@ export const profileOwnsRow = (row, profileId = activeHouseholdProfileId()) =>
  */
 const scopedEntity = name => {
   const target = base44.entities[name];
+  // Personal history must use the same explicit owner query in the builder
+  // preview and on devices, even when the session has administrative access.
+  const historyOwner = async () => {
+    if (name !== "ContinueWatching") return null;
+    const user = await base44.auth.me();
+    if (!user?.id) throw new Error("Sign in to sync Continue Watching");
+    return user.id;
+  };
+  const assertHistoryOwner = async (id) => {
+    const profileId = activeHouseholdProfileId();
+    const ownerId = await historyOwner();
+    if (!ownerId) return;
+    const rows = await target.filter({ id, created_by_id: ownerId }, "-updated_date", 1);
+    if (!rows?.some(row => row.id === id && row.created_by_id === ownerId &&
+        profileOwnsRow(row, profileId)) || profileId !== activeHouseholdProfileId()) {
+      throw new Error("Continue Watching record is outside the active account or profile");
+    }
+  };
   return {
     list: async (...args) => {
       const profileId = activeHouseholdProfileId();
@@ -113,22 +131,39 @@ const scopedEntity = name => {
       // The secondary profile is queried server-side; Main preserves all
       // historical rows with a missing/default profile_id. This is more
       // reliable than fetching 4x another profile's rows and filtering later.
+      const ownerId = await historyOwner();
+      const owner = ownerId ? { created_by_id: ownerId } : {};
       const rows = profileId === "main"
-        ? await target.list(sort, Math.min(500, Math.max(count, count * 4)), ...rest)
-        : await target.filter({ profile_id: profileId }, sort, count, ...rest);
+        ? ownerId
+          ? await target.filter(owner, sort, Math.min(500, Math.max(count, count * 4)), ...rest)
+          : await target.list(sort, Math.min(500, Math.max(count, count * 4)), ...rest)
+        : await target.filter({ ...owner, profile_id: profileId }, sort, count, ...rest);
       return (Array.isArray(rows) ? rows : [])
-        .filter(row => profileOwnsRow(row, profileId)).slice(0, count);
+        .filter(row => (!ownerId || row.created_by_id === ownerId) &&
+          profileOwnsRow(row, profileId)).slice(0, count);
     },
     filter: async (criteria = {}, ...rest) => {
       const profileId = activeHouseholdProfileId();
-      const rows = await target.filter(profileId === "main"
-        ? criteria
-        : { ...criteria, profile_id: profileId }, ...rest);
-      return (Array.isArray(rows) ? rows : []).filter(row => profileOwnsRow(row, profileId));
+      const ownerId = await historyOwner();
+      const query = {
+        ...criteria,
+        ...(ownerId ? { created_by_id: ownerId } : {}),
+        ...(profileId !== "main" ? { profile_id: profileId } : {}),
+      };
+      const rows = await target.filter(query, ...(rest.length ? rest :
+        name === "ContinueWatching" ? ["-updated_date", 250] : []));
+      return (Array.isArray(rows) ? rows : []).filter(row =>
+        (!ownerId || row.created_by_id === ownerId) && profileOwnsRow(row, profileId));
     },
     create: async row => target.create({ ...row, profile_id: activeHouseholdProfileId() }),
-    update: (...args) => target.update(...args),
-    delete: (...args) => target.delete(...args),
+    update: async (id, patch) => {
+      await assertHistoryOwner(id);
+      return target.update(id, patch);
+    },
+    delete: async id => {
+      await assertHistoryOwner(id);
+      return target.delete(id);
+    },
     subscribe: (...args) => target.subscribe(...args),
   };
 };
