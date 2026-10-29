@@ -82,7 +82,7 @@ export default function HouseholdProfilesPanel() {
       </form>
       {error && <p role="alert" className="mt-2 text-xs text-red-300">{error}</p>}
       <p className="mt-2 text-[11px] text-white/40">
-        Profile names sync with your Media God account. Your selected profile remains specific to this device; profiles are not separate secure logins.
+        Profile names sync with your Media God account. Your selected profile remains specific to this device; they are not separate secure logins.
       </p>
     </section>
   );
