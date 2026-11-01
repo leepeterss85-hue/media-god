@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Mic } from "lucide-react";
 
 import Navbar from "@/components/mg/Navbar";
 import HomeDashboard from "@/components/mg/HomeDashboard";
@@ -18,6 +18,7 @@ import SearchDialog from "@/components/mg/SearchDialog";
 import { searchTmdbId } from "@/components/mg/searchMediaIdentity";
 import DetailModal from "@/components/mg/DetailModal";
 import FireTvRemote from "@/components/mg/FireTvRemote";
+import VoiceSearchRemoteKey from "@/components/mg/VoiceSearchRemoteKey";
 import MediaGodV2Assist from "@/components/mg/MediaGodV2Assist";
 import PlayerQrRemote from "@/components/mg/PlayerQrRemote";
 import {
@@ -544,6 +545,14 @@ function MediaGodApp() {
     false
   );
 
+  // Bumped whenever the microphone is pressed outside the search dialog.
+  const [
+    voiceSearchRequest,
+    setVoiceSearchRequest,
+  ] = useState(
+    0
+  );
+
   const [
     searchResult,
     setSearchResult,
@@ -803,6 +812,49 @@ function MediaGodApp() {
       []
     );
 
+  /*
+   * Voice search entry point used by the Home microphone and the navigation
+   * rail. The dialog owns listening (native bridge first, then the browser
+   * recogniser) so the transcript lands straight in the search box.
+   */
+  const openVoiceSearch =
+    useCallback(
+      () => {
+        if (playerOpen) {
+          return;
+        }
+
+        setPendingSearchSelection(null);
+        setSearchResult(
+          null
+        );
+
+        setVoiceSearchRequest(
+          (current) => current + 1
+        );
+
+        setSearchOpen(
+          true
+        );
+      },
+      [playerOpen]
+    );
+
+  useEffect(() => {
+    const onVoiceSearchRequest = () => openVoiceSearch();
+
+    window.addEventListener(
+      "mg:voice-search-request",
+      onVoiceSearchRequest
+    );
+
+    return () =>
+      window.removeEventListener(
+        "mg:voice-search-request",
+        onVoiceSearchRequest
+      );
+  }, [openVoiceSearch]);
+
   const handleSearchSelect =
     useCallback(
       (
@@ -953,6 +1005,8 @@ function MediaGodApp() {
 
       <FireTvRemote />
 
+      <VoiceSearchRemoteKey />
+
       <MediaGodV2Assist />
 
       <FireTvAppUpdateNotice
@@ -966,6 +1020,25 @@ function MediaGodApp() {
       <PlaybackUpdateNotice
         enabled={!playerOpen}
       />
+
+      {/* Always-available voice search on Home and every in-app view. */}
+      {!playerOpen && (
+        <button
+          type="button"
+          data-mg-home-voice-search="true"
+          data-mg-focus-key="home:voice"
+          onClick={openVoiceSearch}
+          aria-label="Search by voice"
+          title="Search by voice"
+          className="fixed bottom-5 right-4 z-[9998] flex min-h-12 items-center gap-2 rounded-full border border-white/15 bg-black/85 px-4 py-2.5 text-sm font-semibold text-white shadow-2xl backdrop-blur-md transition hover:border-mg-green/60 hover:bg-black focus:outline-none focus:ring-4 focus:ring-mg-green/50 md:bottom-6 md:right-6 3xl:min-h-14 3xl:px-5 3xl:text-lg"
+        >
+          <Mic className="h-5 w-5 3xl:h-6 3xl:w-6 text-mg-green" />
+
+          <span className="hidden sm:inline">
+            Voice search
+          </span>
+        </button>
+      )}
 
       {showPageBack && (
         <button
@@ -1055,6 +1128,9 @@ function MediaGodApp() {
             }}
             onSearch={
               openSearch
+            }
+            onVoiceSearch={
+              openVoiceSearch
             }
           />
         )}
@@ -1239,6 +1315,9 @@ function MediaGodApp() {
         }
         onOpenChange={
           setSearchOpen
+        }
+        autoVoice={
+          voiceSearchRequest
         }
         onSelect={(item) => handleSearchSelect(item, true)}
       />

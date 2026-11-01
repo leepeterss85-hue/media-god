@@ -69,8 +69,9 @@ test("voice search and exact title/year matching do not launch another player", 
     searchRelevance({title:"Resident Evil", year:"2002"}, "Resident Evil 2026"));
   assert.ok(searchRelevance({title:"Bad Apples", identity_corrected:true, search_aliases:["Bad Apple"]}, "Bad Apple") >
     searchRelevance({title:"Bad Apple"}, "Bad Apple"));
-  assert.match(source, /mg:native-voice-search-result/);
-  assert.match(source, /event\?\.detail\?\.text \|\| event\?\.detail\?\.transcript/);
+  const engine = read("src/components/mg/voiceSearch.js");
+  assert.match(engine, /mg:native-voice-search-result/);
+  assert.match(engine, /detail\.text \|\| detail\.transcript/);
   assert.equal((source.match(/onClick=\{startVoiceSearch\}/g) || []).length, 1, "One accessible voice-search button, not duplicates");
   assert.match(source, /startVoiceSearch/);
 });

@@ -52,6 +52,10 @@ const searchDialog = requireFile(
   "src/components/mg/SearchDialog.jsx",
   "voice search UI and search integration"
 );
+const voiceSearchEngine = requireFile(
+  "src/components/mg/voiceSearch.js",
+  "voice search engine (native bridge + browser recogniser)"
+);
 const castButton = requireFile(
   "src/components/mg/CastButton.jsx",
   "Cast sender and stream MIME handling"
@@ -60,8 +64,9 @@ const castButton = requireFile(
 const nativeCoordinationChecks = [
   [
     searchDialog.includes("Search by voice") &&
-      searchDialog.includes("mg:native-voice-search-result") &&
-      searchDialog.includes("webkitSpeechRecognition"),
+      voiceSearchEngine.includes("mg:native-voice-search-result") &&
+      voiceSearchEngine.includes("webkitSpeechRecognition") &&
+      voiceSearchEngine.includes("startVoiceSearch"),
     "voice search button and browser/native recognition result handling",
   ],
   [

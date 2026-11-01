@@ -11,6 +11,7 @@ import {
   Heart,
   Home as HomeIcon,
   LogOut,
+  Mic,
   MonitorPlay,
   Newspaper,
   Radio,
@@ -182,6 +183,7 @@ export default function Navbar({
   active,
   onSelect,
   onSearch,
+  onVoiceSearch,
 }) {
   const [navigationBlocked, setNavigationBlocked] =
     useState(navigationShouldHide);
@@ -353,6 +355,20 @@ export default function Navbar({
 
               <span className="hidden md:block">
                 Search
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onVoiceSearch}
+              title="Voice search"
+              data-mg-focus-key="nav:voice"
+              className="flex min-h-11 items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white md:justify-start md:px-3"
+            >
+              <Mic className="h-5 w-5 shrink-0 text-mg-green" />
+
+              <span className="hidden md:block">
+                Voice search
               </span>
             </button>
 

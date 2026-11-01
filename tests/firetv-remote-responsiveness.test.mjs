@@ -33,14 +33,15 @@ test("Fire TV optimisations do not intercept keyboard text entry, player surface
 });
 
 test("voice search provides a bounded request, recogniser cleanup and a Fire TV keyboard fallback", () => {
+  const engine = read("src/components/mg/voiceSearch.js");
   const search = read("src/components/mg/SearchDialog.jsx");
-  assert.match(search, /voiceTimeoutRef/);
-  assert.match(search, /15000/);
-  assert.match(search, /voiceRecognitionRef\.current\?\.abort/);
-  assert.match(search, /nativeBridge\.startVoiceSearch/);
-  assert.match(search, /event\?\.detail\?\.text \|\| event\?\.detail\?\.transcript/);
-  assert.match(search, /Fire TV keyboard/);
-  assert.match(search, /if \(voiceListening\) return/);
+  assert.match(engine, /VOICE_SEARCH_TIMEOUT_MS = 15000/);
+  assert.match(engine, /recognition\.abort\?\.\(\)/);
+  assert.match(engine, /bridge\.startVoiceSearch\(\)/);
+  assert.match(engine, /detail\.text \|\| detail\.transcript/);
+  assert.match(engine, /keyboard/i);
+  assert.match(search, /useVoiceSearchInput/);
+  assert.match(search, /onClick=\{startVoiceSearch\}/);
 });
 
 

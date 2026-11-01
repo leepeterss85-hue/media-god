@@ -3,6 +3,7 @@ import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useState } from "react";
 import { Search, Play, Globe } from "lucide-react";
+import VoiceSearchButton from "@/components/mg/VoiceSearchButton";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import {
@@ -317,7 +318,14 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
               onChange={(event) => { const value = event.target.value; if (value && activeProvider) clearProvider(); setQuery(value); }}
               placeholder="Search shows..."
               aria-label="Search TV shows"
-              className="w-full min-h-11 3xl:min-h-12 bg-mg-card border border-white/10 rounded-lg pl-10 3xl:pl-11 pr-3 py-2.5 3xl:py-3 text-sm 3xl:text-base 4xl:text-lg text-white placeholder:text-white/40 focus:outline-none focus:border-mg-green"
+              className="w-full min-h-11 3xl:min-h-12 bg-mg-card border border-white/10 rounded-lg pl-10 3xl:pl-11 pr-12 py-2.5 3xl:py-3 text-sm 3xl:text-base 4xl:text-lg text-white placeholder:text-white/40 focus:outline-none focus:border-mg-green"
+            />
+            <VoiceSearchButton
+              className="absolute right-1 top-1/2 -translate-y-1/2"
+              onResult={(spoken) => {
+                if (spoken && activeProvider) clearProvider();
+                setQuery(spoken);
+              }}
             />
           </div>
 

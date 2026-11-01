@@ -2,7 +2,8 @@ import CatalogueRetryNotice from "@/components/mg/CatalogueRetryNotice";
 import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Mic, Plus, Check, Play, Globe } from "lucide-react";
+import { Search, Plus, Check, Play, Globe } from "lucide-react";
+import VoiceSearchButton from "@/components/mg/VoiceSearchButton";
 import { base44 } from "@/api/base44Client";
 import { catalogueSourceChecker, showBrowseTitleWithSourceEvidence } from "@/components/mg/catalogueSourceCheckerClient";
 import { createRollingSourceChecks } from "@/components/mg/rollingSourceChecks";
@@ -168,9 +169,12 @@ export default function MoviesView() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search or speak movie titles..."
-              className="w-full min-h-11 3xl:min-h-12 bg-mg-card border border-white/10 rounded-lg pl-10 3xl:pl-11 pr-10 py-2.5 3xl:py-3 text-sm 3xl:text-base 4xl:text-lg text-white placeholder:text-white/40 focus:outline-none focus:border-mg-green"
+              className="w-full min-h-11 3xl:min-h-12 bg-mg-card border border-white/10 rounded-lg pl-10 3xl:pl-11 pr-12 py-2.5 3xl:py-3 text-sm 3xl:text-base 4xl:text-lg text-white placeholder:text-white/40 focus:outline-none focus:border-mg-green"
             />
-            <Mic className="w-4 h-4 3xl:w-5 3xl:h-5 absolute right-3 top-1/2 -translate-y-1/2 text-mg-green" />
+            <VoiceSearchButton
+              className="absolute right-1 top-1/2 -translate-y-1/2"
+              onResult={(spoken) => setQuery(spoken)}
+            />
           </div>
 
           <div className="relative w-full sm:w-auto">

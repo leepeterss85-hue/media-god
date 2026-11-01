@@ -111,7 +111,7 @@ test("episode tracking, details, and search build on existing UI", () => {
   assert.match(details,/activeTab === "cast"/);
   assert.match(search,/export const cleanVoiceSearch/);
   assert.match(search,/title\.split\(" "\)\.includes\(titleWanted\)/);
-  assert.match(search,/setQuery\(cleanVoiceSearch\(spoken\)\)/);
+  assert.match(search,/setQuery\(spoken\)/);
 });
 
 test("all three personal collections have a profile_id schema without altering account RLS", () => {

@@ -21,6 +21,7 @@ import { catalogueSourceKey, SOURCE_CHECK_BATCH } from "@/components/mg/catalogu
 import { catalogueSourceChecker, showBrowseTitleWithSourceEvidence } from "@/components/mg/catalogueSourceCheckerClient";
 import { getFreeTvChannels } from "@/components/mg/freeTvPlaylist";
 import { searchTmdbId } from "@/components/mg/searchMediaIdentity";
+import useVoiceSearchInput from "@/components/mg/useVoiceSearchInput";
 import { Image } from "@/components/ui/image";
 
 const PosterImage = /** @type {any} */ (Image);
@@ -429,6 +430,7 @@ export default function SearchDialog({
   open,
   onOpenChange,
   onSelect,
+  autoVoice = 0,
 }) {
   const [
     query,
@@ -436,138 +438,32 @@ export default function SearchDialog({
   ] = useState(
     ""
   );
-  const [voiceListening, setVoiceListening] = useState(false);
-  const [voiceError, setVoiceError] = useState("");
-  const voiceTimeoutRef = useRef(null);
-  const voiceRecognitionRef = useRef(null);
-  const clearVoiceTimeout = useCallback(() => {
-    if (voiceTimeoutRef.current !== null) {
-      window.clearTimeout(voiceTimeoutRef.current);
-      voiceTimeoutRef.current = null;
-    }
-  }, []);
-  const waitForVoiceResult = useCallback(() => {
-    clearVoiceTimeout();
-    voiceTimeoutRef.current = window.setTimeout(() => {
-      voiceTimeoutRef.current = null;
-      setVoiceListening(false);
-      setVoiceError("No voice-search result was received. Press Select on the search box to use your Fire TV keyboard instead.");
-      inputRef.current?.focus?.();
-    }, 15000);
-  }, [clearVoiceTimeout]);
+  const {
+    listening: voiceListening,
+    error: voiceError,
+    setError: setVoiceError,
+    listen: startVoiceSearch,
+  } = useVoiceSearchInput((spoken) => {
+    setQuery(spoken);
+    setVoiceError("");
+    inputRef.current?.focus?.();
+  });
 
+  /*
+   * Home screen / navigation-rail microphone opens this dialog and bumps
+   * `autoVoice`, so the same listening flow starts without a second tap.
+   */
   useEffect(() => {
-    if (!open) {
-      clearVoiceTimeout();
-      voiceRecognitionRef.current?.abort?.();
-      voiceRecognitionRef.current = null;
+    if (!open || !autoVoice) {
       return undefined;
     }
-    const onVoiceResult = (event) => {
-      // Fire TV sends `text`; Android phone sends `transcript`.
-      // Both are valid native speech-recognition results.
-      const spoken = cleanVoiceSearch(event?.detail?.text || event?.detail?.transcript);
-      clearVoiceTimeout();
-      setVoiceListening(false);
-      if (spoken) {
-        setQuery(spoken);
-        setVoiceError("");
-        inputRef.current?.focus?.();
-      } else if (event?.detail?.error === "cancelled") {
-        setVoiceError("");
-        inputRef.current?.focus?.();
-      } else if (event?.detail?.error) {
-        setVoiceError("Fire TV could not recognise that request. Select the search box to use the Fire TV keyboard, or type a title.");
-        inputRef.current?.focus?.();
-      }
-    };
-    window.addEventListener("mg:voice-search-result", onVoiceResult);
-    window.addEventListener("mg:native-voice-search-result", onVoiceResult);
-    return () => {
-      window.removeEventListener("mg:voice-search-result", onVoiceResult);
-      window.removeEventListener("mg:native-voice-search-result", onVoiceResult);
-      clearVoiceTimeout();
-      voiceRecognitionRef.current?.abort?.();
-      voiceRecognitionRef.current = null;
-    };
-  }, [open, clearVoiceTimeout]);
 
-  const nativeBridgeUnavailableMessage = () =>
-    "Fire TV voice recognition is not installed or available. Press Select on the search box to open the Fire TV keyboard; use its microphone if offered, or type the title.";
+    const timer = window.setTimeout(() => {
+      startVoiceSearch();
+    }, 220);
 
-  const startVoiceSearch = useCallback(() => {
-    if (voiceListening) return;
-    setVoiceError("");
-    try {
-      const nativeBridge = window.MediaGodNative;
-      if (nativeBridge && typeof nativeBridge.startVoiceSearch === "function") {
-        const started = nativeBridge.startVoiceSearch();
-        if (started === true || started === "true") {
-          setVoiceListening(true);
-          waitForVoiceResult();
-          return;
-        }
-      }
-    } catch {
-      // Use browser speech recognition if this browser provides it.
-    }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setVoiceListening(false);
-      setVoiceError(nativeBridgeUnavailableMessage());
-      inputRef.current?.focus?.();
-      return;
-    }
-    try {
-      const recognition = new SpeechRecognition();
-      voiceRecognitionRef.current = recognition;
-      recognition.lang = "en-GB";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      let receivedText = false;
-      let recognitionFailed = false;
-      recognition.onresult = (event) => {
-        const spoken = event?.results?.[0]?.[0]?.transcript;
-        if (spoken) {
-          receivedText = true;
-          clearVoiceTimeout();
-          setQuery(cleanVoiceSearch(spoken));
-          setVoiceError("");
-          inputRef.current?.focus?.();
-        }
-        setVoiceListening(false);
-      };
-      recognition.onerror = (event) => {
-        recognitionFailed = true;
-        clearVoiceTimeout();
-        setVoiceListening(false);
-        const failure = String(event?.error || "");
-        setVoiceError(failure === "not-allowed" || failure === "service-not-allowed"
-          ? "Microphone access was denied. Use the Fire TV keyboard or type a title."
-          : failure === "no-speech"
-            ? "No speech heard. Try again or use the Fire TV keyboard."
-            : "Voice search could not complete. Use the Fire TV keyboard or type a title.");
-      };
-      recognition.onend = () => {
-        clearVoiceTimeout();
-        setVoiceListening(false);
-        voiceRecognitionRef.current = null;
-        if (!receivedText && !recognitionFailed) {
-          setVoiceError("No speech was recognised. Try again or use the Fire TV keyboard.");
-        }
-      };
-      recognition.start();
-      setVoiceListening(true);
-      waitForVoiceResult();
-    } catch {
-      clearVoiceTimeout();
-      voiceRecognitionRef.current = null;
-      setVoiceListening(false);
-      setVoiceError(nativeBridgeUnavailableMessage());
-      inputRef.current?.focus?.();
-    }
-  }, [voiceListening, waitForVoiceResult, clearVoiceTimeout]);
-
+    return () => window.clearTimeout(timer);
+  }, [open, autoVoice, startVoiceSearch]);
 
   const [
     results,
@@ -838,6 +734,10 @@ export default function SearchDialog({
       if (!open) {
         requestRef.current +=
           1;
+
+        setVoiceError(
+          ""
+        );
 
         setQuery(
           ""
