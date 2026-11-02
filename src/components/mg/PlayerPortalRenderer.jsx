@@ -9,6 +9,7 @@ import ExtraEmbedPlayer from "@/components/mg/ExtraEmbedPlayer";
 import OnlyFlixEmbedPlayer from "@/components/mg/OnlyFlixEmbedPlayer";
 import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
 import { isManualSourcesClick, sourcePickerMedia } from "@/components/mg/freshWatchSourceSelection";
+import { isAndroidMobileRuntime, isFireTvRuntime } from "@/components/mg/runtimePlatform";
 import WebtorEmbedPlayer from "@/components/mg/WebtorEmbedPlayer";
 import WebTorrentPlayer from "@/components/mg/WebTorrentPlayer";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
@@ -95,7 +96,7 @@ export default function PlayerPortalRenderer({
     // A Fire Stick remote Select synthesises a click just like a pointer.
     // Only an explicit Sources click opens this list. Automatic iframe
     // failures still use the original automatic torrent fallback.
-    if (isManualSourcesClick(event)) {
+    if (isFireTvRuntime() && !isAndroidMobileRuntime() && isManualSourcesClick(event)) {
       setSourcePickerRequest(source.playRequestId);
       return;
     }
