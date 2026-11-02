@@ -13,6 +13,7 @@ import { base44 } from "@/api/base44Client";
 import { canonicalizeCatalogPlaybackRequest } from "./catalogMediaIdentity";
 import { episodeHasAired, freshEpisodePreparation, resetEpisodePlaybackState, shouldRefreshEpisodePreparation } from "./episodeExperience";
 import { restoreResumeSource } from "./resumeSource";
+import FreshWatchSourcesOverlay from "./FreshWatchSourcesOverlay";
 
 import {
   PlayerProvider as CorePlayerProvider,
@@ -1726,6 +1727,7 @@ function PlayerAutomationBridge({ children }) {
       value={value}
     >
       {children}
+      <FreshWatchSourcesOverlay />
     </EnhancedPlayerContext.Provider>
   );
 }
