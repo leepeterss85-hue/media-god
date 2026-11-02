@@ -65,8 +65,6 @@ test('Continue Watching is the second Home row after featured, only once, withou
   assert.equal((home.match(/<ContinueWatchingRow /g) || []).length, 1,
     'Never show two Continue Watching rows');
   assert.match(home, /homeOrder \|\| \[\]\)\.filter\(\(id\) => id !== "continue-watching"\)/);
-  // Continue Watching is pinned: stale local display preferences must not
-  // hide an otherwise valid cross-device resume history.
-  assert.doesNotMatch(home, /!hiddenHomeSections\.has\("continue-watching"\)/);
+  assert.match(home, /hiddenHomeSections\.has\("continue-watching"\)/);
   assert.match(home, /featured>continue-watching>new-films>new-tv/);
 });

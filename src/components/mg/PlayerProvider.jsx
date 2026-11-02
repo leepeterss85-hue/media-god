@@ -21,17 +21,7 @@ import {
   buildMediaSources,
 } from "./MediaPlayerProvider.jsx";
 
-/*
- * Kept on globalThis for the same reason as the core player context: a hot
- * update can leave the page holding two copies of this module, and two
- * createContext() calls would give the mounted provider and its consumers
- * different context objects ("usePlayer must be used within a PlayerProvider").
- * One shared object per page makes that impossible.
- */
-const EnhancedPlayerContext =
-  globalThis.__MG_ENHANCED_PLAYER_CONTEXT_OBJECT__ ||
-  (globalThis.__MG_ENHANCED_PLAYER_CONTEXT_OBJECT__ =
-    createContext(null));
+const EnhancedPlayerContext = createContext(null);
 
 const unwrap = (response) =>
   response?.data ??

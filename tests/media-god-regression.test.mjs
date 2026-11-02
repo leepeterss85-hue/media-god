@@ -1046,10 +1046,14 @@ test("player context is owned above the authenticated routes tree", () => {
     appSource,
     /const appRoutes = \([\s\S]{0,120}<Routes>/
   );
-  // Keep the same player instance outside auth and route transitions.
-  assert.match(appSource, /<Router>[\s\S]*?<PlayerProvider>[\s\S]*?<AuthenticatedApp\s*\/>[\s\S]*?<\/PlayerProvider>/);
-  assert.match(appSource, /return appRoutes;/);
-  assert.doesNotMatch(appSource, /return <PlayerProvider>\{appRoutes\}<\/PlayerProvider>/);
+  assert.match(
+    appSource,
+    /return <PlayerProvider>\{appRoutes\}<\/PlayerProvider>/
+  );
+  assert.doesNotMatch(
+    appSource,
+    /<PlayerProvider>[\s\S]{0,240}<ProtectedRoute/
+  );
   assert.doesNotMatch(homeSource, /<PlayerProvider>/);
   assert.match(
     homeSource,

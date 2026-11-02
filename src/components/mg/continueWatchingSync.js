@@ -30,10 +30,7 @@ export function watchContinueWatchingChanges(refresh, {
   }
   documentObject.addEventListener('visibilitychange', refreshOnVisible);
   const timer = windowObject.setInterval(refreshIfVisible, intervalMs);
-  // Always fetch once when the row mounts. Embedded previews and some
-  // Android TV WebViews can temporarily report a hidden document even while
-  // the app is onscreen; gating the first fetch leaves loading=true forever.
-  refresh();
+  refreshIfVisible();
   return () => {
     stopped = true;
     windowObject.clearInterval(timer);

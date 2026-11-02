@@ -1277,12 +1277,11 @@ export default function HomeDashboard({ onOpenTvService }) {
           />
         </div>
 
-        {/* Continue Watching is a core playback row, not a dismissible
-            recommendation. Keep its position immediately below Featured
-            even if older stored display preferences hide it. */}
-        <div data-mg-home-snap="true" data-mg-home-second="continue-watching">
-          <ContinueWatchingRow onOpenDetail={open} />
-        </div>
+        {!hiddenHomeSections.has("continue-watching") && (
+          <div data-mg-home-snap="true" data-mg-home-second="continue-watching">
+            <ContinueWatchingRow onOpenDetail={open} />
+          </div>
+        )}
 
         {(uxPreferences.homeOrder || []).filter((id) => id !== "continue-watching").map((sectionId) => {
           const section = renderHomeSection(sectionId);

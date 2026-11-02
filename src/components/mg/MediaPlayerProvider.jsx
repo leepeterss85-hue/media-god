@@ -38,7 +38,7 @@ import { episodeSourceMatchesRequest, flixQuestFirstEpisodeSources, hasUsableEpi
 import { episodeAutoplayCanTrustSource } from "./episodeLaunchTrust.js";
 import { episodeAutoprepareCandidates } from "./episodeAutoprepare.js";
 
-const PlayerContext = globalThis.__MG_PLAYER_CONTEXT_OBJECT__ || (globalThis.__MG_PLAYER_CONTEXT_OBJECT__ = createContext(null));
+const PlayerContext = createContext(null);
 
 const FOREIGN_RE =
   /(truefrench|vostfr|vost|subfrench|\bvf\b|\bvff\b|\bvfi\b|french|spanish|german|italian|russian|\brus\b|hindi|\bhin\b|polish|turkish|arabic|japanese|korean|chinese|portuguese|\bdubbed\b)/i;
