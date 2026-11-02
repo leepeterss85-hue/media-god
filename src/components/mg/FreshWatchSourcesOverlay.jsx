@@ -48,7 +48,7 @@ export default function FreshWatchSourcesOverlay() {
           <div className="min-w-0">
             <h2 className="truncate text-base font-bold">Sources · {lookup.title}</h2>
             <p className="text-xs text-white/60">
-              Choose a Real-Debrid or addon stream for this title.
+              Choose the same Real-Debrid, addon or web-player sources as the film and episode pages.
             </p>
           </div>
           <button
@@ -73,7 +73,6 @@ export default function FreshWatchSourcesOverlay() {
           season={lookup.season}
           episode={lookup.episode}
           resumeAt={lookup.resumeAt}
-          torrentOnly
         />
       </section>
     </div>,
