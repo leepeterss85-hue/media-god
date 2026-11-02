@@ -87,7 +87,17 @@ test("fresh Sources use the enhanced player context and retain the automatic fal
   assert.match(overlay, /mediaType=\{lookup\.mediaType\}/);
   assert.match(overlay, /season=\{lookup\.season\}/);
   assert.match(overlay, /episode=\{lookup\.episode\}/);
-  assert.match(overlay, /torrentOnly/);
+  // Fresh watch must follow the full working film and episode boxes,
+  // NOT Continue Watching's deliberately torrent-only resume picker.
+  const film = read("src/components/mg/DetailModal.jsx");
+  const episodes = read("src/components/mg/EpisodeSelector.jsx");
+  assert.match(film, /<StreamSourcesBox/);
+  assert.match(episodes, /<StreamSourcesBox/);
+  assert.doesNotMatch(overlay, /torrentOnly/);
+  assert.match(overlay, /<StreamSourcesBox/);
+  assert.match(overlay, /tmdbId=\{lookup\.tmdbId\}/);
+  assert.match(overlay, /imdbId=\{lookup\.imdbId\}/);
+
   assert.match(overlay, /mg:fresh-watch-sources-closed/);
   assert.match(onlyflix, /onClick=\{onOpenSources\}/);
   assert.match(onlyflix, /onOpenSources\(\);/);
