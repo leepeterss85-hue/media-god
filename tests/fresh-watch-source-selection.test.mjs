@@ -52,10 +52,24 @@ test("fresh episode Sources search the series title and exact episode rather tha
   assert.equal(result.resumeAt, 520);
 });
 
+test("specials keep season zero rather than being treated as a generic TV page", () => {
+  const result = sourcePickerMedia({
+    mediaType: "tv",
+    title: "Special",
+    rdTitle: "The Series",
+    tmdbId: 151,
+    season: 0,
+    episode: 1,
+  });
+  assert.equal(result.season, 0);
+  assert.equal(result.episode, 1);
+});
+
 test("fresh Sources remain inside the hosted player and preserve failure fallback", () => {
   const portal = read("src/components/mg/PlayerPortalRenderer.jsx");
   const onlyflix = read("src/components/mg/OnlyFlixEmbedPlayer.jsx");
   const history = read("src/components/mg/ContinueWatchingRow.jsx");
+  assert.match(portal, /isFireTvRuntime\(\) && !isAndroidMobileRuntime\(\)/);
   assert.match(portal, /isManualSourcesClick\(event\)/);
   assert.match(portal, /setSourcePickerRequest\(source\.playRequestId\)/);
   assert.match(portal, /onFallbackSources\?\.\(\)/);
