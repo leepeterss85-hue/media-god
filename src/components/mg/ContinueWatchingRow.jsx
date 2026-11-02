@@ -641,12 +641,11 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     [items]
   );
 
-  if (loading || (displayItems.length === 0 && !syncError)) {
-    return null;
-  }
-
+  // The row must never vanish silently while the account is loading or
+  // an interrupted provider/auth request temporarily returns no entries.
+  // Leave the saved records untouched and offer a clear retry.
   return (
-    <section className="mg-fire-tv-resume-section px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14 pt-3 sm:pt-5">
+    <section aria-busy={loading} className="mg-fire-tv-resume-section px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14 pt-3 sm:pt-5">
       <div className="flex items-center gap-2.5 3xl:gap-3 mb-4 3xl:mb-5">
         <History className="w-4 h-4 3xl:w-5 3xl:h-5 text-mg-green" />
 
@@ -661,6 +660,17 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
         </div>
       </div>
 
+      {loading && (
+        <div role="status" className="mb-3 rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-xs text-white/60">
+          Loading your saved Continue Watching titles…
+        </div>
+      )}
+      {!loading && displayItems.length === 0 && !syncError && (
+        <div role="status" className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-xs text-white/70">
+          <span>No in-progress titles were returned for this profile. Your account history has not been deleted.</span>
+          <button type="button" onClick={load} className="min-h-11 rounded-lg border border-white/20 px-3 text-white focus:outline-none focus:ring-2 focus:ring-mg-green">Refresh history</button>
+        </div>
+      )}
       {syncError && <div role="status" className="mb-3 flex flex-wrap items-center gap-3 text-xs text-amber-200">
         <span>{syncError}</span>
         <button type="button" onClick={load} className="min-h-11 rounded-lg border border-white/20 px-3 text-white">Retry sync</button>
