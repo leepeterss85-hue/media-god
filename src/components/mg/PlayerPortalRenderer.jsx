@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import EmbedWatchingTracker from "./EmbedWatchingTracker";
 import { createPortal } from "react-dom";
 import VideoPlayer from "@/components/mg/VideoPlayer";
@@ -7,6 +7,8 @@ import EmbedSuPlayer from "@/components/mg/EmbedSuPlayer";
 import VidCoreEmbedPlayer from "@/components/mg/VidCoreEmbedPlayer";
 import ExtraEmbedPlayer from "@/components/mg/ExtraEmbedPlayer";
 import OnlyFlixEmbedPlayer from "@/components/mg/OnlyFlixEmbedPlayer";
+import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
+import { isManualSourcesClick, sourcePickerMedia } from "@/components/mg/freshWatchSourceSelection";
 import WebtorEmbedPlayer from "@/components/mg/WebtorEmbedPlayer";
 import WebTorrentPlayer from "@/components/mg/WebTorrentPlayer";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
@@ -81,9 +83,24 @@ export default function PlayerPortalRenderer({
   close,
   setVidSrcEmbed,
   setMagnetPlayer,
-  onOpenSources,
+  onOpenSources: onFallbackSources,
 }) {
+  const [sourcePickerRequest, setSourcePickerRequest] = useState(null);
   if (!source || typeof document === "undefined") return null;
+
+  const manualSourcesOpen = sourcePickerRequest !== null &&
+    sourcePickerRequest === source.playRequestId;
+  const manualLookup = sourcePickerMedia(source);
+  const onOpenSources = (event) => {
+    // A Fire Stick remote Select synthesises a click just like a pointer.
+    // Only an explicit Sources click opens this list. Automatic iframe
+    // failures still use the original automatic torrent fallback.
+    if (isManualSourcesClick(event)) {
+      setSourcePickerRequest(source.playRequestId);
+      return;
+    }
+    onFallbackSources?.();
+  };
 
   const exitToDestination = () => {
     const isEpisode = source.mediaType === "tv" ||
@@ -145,7 +162,52 @@ export default function PlayerPortalRenderer({
       onClose={exitToDestination}
     >
       {vidSrcEmbed && <EmbedWatchingTracker media={source} embed={vidSrcEmbed} />}
-      {magnetPlayer?.type === "webtor" ? (
+      {manualSourcesOpen ? (
+        <div
+          data-mg-player-root="true"
+          data-mg-manual-sources="true"
+          className="fixed inset-0 z-[2147483646] flex items-center justify-center bg-black/95 p-3 text-white"
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Sources for ${manualLookup.title}`}
+            className="max-h-[94dvh] w-full max-w-3xl overflow-y-auto rounded-xl border border-white/20 bg-zinc-950 p-4"
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-bold">Sources · {manualLookup.title}</h2>
+                <p className="text-xs text-white/60">
+                  Choose a Real-Debrid or addon stream for this title.
+                </p>
+              </div>
+              <button
+                type="button"
+                data-mg-player-exit="true"
+                aria-label="Back to web player"
+                onClick={() => setSourcePickerRequest(null)}
+                className="min-h-11 shrink-0 rounded-lg border border-white/20 px-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-mg-green"
+              >
+                Back to player
+              </button>
+            </div>
+            <StreamSourcesBox
+              title={manualLookup.title}
+              poster={manualLookup.poster}
+              rdYear={manualLookup.rdYear}
+              alternateYears={manualLookup.alternateYears}
+              alternateTitles={manualLookup.alternateTitles}
+              tmdbId={manualLookup.tmdbId}
+              imdbId={manualLookup.imdbId}
+              mediaType={manualLookup.mediaType}
+              season={manualLookup.season}
+              episode={manualLookup.episode}
+              resumeAt={manualLookup.resumeAt}
+              torrentOnly
+            />
+          </section>
+        </div>
+      ) : magnetPlayer?.type === "webtor" ? (
         <WebtorEmbedPlayer
           magnet={magnetPlayer.magnet}
           title={magnetPlayer.title}
