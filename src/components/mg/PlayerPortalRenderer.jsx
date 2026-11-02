@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import EmbedWatchingTracker from "./EmbedWatchingTracker";
 import { createPortal } from "react-dom";
 import VideoPlayer from "@/components/mg/VideoPlayer";
@@ -7,8 +7,6 @@ import EmbedSuPlayer from "@/components/mg/EmbedSuPlayer";
 import VidCoreEmbedPlayer from "@/components/mg/VidCoreEmbedPlayer";
 import ExtraEmbedPlayer from "@/components/mg/ExtraEmbedPlayer";
 import OnlyFlixEmbedPlayer from "@/components/mg/OnlyFlixEmbedPlayer";
-import { isManualSourcesClick, sourcePickerMedia } from "@/components/mg/freshWatchSourceSelection";
-import { isAndroidMobileRuntime, isFireTvRuntime } from "@/components/mg/runtimePlatform";
 import WebtorEmbedPlayer from "@/components/mg/WebtorEmbedPlayer";
 import WebTorrentPlayer from "@/components/mg/WebTorrentPlayer";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
@@ -83,39 +81,9 @@ export default function PlayerPortalRenderer({
   close,
   setVidSrcEmbed,
   setMagnetPlayer,
-  onOpenSources: onFallbackSources,
+  onOpenSources,
 }) {
-  const [sourcePickerRequest, setSourcePickerRequest] = useState(null);
-  useEffect(() => {
-    const onClosed = () => setSourcePickerRequest(null);
-    window.addEventListener("mg:fresh-watch-sources-closed", onClosed);
-    return () => window.removeEventListener("mg:fresh-watch-sources-closed", onClosed);
-  }, []);
-  useEffect(() => {
-    // Once a manual source starts another playback request, remove the
-    // selector. The original web player remains available on cancel.
-    if (sourcePickerRequest !== null && source?.playRequestId !== sourcePickerRequest) {
-      window.dispatchEvent(new Event("mg:fresh-watch-sources-close"));
-      setSourcePickerRequest(null);
-    }
-  }, [source?.playRequestId, sourcePickerRequest]);
-
   if (!source || typeof document === "undefined") return null;
-
-  const manualSourcesOpen = sourcePickerRequest !== null &&
-    sourcePickerRequest === source.playRequestId;
-  const onOpenSources = (event) => {
-    // Real Fire TV OK generates a click. Automatic iframe recovery calls
-    // this handler without an event and must retain its normal fallback.
-    if (isFireTvRuntime() && !isAndroidMobileRuntime() && isManualSourcesClick(event)) {
-      setSourcePickerRequest(source.playRequestId);
-      window.dispatchEvent(new CustomEvent("mg:fresh-watch-sources-open", {
-        detail: sourcePickerMedia(source),
-      }));
-      return;
-    }
-    onFallbackSources?.();
-  };
 
   const exitToDestination = () => {
     const isEpisode = source.mediaType === "tv" ||
@@ -177,7 +145,7 @@ export default function PlayerPortalRenderer({
       onClose={exitToDestination}
     >
       {vidSrcEmbed && <EmbedWatchingTracker media={source} embed={vidSrcEmbed} />}
-      {manualSourcesOpen ? null : magnetPlayer?.type === "webtor" ? (
+      {magnetPlayer?.type === "webtor" ? (
         <WebtorEmbedPlayer
           magnet={magnetPlayer.magnet}
           title={magnetPlayer.title}
