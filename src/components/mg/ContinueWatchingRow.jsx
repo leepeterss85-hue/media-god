@@ -764,6 +764,8 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                 <button
                   type="button"
                   data-mg-continue-resume="true"
+                  data-mg-focus-key={`continue:${identityFor(meta)}:resume`}
+                  aria-label={`Resume ${meta.title}`}
                   onClick={(event) => { event.stopPropagation(); void openDetail(item); }}
                   onKeyDown={(event) => event.stopPropagation()}
                   className="flex min-h-11 items-center justify-center gap-1 rounded-lg bg-mg-green px-2 text-xs font-bold text-black focus:outline-none focus:ring-2 focus:ring-white"
@@ -774,6 +776,8 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                 <button
                   type="button"
                   data-mg-continue-sources="true"
+                  data-mg-focus-key={`continue:${identityFor(meta)}:sources`}
+                  aria-label={`Sources ${meta.title}`}
                   onClick={(event) => { void openTorrentSources(item, event); }}
                   onKeyDown={(event) => event.stopPropagation()}
                   className="flex min-h-11 items-center justify-center gap-1 rounded-lg border border-mg-green/40 bg-mg-green/10 px-2 text-xs font-semibold text-mg-green focus:outline-none focus:ring-2 focus:ring-mg-green"
@@ -784,6 +788,8 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                 <button
                   type="button"
                   data-mg-continue-reviews="true"
+                  data-mg-focus-key={`continue:${identityFor(meta)}:reviews`}
+                  aria-label={`Reviews ${meta.title}`}
                   onClick={(event) => { void openReviews(item, event); }}
                   onKeyDown={(event) => event.stopPropagation()}
                   className="flex min-h-11 items-center justify-center gap-1 rounded-lg border border-white/15 bg-white/5 px-2 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
@@ -794,6 +800,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                 <button
                   type="button"
                   data-mg-continue-player-options="true"
+                  data-mg-focus-key={`continue:${identityFor(meta)}:web-player`}
                   onClick={(event) => { void openPlayerOptions(item, event); }}
                   onKeyDown={(event) => event.stopPropagation()}
                   aria-label={`Open web player alternatives for ${meta.title} (may restart)`}
@@ -805,6 +812,8 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                 <button
                   type="button"
                   data-mg-continue-download="true"
+                  data-mg-focus-key={`continue:${identityFor(meta)}:download`}
+                  aria-label={`Download ${meta.title}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     setDownloadPicker({ item, meta });
