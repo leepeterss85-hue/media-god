@@ -65,22 +65,30 @@ test("specials keep season zero rather than being treated as a generic TV page",
   assert.equal(result.episode, 1);
 });
 
-test("fresh Sources remain inside the hosted player and preserve failure fallback", () => {
+test("fresh Sources use the enhanced player context and retain the automatic fallback", () => {
   const portal = read("src/components/mg/PlayerPortalRenderer.jsx");
+  const overlay = read("src/components/mg/FreshWatchSourcesOverlay.jsx");
+  const enhanced = read("src/components/mg/PlayerProvider.jsx");
   const onlyflix = read("src/components/mg/OnlyFlixEmbedPlayer.jsx");
   const history = read("src/components/mg/ContinueWatchingRow.jsx");
+
   assert.match(portal, /isFireTvRuntime\(\) && !isAndroidMobileRuntime\(\)/);
   assert.match(portal, /isManualSourcesClick\(event\)/);
   assert.match(portal, /setSourcePickerRequest\(source\.playRequestId\)/);
+  assert.match(portal, /mg:fresh-watch-sources-open/);
   assert.match(portal, /onFallbackSources\?\.\(\)/);
-  assert.match(portal, /manualSourcesOpen \? \(/);
-  assert.match(portal, /data-mg-manual-sources="true"/);
-  assert.match(portal, /<StreamSourcesBox/);
-  assert.match(portal, /mediaType=\{manualLookup\.mediaType\}/);
-  assert.match(portal, /season=\{manualLookup\.season\}/);
-  assert.match(portal, /episode=\{manualLookup\.episode\}/);
-  assert.match(portal, /torrentOnly/);
-  assert.match(portal, /onClick=\{\(\) => setSourcePickerRequest\(null\)\}/);
+  assert.match(portal, /manualSourcesOpen \? null : magnetPlayer/);
+  assert.doesNotMatch(portal, /<StreamSourcesBox/, "the core portal must not render enhanced-only controls");
+
+  assert.match(enhanced, /<FreshWatchSourcesOverlay/);
+  assert.match(overlay, /<StreamSourcesBox/);
+  assert.match(overlay, /data-mg-player-root="true"/);
+  assert.match(overlay, /data-mg-manual-sources="true"/);
+  assert.match(overlay, /mediaType=\{lookup\.mediaType\}/);
+  assert.match(overlay, /season=\{lookup\.season\}/);
+  assert.match(overlay, /episode=\{lookup\.episode\}/);
+  assert.match(overlay, /torrentOnly/);
+  assert.match(overlay, /mg:fresh-watch-sources-closed/);
   assert.match(onlyflix, /onClick=\{onOpenSources\}/);
   assert.match(onlyflix, /onOpenSources\(\);/);
   assert.match(history, /<StreamSourcesBox/);
