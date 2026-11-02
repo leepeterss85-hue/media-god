@@ -242,6 +242,16 @@ export default function MediaGodV2Assist() {
   const hasCreditsMarker = creditsStart != null && creditsStart > 0;
 
   /*
+   * Web-embed players run inside a cross-origin frame and never expose a
+   * playback clock, so marker-based skip actions cannot fire there. Moving on
+   * to the next episode must still work, so it gets its own always-available
+   * action whenever the player has no clock of its own.
+   */
+  const hasPlaybackClock = duration > 0;
+  const showEmbedNextAction =
+    isTv && !hasPlaybackClock && hasNextEpisode;
+
+  /*
    * Never invent recap/intro timing from the episode clock. A wrong skip is
    * worse than no button, so these controls only appear when the playback
    * request carries an explicit marker for the current episode.
@@ -620,6 +630,21 @@ export default function MediaGodV2Assist() {
         >
           <SkipBack className="h-4 w-4" />
           Previous
+        </button>
+      )}
+
+      {showEmbedNextAction && !showNextAction && (
+        <button
+          type="button"
+          onPointerDown={(event) => runAction(event, playNext)}
+          onClick={(event) => runClickFallback(event, playNext)}
+          onKeyDown={(event) => runKeyAction(event, playNext)}
+          tabIndex={0}
+          className={buttonClass}
+          aria-label="Play next episode"
+        >
+          <SkipForward className="h-4 w-4" />
+          Next episode
         </button>
       )}
 

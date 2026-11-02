@@ -156,7 +156,23 @@ html:has([data-mg-home-dashboard="true"]) [data-mg-home-snap="true"] {
   scroll-snap-stop: normal;
 }
 
+@keyframes mg-episode-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @layer utilities {
+  /* Netflix-style settle when the episode list swaps to another season. */
+  .mg-episode-enter {
+    animation: mg-episode-enter 240ms ease-out both;
+  }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }

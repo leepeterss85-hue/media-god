@@ -108,6 +108,7 @@ export default function PlayerEpisodeQuickNav() {
   const episodeKeyRef = useRef(episodeNavigationKey(context));
   const pickerRequestRef = useRef(0);
   const seasonCacheRef = useRef(new Map());
+  const seasonCacheAtRef = useRef(new Map());
 
   useEffect(() => {
     const refreshTarget = () => setTarget(playerOverlay());
@@ -130,6 +131,7 @@ export default function PlayerEpisodeQuickNav() {
         episodeKeyRef.current = nextKey;
         ++pickerRequestRef.current;
         seasonCacheRef.current.clear();
+        seasonCacheAtRef.current.clear();
         setPickerOpen(false);
         setPickerBusy(false);
         setPickerError("");
@@ -173,12 +175,23 @@ export default function PlayerEpisodeQuickNav() {
 
     const cacheKey = `${tmdbId}:${season}`;
     const cached = seasonCacheRef.current.get(cacheKey);
-    if (cached) {
+    const cachedAt = Number(seasonCacheAtRef.current.get(cacheKey) || 0);
+
+    /*
+     * A cached season renders instantly but is only trusted for a couple of
+     * minutes. Past that the list is revalidated, so newly aired episodes and
+     * corrected names never go missing from the in-player picker.
+     */
+    if (cached && Date.now() - cachedAt < 2 * 60 * 1000) {
       if (requestId === pickerRequestRef.current) {
         setEpisodes(cached);
         setPickerBusy(false);
       }
       return;
+    }
+
+    if (cached && requestId === pickerRequestRef.current) {
+      setEpisodes(cached);
     }
 
     try {
@@ -191,6 +204,7 @@ export default function PlayerEpisodeQuickNav() {
       const data = unwrap(response);
       const nextEpisodes = regularEpisodes(data?.episodes);
       seasonCacheRef.current.set(cacheKey, nextEpisodes);
+      seasonCacheAtRef.current.set(cacheKey, Date.now());
       setEpisodes(nextEpisodes);
       if (!nextEpisodes.length) {
         setPickerError("No episodes were returned for this season.");

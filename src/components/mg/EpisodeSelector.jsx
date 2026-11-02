@@ -10,13 +10,12 @@ import React, {
 import {
   Calendar,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Download,
   Loader2,
   ListVideo,
   MessageSquare,
   Play,
+  RefreshCw,
   RotateCcw,
 } from "lucide-react";
 
@@ -26,6 +25,7 @@ import MediaReviews from "@/components/mg/MediaReviews";
 import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
 import MediaDownloadPicker from "@/components/mg/MediaDownloadPicker";
 import SeasonDownloadPicker from "@/components/mg/SeasonDownloadPicker";
+import SeasonRail from "@/components/mg/SeasonRail";
 
 import {
   buildMediaSources,
@@ -289,6 +289,16 @@ export default function EpisodeSelector({
   const [downloadEpisode, setDownloadEpisode] = useState(null);
   const [downloadSeasonOpen, setDownloadSeasonOpen] = useState(false);
   useEffect(() => { setSourcesEpisode(null); setDownloadEpisode(null); setDownloadSeasonOpen(false); }, [season]);
+
+  // Episode lists are revalidated rather than trusted forever: an explicit
+  // refresh, a returning tab, or a long-open screen must not show stale
+  // episode data or watched state.
+  const [episodeRefresh, setEpisodeRefresh] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshingRef = useRef(false);
+  const episodesLoadedAtRef = useRef(0);
+  const seasonScrollReadyRef = useRef(false);
+  const containerRef = useRef(null);
 
   const showTitle =
     showTitleOf(
@@ -613,13 +623,23 @@ export default function EpisodeSelector({
     let mounted =
       true;
 
-    setLoading(
-      true
-    );
+    /*
+     * A season switch starts from a clean list, while a background refresh
+     * keeps the episodes already on screen so nothing flickers.
+     */
+    const keepPrevious =
+      refreshingRef.current ===
+      true;
 
-    setEpisodes(
-      []
-    );
+    if (!keepPrevious) {
+      setLoading(
+        true
+      );
+
+      setEpisodes(
+        []
+      );
+    }
 
     const loadEpisodes =
       async () => {
@@ -683,7 +703,8 @@ export default function EpisodeSelector({
           );
         } catch {
           if (
-            mounted
+            mounted &&
+            !keepPrevious
           ) {
             setEpisodes(
               []
@@ -693,6 +714,16 @@ export default function EpisodeSelector({
           if (
             mounted
           ) {
+            refreshingRef.current =
+              false;
+
+            episodesLoadedAtRef.current =
+              Date.now();
+
+            setRefreshing(
+              false
+            );
+
             setLoading(
               false
             );
@@ -711,6 +742,7 @@ export default function EpisodeSelector({
     item?.tmdb_id,
     item?.tmdbId,
     season,
+    episodeRefresh,
   ]);
 
   useEffect(() => {
@@ -721,60 +753,150 @@ export default function EpisodeSelector({
     season,
   ]);
 
-  const currentSeasonIndex =
-    regularSeasons.findIndex(
-      (
-        seasonItem
-      ) =>
-        String(
-          seasonItem
-            .season_number
-        ) ===
-        String(
-          season
-        )
+  const refreshEpisodeList =
+    () => {
+      if (
+        !season ||
+        loading ||
+        refreshing
+      ) {
+        return;
+      }
+
+      refreshingRef.current =
+        true;
+
+      setRefreshing(
+        true
+      );
+
+      setEpisodeRefresh(
+        (value) =>
+          value + 1
+      );
+    };
+
+  /*
+   * Returning to a long-open screen must not show yesterday's episode list
+   * or watched state. Revalidate quietly once the data is a few minutes old.
+   */
+  useEffect(() => {
+    if (
+      typeof document ===
+      "undefined"
+    ) {
+      return undefined;
+    }
+
+    const revalidate =
+      () => {
+        if (
+          document.visibilityState !==
+            "visible" ||
+          !season ||
+          refreshingRef.current
+        ) {
+          return;
+        }
+
+        if (
+          Date.now() -
+            Number(
+              episodesLoadedAtRef.current ||
+                0
+            ) <
+          5 *
+            60 *
+            1000
+        ) {
+          return;
+        }
+
+        refreshingRef.current =
+          true;
+
+        setRefreshing(
+          true
+        );
+
+        setEpisodeRefresh(
+          (value) =>
+            value + 1
+        );
+      };
+
+    document.addEventListener(
+      "visibilitychange",
+      revalidate
     );
 
-  const goPreviousSeason =
-    () => {
-      if (
-        currentSeasonIndex <=
-        0
-      ) {
-        return;
-      }
+    window.addEventListener(
+      "focus",
+      revalidate
+    );
 
-      setSeason(
-        String(
-          regularSeasons[
-            currentSeasonIndex -
-              1
-          ].season_number
-        )
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        revalidate
+      );
+
+      window.removeEventListener(
+        "focus",
+        revalidate
       );
     };
+  }, [
+    season,
+  ]);
 
-  const goNextSeason =
-    () => {
-      if (
-        currentSeasonIndex <
-          0 ||
-        currentSeasonIndex >=
-          regularSeasons.length -
-            1
-      ) {
-        return;
-      }
+  /*
+   * Netflix keeps the episode list anchored when the season changes instead
+   * of leaving the viewer stranded half-way down the previous season.
+   */
+  useEffect(() => {
+    if (!season) {
+      return;
+    }
 
-      setSeason(
-        String(
-          regularSeasons[
-            currentSeasonIndex +
-              1
-          ].season_number
-        )
-      );
-    };
+    if (!seasonScrollReadyRef.current) {
+      seasonScrollReadyRef.current =
+        true;
+
+      return;
+    }
+
+    const node =
+      containerRef.current;
+
+    if (
+      !node ||
+      typeof node.getBoundingClientRect !==
+        "function"
+    ) {
+      return;
+    }
+
+    const rect =
+      node.getBoundingClientRect();
+
+    if (
+      rect.top < 0 ||
+      rect.top >
+        window.innerHeight *
+          0.5
+    ) {
+      node.scrollIntoView({
+        behavior:
+          "smooth",
+
+        block:
+          "start",
+      });
+    }
+  }, [
+    season,
+  ]);
 
   const playEpisodeNumber =
     async ({
@@ -1014,6 +1136,7 @@ export default function EpisodeSelector({
   return (
     <div
       id="mg-episode-selector"
+      ref={containerRef}
       className="mt-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -1021,14 +1144,35 @@ export default function EpisodeSelector({
           Episodes
         </h3>
 
-        {progressLoading && (
-          <span className="inline-flex items-center gap-1 text-[10px] text-white/35">
-            <Loader2 className="w-3 h-3 animate-spin" />
+        <div className="flex items-center gap-2">
+          {progressLoading && (
+            <span className="inline-flex items-center gap-1 text-[10px] text-white/35">
+              <Loader2 className="w-3 h-3 animate-spin" />
 
-            Syncing progress
-          </span>
-        )}
+              Syncing progress
+            </span>
+          )}
+
+          <button
+            type="button"
+            onClick={refreshEpisodeList}
+            disabled={!season || loading || refreshing}
+            aria-label="Refresh episode list"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/10 px-2.5 text-[11px] font-semibold text-white/60 hover:text-white disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-mg-green"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading || refreshing ? "animate-spin" : ""}`} />
+
+            {loading || refreshing ? "Updating…" : "Refresh"}
+          </button>
+        </div>
       </div>
+
+      <SeasonRail
+        seasons={regularSeasons}
+        value={season}
+        onChange={setSeason}
+        focusPrefix={`episode-season:${tmdbId || showTitle}`}
+      />
 
       {!loading && airedEpisodes.length > 0 && (
         <div data-mg-season-watch-progress="true"
@@ -1136,87 +1280,8 @@ export default function EpisodeSelector({
         </div>
       )}
 
-      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 mb-3">
-        <button
-          type="button"
-          onClick={
-            goPreviousSeason
-          }
-          disabled={
-            currentSeasonIndex <=
-            0
-          }
-          className="w-11 h-11 rounded-lg border border-white/10 bg-mg-card text-white/70 flex items-center justify-center hover:text-white hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-mg-green"
-          aria-label="Previous season"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-
-        <select
-          data-mg-focus-key={`episode-season:${tmdbId || showTitle}`}
-          value={
-            season
-          }
-          onChange={(
-            event
-          ) =>
-            setSeason(
-              event.target
-                .value
-            )
-          }
-          className="w-full min-h-11 bg-mg-card border border-white/10 rounded-lg px-3 py-2.5 text-sm font-semibold text-white outline-none focus:border-mg-green"
-          aria-label="Choose season"
-        >
-          {regularSeasons.map(
-            (
-              seasonItem
-            ) => (
-              <option
-                key={
-                  seasonItem
-                    .season_number
-                }
-                value={
-                  String(
-                    seasonItem
-                      .season_number
-                  )
-                }
-              >
-                {seasonItem.name ||
-                  `Season ${seasonItem.season_number}`}
-
-                {seasonItem
-                  .episode_count
-                  ? ` · ${seasonItem.episode_count} episodes`
-                  : ""}
-              </option>
-            )
-          )}
-        </select>
-
-        <button
-          type="button"
-          onClick={
-            goNextSeason
-          }
-          disabled={
-            currentSeasonIndex <
-              0 ||
-            currentSeasonIndex >=
-              regularSeasons.length -
-                1
-          }
-          className="w-11 h-11 rounded-lg border border-white/10 bg-mg-card text-white/70 flex items-center justify-center hover:text-white hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-mg-green"
-          aria-label="Next season"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-
       {loading ? (
-        <div className="space-y-2">
+        <div className="space-y-2" data-mg-episode-skeleton="true">
           {Array.from({
             length:
               5,
@@ -1229,13 +1294,21 @@ export default function EpisodeSelector({
                 key={
                   index
                 }
-                className="h-20 rounded-lg bg-mg-card animate-pulse"
-              />
+                className="flex gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-2"
+              >
+                <div className="w-full sm:w-32 aspect-video shrink-0 animate-pulse rounded-md bg-mg-card" />
+
+                <div className="flex-1 space-y-2 py-1">
+                  <div className="h-3 w-2/3 animate-pulse rounded bg-mg-card" />
+                  <div className="h-3 w-1/3 animate-pulse rounded bg-mg-card" />
+                  <div className="h-3 w-full animate-pulse rounded bg-mg-card" />
+                </div>
+              </div>
             )
           )}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div key={season} className="mg-episode-enter space-y-2">
           {episodes.map(
             (
               episodeData
@@ -1386,6 +1459,21 @@ export default function EpisodeSelector({
                                 episodeData
                                   .air_date
                               }
+                            </span>
+                          )}
+
+                          {Number(
+                            episodeData
+                              ?.runtime
+                          ) > 0 && (
+                            <span className="inline-flex items-center gap-1">
+                              {
+                                Number(
+                                  episodeData
+                                    .runtime
+                                )
+                              }
+                              m
                             </span>
                           )}
 
