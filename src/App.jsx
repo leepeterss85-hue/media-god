@@ -93,12 +93,9 @@ const AuthenticatedApp = () => {
     </Routes>
   );
 
-  // Always wrap the route tree in PlayerProvider. Conditionally mounting it
-  // on `isAuthenticated || isGuest` unmounts the provider during auth-state
-  // transitions while Home is still mounted, throwing
-  // "usePlayer must be used within a PlayerProvider". The provider is just a
-  // context, so it is harmless on the public auth screens.
-  return <PlayerProvider>{appRoutes}</PlayerProvider>;
+  // The player provider is mounted once by App outside this auth-dependent
+  // route tree, so Home and Continue Watching never lose their context.
+  return appRoutes;
 };
 
 function App() {
@@ -106,8 +103,10 @@ function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <ScrollToTop />
-          <AuthenticatedApp />
+          <PlayerProvider>
+            <ScrollToTop />
+            <AuthenticatedApp />
+          </PlayerProvider>
         </Router>
         <Toaster />
       </QueryClientProvider>
