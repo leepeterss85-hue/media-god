@@ -507,6 +507,55 @@ const moveHero = (current, direction) => {
   return false;
 };
 
+/*
+ * Continue Watching has five real actions under each title. The generic
+ * TV row navigator treated *every descendant* as the poster card and sent
+ * D-pad presses to the next title/row before a button could receive focus.
+ * Keep the card-to-card path when its poster has focus, but navigate the
+ * 2-column action grid once the viewer presses Down.
+ */
+const moveContinueWatchingAction = (current, direction) => {
+  const card = cardFor(current);
+  if (!(card instanceof HTMLElement) || !card.classList.contains("mg-fire-tv-resume-card")) {
+    return false;
+  }
+
+  const actionRoot = card.querySelector('[data-mg-continue-actions="true"]');
+  if (!(actionRoot instanceof HTMLElement)) return false;
+
+  const actionNames = ["resume", "sources", "reviews", "player-options", "download"];
+  const actions = actionNames.map((name) =>
+    actionRoot.querySelector(`[data-mg-continue-${name}="true"]`)
+  );
+  if (!actions.every(visible)) return false;
+
+  if (current === card) {
+    return direction === "down" ? focusNow(actions[0]) : false;
+  }
+
+  const index = actions.indexOf(current);
+  if (index < 0) return false;
+
+  // At the grid boundary, remain focused instead of unexpectedly opening
+  // a different title. Up from the first row returns to the poster.
+  let next = null;
+  if (direction === "up") {
+    next = index < 2 ? card : index < 4 ? actions[index - 2] : actions[2];
+  } else if (direction === "down") {
+    next = index < 2 ? actions[index + 2] : index < 4 ? actions[4] : current;
+  } else if (direction === "left") {
+    next = index === 1 || index === 3 ? actions[index - 1] : current;
+  } else if (direction === "right") {
+    next = index === 0 || index === 2 ? actions[index + 1] : current;
+  }
+
+  if (next) {
+    focusNow(next);
+    return true;
+  }
+  return false;
+};
+
 const moveCard = (current, direction) => {
   const card = cardFor(current);
   const row = rowFor(current);
@@ -744,6 +793,10 @@ export const installFireTvStableMode = () => {
       }
 
       if (moveLiveTvCard(current, direction)) {
+        return;
+      }
+
+      if (moveContinueWatchingAction(current, direction)) {
         return;
       }
 
