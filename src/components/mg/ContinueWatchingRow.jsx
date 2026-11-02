@@ -348,6 +348,8 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
         if (status === 401 || status === 403 || /Sign in/.test(error?.message || "")) {
           setItems([]);
           setSyncError("Sign in again to load your account’s Continue Watching.");
+        } else if ([402, 429].includes(status) || /integration credit|credits limit|quota exceeded|resource exhausted/i.test(String(error?.message || ""))) {
+          setSyncError("Continue Watching cannot refresh while Base44 is limiting app requests. Your saved progress has not been deleted. Retry after the service limit clears.");
         } else {
           setSyncError("Continue Watching could not refresh. The saved list may be out of date.");
         }
