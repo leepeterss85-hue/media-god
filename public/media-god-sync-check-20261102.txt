@@ -1,0 +1,3 @@
+MEDIA GOD SYNC TEST - 2026-11-02
+Temporary harmless file to verify GitHub -> Base44 -> published site and rollback.
+No Media God playback, design, accounts or app functionality changed.
