@@ -7,9 +7,12 @@
 export const isManualSourcesClick = (event) =>
   event?.type === "click";
 
-const positive = (value) => {
+const episodeNumber = (value, allowZero = false) => {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
-  return Number.isInteger(number) && number > 0 ? number : null;
+  return Number.isInteger(number) && (allowZero ? number >= 0 : number > 0)
+    ? number
+    : null;
 };
 
 export const sourcePickerMedia = (source = {}) => {
@@ -22,8 +25,8 @@ export const sourcePickerMedia = (source = {}) => {
     source.rdEpisode != null
       ? "tv"
       : "movie";
-  const season = positive(source.season ?? source.rdSeason);
-  const episode = positive(source.episode ?? source.rdEpisode);
+  const season = episodeNumber(source.season ?? source.rdSeason, true);
+  const episode = episodeNumber(source.episode ?? source.rdEpisode);
   return {
     title: String(source.rdTitle || source.seriesTitle || source.title || "").trim(),
     poster: source.poster || source.poster_url || "",
