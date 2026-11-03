@@ -1,0 +1,60 @@
+name: Independent Media God Real-Debrid Security Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'deploy/media-god-rd-api/**'
+      - 'tests/independent-real-debrid.test.mjs'
+      - 'src/api/independentRealDebrid.js'
+      - '.github/workflows/independent-real-debrid-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  real-debrid-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse and test the independent RD handlers
+        run: |
+          set -euo pipefail
+          node --check deploy/media-god-rd-api/server.mjs
+          node --check deploy/media-god-rd-api/realDebrid.mjs
+          node --check deploy/media-god-rd-api/realDebridAuth.mjs
+          node --check deploy/media-god-rd-api/findRdLibrary.mjs
+          node --test tests/independent-real-debrid.test.mjs
+      - name: Isolated RD service is healthy
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --retry 4 --retry-delay 3 --max-time 20 \
+            'https://media-god-rd-api-production.up.railway.app/health' \
+            | jq -e '.status == "ready" and .auth == "required"'
+      - name: Reject unauthenticated RD playback resolution
+        run: |
+          set -euo pipefail
+          status=$(curl -sS -o /tmp/rd-response.json -w '%{http_code}' --max-time 20 \
+            -X POST 'https://media-god-rd-api-production.up.railway.app/functions/realDebrid' \
+            -H 'Origin: https://mysterious-media-vault-pro.base44.app' \
+            -H 'Content-Type: application/json' --data '{"action":"status"}')
+          test "$status" = "401"
+          jq -e '.error | type == "string"' /tmp/rd-response.json
+      - name: Reject forged account bearer token
+        run: |
+          set -euo pipefail
+          status=$(curl -sS -o /tmp/rd-response.json -w '%{http_code}' --max-time 20 \
+            -X POST 'https://media-god-rd-api-production.up.railway.app/functions/realDebridAuth' \
+            -H 'Origin: https://mysterious-media-vault-pro.base44.app' \
+            -H 'Authorization: Bearer not-a-real-account-token-not-a-real-account-token' \
+            -H 'Content-Type: application/json' --data '{"action":"status"}')
+          test "$status" = "401"
+      - name: Reject cross-origin browser requests
+        run: |
+          set -euo pipefail
+          status=$(curl -sS -o /tmp/rd-response.json -w '%{http_code}' --max-time 20 \
+            -X POST 'https://media-god-rd-api-production.up.railway.app/functions/realDebrid' \
+            -H 'Origin: https://untrusted.example' \
+            -H 'Content-Type: application/json' --data '{"action":"status"}')
+          test "$status" = "403"
