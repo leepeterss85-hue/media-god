@@ -531,7 +531,7 @@ const resolveRealDebrid = async ({ token, source, season, episode, selectedFile 
   try {
     unrestricted = await unrestrictRequest(false);
   } catch (error) {
-    if (Number((error as any)?.providerCode) !== 22) {
+    if (Number(error?.providerCode) !== 22) {
       throw error;
     }
 
