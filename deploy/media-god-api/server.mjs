@@ -1,6 +1,8 @@
 import http from "node:http";
 import { createHash } from "node:crypto";
 import getTmdbMovies from "./getTmdbMovies.mjs";
+import resolveImdb from "./resolveImdb.mjs";
+import resolveTvImdb from "./resolveTvImdb.mjs";
 
 // Public film/TV metadata only. Personal account history and Real-Debrid
 // credentials are never sent to this service.
@@ -69,7 +71,12 @@ const serve = async (req, res) => {
       service: "media-god-metadata",
     }, origin);
   }
-  if (route !== "/functions/getTmdbMovies") {
+  const handler = {
+    "/functions/getTmdbMovies": getTmdbMovies,
+    "/functions/resolveImdb": resolveImdb,
+    "/functions/resolveTvImdb": resolveTvImdb,
+  }[route];
+  if (!handler) {
     return sendJson(res, 404, { error: "Not found" }, origin);
   }
   if (req.method === "OPTIONS") {
@@ -101,17 +108,17 @@ const serve = async (req, res) => {
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return sendJson(res, 400, { error: "Invalid request" }, origin);
     }
-    const key = createHash("sha256").update(JSON.stringify(body)).digest("hex");
+    const key = createHash("sha256").update(route + ":" + JSON.stringify(body)).digest("hex");
     const cached = cache.get(key);
     if (cached && cached.expires > now) {
       return sendJson(res, cached.status, cached.data, origin);
     }
-    const request = new Request("http://127.0.0.1/functions/getTmdbMovies", {
+    const request = new Request("http://127.0.0.1" + route, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const result = await getTmdbMovies(request);
+    const result = await handler(request);
     const text = await result.text();
     let data;
     try { data = JSON.parse(text); }
