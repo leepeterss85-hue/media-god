@@ -16,6 +16,7 @@ export const INDEPENDENT_RD_FUNCTIONS = new Set([
   "realDebrid",
   "realDebridAuth",
   "findRdLibrary",
+  "multiDebrid",
 ]);
 
 const PRIVATE_FIELDS = new Set([
