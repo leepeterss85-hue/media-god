@@ -58,4 +58,4 @@ jobs:
             -H "Origin: https://mysterious-media-vault-pro.base44.app" \
             -H 'Content-Type: application/json' \
             --data '{"imdb_id":"tt1375666","tmdb_id":27205,"title":"Inception","media_type":"movie","fast_mode":true}' \
-            | jq -e '(.streams | type == "array") and (.diagnostics | type == "array")'
+            | jq -e '(.streams | type == "array") and (.streams | length > 0) and (.diagnostics | type == "array")'
