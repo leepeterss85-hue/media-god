@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import getTmdbMovies from "./getTmdbMovies.mjs";
 import resolveImdb from "./resolveImdb.mjs";
 import resolveTvImdb from "./resolveTvImdb.mjs";
+import fetchAddonStreams from "./fetchAddonStreams.mjs";
 
 // Public film/TV metadata only. Personal account history and Real-Debrid
 // credentials are never sent to this service.
@@ -75,6 +76,7 @@ const serve = async (req, res) => {
     "/functions/getTmdbMovies": getTmdbMovies,
     "/functions/resolveImdb": resolveImdb,
     "/functions/resolveTvImdb": resolveTvImdb,
+    "/functions/fetchAddonStreams": fetchAddonStreams,
   }[route];
   if (!handler) {
     return sendJson(res, 404, { error: "Not found" }, origin);
