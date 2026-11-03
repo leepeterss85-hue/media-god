@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import {
   INDEPENDENT_METADATA_API_URL,
   invokeIndependentMetadata,
+  invokeIndependentImdbResolver,
 } from "../src/api/independentMetadata.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
@@ -77,4 +78,35 @@ test("standalone metadata port keeps original response and server-held secret", 
   assert.match(handler, /process\.env\[name\]/);
   assert.doesNotMatch(handler, /base44:runtime/);
   assert.match(handler, /movies:\s*items/);
+});
+
+test("independent IMDb resolvers pass only public movie/episode identity", async () => {
+  let uri, init;
+  const result = await invokeIndependentImdbResolver(
+    "resolveTvImdb",
+    { tmdb_id: 1399, title: "Example", year: 2011, rd_token: "never-send" },
+    { fetchImpl: async (url, options) => {
+        uri = url; init = options;
+        return { ok: true, json: async () => ({ imdb_id: "tt0944947", media_type: "tv" }) };
+      }, storage: storage() },
+  );
+  assert.match(uri, /\/functions\/resolveTvImdb$/);
+  assert.equal(result.data.imdb_id, "tt0944947");
+  assert.doesNotMatch(init.body, /never-send|rd_token|token/);
+  assert.equal(init.credentials, "omit");
+  const client = read("src/api/base44Client.js");
+  assert.match(client, /name === 'resolveImdb' \|\| name === 'resolveTvImdb'/);
+  assert.match(client, /return invokeIndependentImdbResolver\(name, payload\)/);
+});
+
+test("independent backend ports IMDb logic without Base44 integration runtime", () => {
+  const server = read("deploy/media-god-api/server.mjs");
+  const imdb = read("deploy/media-god-api/resolveImdb.mjs");
+  const tv = read("deploy/media-god-api/resolveTvImdb.mjs");
+  assert.match(server, /"\/functions\/resolveImdb": resolveImdb/);
+  assert.match(server, /"\/functions\/resolveTvImdb": resolveTvImdb/);
+  assert.doesNotMatch(imdb, /base44:runtime/);
+  assert.doesNotMatch(tv, /base44:runtime/);
+  assert.match(imdb, /TMDB_API_KEY/);
+  assert.match(tv, /TMDB_API_KEY/);
 });
