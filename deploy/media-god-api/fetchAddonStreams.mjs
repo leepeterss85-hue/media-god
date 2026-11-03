@@ -1,0 +1,2973 @@
+// Credit-independent public-addon discovery: only fixed credential-free
+// builtins are used. No user Addon records, private manifest URLs or tokens
+// are loaded by this Railway function. User-specific addons remain managed
+// by authenticated client-side fallback.
+const createClientFromRequest = () => ({
+  auth: { me: async () => null },
+  entities: { Addon: { list: async () => [] } },
+});
+
+const clean = (value) => String(value || "").trim();
+
+/*
+ * Always keep one credential-free discovery path available. Addon records are
+ * intentionally user-scoped, so a fresh/anonymous Base44 session can have no
+ * rows even though the player itself is available. Without this fallback TV
+ * episodes collapse to the show-level placeholder (`Stream`) and the chooser
+ * has literally nothing else to select.
+ *
+ * Keep this list restricted to public manifests that do not contain account or
+ * debrid credentials. User-configured addons are still queried first and are
+ * never copied or exposed to another account.
+ */
+const BUILTIN_PUBLIC_PLAYBACK_ADDONS = [
+  {
+    name: "Torrentio",
+    url: "https://torrentio.strem.fun/manifest.json",
+    installed: true,
+    active: true,
+    builtIn: true,
+  },
+  {
+    name: "StremSRC",
+    url: "https://stremsrc.theditor.xyz/manifest.json",
+    installed: true,
+    active: true,
+    builtIn: true,
+    mediaTypes: ["tv"],
+  },
+];
+
+const addonUrlKey = (addon) =>
+  clean(addon?.url)
+    .toLowerCase()
+    .replace(/\/+$/, "");
+
+const withBuiltinPlaybackAddons = (items) => {
+  const configured = Array.isArray(items) ? items.filter(Boolean) : [];
+  const seenUrls = new Set(configured.map(addonUrlKey).filter(Boolean));
+
+  return [
+    ...configured,
+    ...BUILTIN_PUBLIC_PLAYBACK_ADDONS.filter(
+      (addon) => !seenUrls.has(addonUrlKey(addon))
+    ),
+  ];
+};
+
+const isHttp = (value) => /^https?:\/\//i.test(clean(value));
+
+const yearQualifiedSearchIds = (values) =>
+  (Array.isArray(values) ? values : [])
+    .filter((value) => /^search:.*:\d{4}(?::\d+:\d+)?$/i.test(clean(value)))
+    .slice(0, 2);
+
+const isAuthoritativeStreamId = (value) => {
+  const id = clean(value);
+
+  return (
+    /^(?:imdb:)?tt\d+(?::\d+:\d+)?$/i.test(id) ||
+    /^tmdb:\d+(?::\d+:\d+)?$/i.test(id) ||
+    /^\d+(?::\d+:\d+)?$/.test(id)
+  );
+};
+
+const isMagnet = (value) =>
+  clean(value).toLowerCase().startsWith("magnet:");
+
+const infoHashFromValue = (value) => {
+  const text = clean(value);
+
+  if (/^[a-f0-9]{40}$/i.test(text)) {
+    return text;
+  }
+
+  const match = text.match(/btih:([a-f0-9]{40})/i);
+  return match?.[1] || "";
+};
+
+const cometPlaybackHashFromValue = (value) => {
+  const text = clean(value);
+  const match = text.match(/\/playback\/([a-f0-9]{40})(?:\/|$|\?)/i);
+  return match?.[1] || "";
+};
+
+const infoHashFromBehaviorHints = (stream) => {
+  const bingeGroup = clean(
+    stream?.behaviorHints?.bingeGroup ||
+      stream?.behavior_hints?.bingeGroup ||
+      stream?.behavior_hints?.binge_group
+  );
+
+  const match = bingeGroup.match(
+    /(?:^|\|)([a-f0-9]{40})(?:\||$)/i
+  );
+
+  return match?.[1] || "";
+};
+
+const isCometUncachedDownloadStream = (stream, addonName = "") => {
+  const text = [
+    addonName,
+    stream?.name,
+    stream?.title,
+    stream?.description,
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    /\bcomet\b/i.test(text) &&
+    /\[\s*RD\s*⬇(?:\uFE0F)?\s*\]/i.test(text)
+  );
+};
+
+const addonDebridCacheSignal = (stream, addonName = "") => {
+  const rawUrl = clean(
+    stream?.url ||
+      stream?.link ||
+      stream?.src
+  );
+  const text = [
+    addonName,
+    stream?.name,
+    stream?.title,
+    stream?.description,
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join(" ");
+
+  const explicitlyUncached =
+    /\[\s*RD\s*⬇(?:\uFE0F)?\s*\]/i.test(text) ||
+    /\[\s*RD\s+(?:download|uncached)\s*\]/i.test(text) ||
+    /\b(?:real[\s_-]*debrid|RD)[\s_-]+(?:download|uncached|not[\s_-]+cached)\b/i.test(
+      text
+    );
+
+  if (explicitlyUncached) {
+    return {
+      cached: false,
+      resolvedUrl: "",
+    };
+  }
+
+  const resolvedUrl =
+    isHttp(rawUrl) && /\/resolve\/realdebrid(?:\/|$)/i.test(rawUrl)
+      ? rawUrl
+      : "";
+  const cachedMarker =
+    /\[\s*RD\s*(?:\+|⚡|✅)\s*\]/i.test(text) ||
+    /\b(?:real[\s_-]*debrid|RD)\b[^\n]{0,40}\b(?:cached|instant(?:ly)?[\s_-]*available)\b/i.test(
+      text
+    );
+
+  return {
+    cached: Boolean(resolvedUrl || cachedMarker),
+    resolvedUrl,
+  };
+};
+
+const PUBLIC_FALLBACK_TRACKERS = [
+  "udp://tracker.publictracker.xyz:6969/announce",
+  "udp://open.demonii.com:1337/announce",
+  "udp://tracker.opentrackr.org:1337/announce",
+  "udp://open.tracker.cl:1337/announce",
+  "udp://open.stealth.si:80/announce",
+  "udp://tracker2.dler.org:80/announce",
+  "udp://tracker.wildkat.net:6969/announce",
+  "udp://tracker.torrent.eu.org:451/announce",
+  "udp://tracker.qu.ax:6969/announce",
+  "udp://tracker.peerfect.org:6969/announce",
+  "udp://tracker.opentrackr.com:6969/announce",
+  "udp://tracker.ilibr.org:6969/announce",
+  "udp://tracker.gmi.gd:6969/announce",
+  "udp://tracker.ducks.party:1984/announce",
+  "udp://tracker.dler.org:6969/announce",
+  "udp://tracker.corpscorp.online:80/announce",
+  "udp://tracker.bittor.pw:1337/announce",
+  "udp://tracker.auctor.tv:6969/announce",
+  "udp://tracker.0x7c0.com:6969/announce",
+];
+
+const normaliseTrackerList = (...values) =>
+  Array.from(
+    new Set(
+      values
+        .flatMap((value) =>
+          Array.isArray(value)
+            ? value
+            : typeof value === "string"
+              ? value.split(/[\r\n,]+/)
+              : []
+        )
+        .map((value) => clean(value))
+        /*
+         * Stremio torrent streams use `sources`, where tracker entries are
+         * encoded as `tracker:udp://...` / `tracker:https://...`. Media God
+         * previously ignored that property completely, which discarded the
+         * torrent-specific peer-discovery metadata Comet supplies in Torrent
+         * Mode. Strip the Stremio prefix and feed the real tracker URL into the
+         * magnet we submit to Real-Debrid. DHT node entries are intentionally
+         * not converted to `tr=` parameters.
+         */
+        .map((value) => value.replace(/^tracker:/i, ""))
+        .filter((value) => /^https?:\/\/|^udp:\/\//i.test(value))
+    )
+  );
+
+const enrichMagnetWithTrackers = (value, extraTrackers = []) => {
+  const magnet = clean(value);
+
+  if (!isMagnet(magnet)) {
+    return magnet;
+  }
+
+  const existingTrackers = [];
+  const trackerRe = /(?:[?&])tr=([^&]+)/gi;
+  let match = null;
+
+  while ((match = trackerRe.exec(magnet))) {
+    try {
+      existingTrackers.push(decodeURIComponent(match[1]));
+    } catch {
+      existingTrackers.push(match[1]);
+    }
+  }
+
+  const additions = normaliseTrackerList(
+    extraTrackers,
+    PUBLIC_FALLBACK_TRACKERS
+  ).filter(
+    (tracker) =>
+      !existingTrackers.some(
+        (existing) => existing.toLowerCase() === tracker.toLowerCase()
+      )
+  );
+
+  if (additions.length === 0) {
+    return magnet;
+  }
+
+  return `${magnet}${additions
+    .slice(0, Math.max(0, 20 - existingTrackers.length))
+    .map((tracker) => `&tr=${encodeURIComponent(tracker)}`)
+    .join("")}`;
+};
+
+const magnetFromHash = (hash, title = "", trackers = []) => {
+  const value = clean(hash);
+
+  if (!value) {
+    return "";
+  }
+
+  const params = [`xt=urn:btih:${value}`];
+
+  if (title) {
+    params.push(`dn=${encodeURIComponent(title)}`);
+  }
+
+  (Array.isArray(trackers) ? trackers : [])
+    .filter(Boolean)
+    .slice(0, 20)
+    .forEach((tracker) => {
+      params.push(`tr=${encodeURIComponent(String(tracker))}`);
+    });
+
+  return `magnet:?${params.join("&")}`;
+};
+
+const cometTorrentModeManifestUrl = (value, addonName = "") => {
+  if (!/\bcomet\b/i.test(String(addonName || ""))) {
+    return "";
+  }
+
+  try {
+    const url = new URL(clean(value));
+    const segments = url.pathname.split("/").filter(Boolean);
+    const manifestIndex = segments.lastIndexOf("manifest.json");
+
+    if (manifestIndex <= 0) {
+      return "";
+    }
+
+    /*
+     * Comet's current configure page serialises custom settings with
+     * btoa(JSON.stringify(settings)) directly into the manifest path. It also
+     * auto-disables Torrent Mode when the first debrid service is added. Media
+     * God needs the Torrent Mode companion row only as metadata: that row is
+     * where Comet exposes the torrent's `sources` tracker list. Clone the
+     * existing private config in-memory, flip only enableTorrent, and query the
+     * resulting stream endpoint without ever exposing or storing a second URL.
+     */
+    for (let index = manifestIndex - 1; index >= 0; index -= 1) {
+      const encoded = decodeURIComponent(segments[index] || "");
+      if (!encoded) continue;
+
+      try {
+        const settings = JSON.parse(atob(encoded));
+        if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+          continue;
+        }
+
+        const looksLikeCometConfig =
+          Object.prototype.hasOwnProperty.call(settings, "enableTorrent") ||
+          Array.isArray(settings.debridServices) ||
+          Object.prototype.hasOwnProperty.call(settings, "debridService");
+
+        if (!looksLikeCometConfig || settings.enableTorrent === true) {
+          return "";
+        }
+
+        const torrentSettings = {
+          ...settings,
+          enableTorrent: true,
+        };
+        const torrentConfig = btoa(JSON.stringify(torrentSettings));
+        const nextSegments = [...segments];
+        nextSegments[index] = torrentConfig;
+        url.pathname = `/${nextSegments.join("/")}`;
+        return url.toString();
+      } catch {
+        // Protected-prefix/path segments are not Comet config; keep scanning.
+      }
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+};
+
+const ADDON_RESPONSE_LIMIT_BYTES =
+  8 * 1024 * 1024;
+const ADDON_REDIRECT_LIMIT = 4;
+
+const addonIpv4Parts = (hostname) => {
+  const match = String(hostname || "")
+    .trim()
+    .match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const parts = match
+    .slice(1)
+    .map(Number);
+
+  if (
+    parts.some(
+      (part) =>
+        !Number.isInteger(part) ||
+        part < 0 ||
+        part > 255
+    )
+  ) {
+    return null;
+  }
+
+  return parts;
+};
+
+const addonHostIsPrivate = (hostname) => {
+  const host = String(hostname || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^\[/, "")
+    .replace(/\]$/, "")
+    .replace(/\.$/, "");
+
+  if (
+    !host ||
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host.endsWith(".lan") ||
+    host.endsWith(".internal") ||
+    host === "metadata.google.internal"
+  ) {
+    return true;
+  }
+
+  const ipv4 = addonIpv4Parts(host);
+
+  if (ipv4) {
+    const [a, b] = ipv4;
+
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      a >= 224
+    );
+  }
+
+  if (host.includes(":")) {
+    if (
+      host === "::" ||
+      host === "::1" ||
+      /^f[cd]/i.test(host) ||
+      /^fe[89ab]/i.test(host) ||
+      /^ff/i.test(host)
+    ) {
+      return true;
+    }
+
+    if (host.startsWith("::ffff:")) {
+      return addonHostIsPrivate(
+        host.slice("::ffff:".length)
+      );
+    }
+  }
+
+  return false;
+};
+
+const validatedAddonUrl = (value) => {
+  const input = clean(value);
+
+  if (!input) {
+    throw new Error(
+      "Addon URL is empty."
+    );
+  }
+
+  const url = new URL(input);
+
+  if (url.protocol !== "https:") {
+    throw new Error(
+      "Addon requests must use HTTPS."
+    );
+  }
+
+  if (
+    url.username ||
+    url.password
+  ) {
+    throw new Error(
+      "Addon URLs cannot contain URL credentials."
+    );
+  }
+
+  if (
+    addonHostIsPrivate(
+      url.hostname
+    )
+  ) {
+    throw new Error(
+      "Addon requests to local or private network addresses are blocked."
+    );
+  }
+
+  url.hash = "";
+
+  return url;
+};
+
+const parseAddonUrl = (value) => {
+  try {
+    const url =
+      validatedAddonUrl(value);
+
+    let basePath = url.pathname.replace(/\/+$/, "");
+
+    if (/\/manifest\.json$/i.test(basePath)) {
+      basePath = basePath.replace(/\/manifest\.json$/i, "");
+    }
+
+    return {
+      origin: url.origin,
+      basePath,
+      search: url.search || "",
+    };
+  } catch {
+    return null;
+  }
+};
+
+const configuredCometPlaybackTarget = (value, addons = []) => {
+  try {
+    const target = new URL(clean(value));
+
+    if (target.protocol !== "https:") {
+      return null;
+    }
+
+    if (!/\/playback\/[a-f0-9]{40}\//i.test(target.pathname)) {
+      return null;
+    }
+
+    const match = (Array.isArray(addons) ? addons : []).find((addon) => {
+      const parsed = parseAddonUrl(addon?.url);
+
+      if (!parsed) {
+        return false;
+      }
+
+      const prefix = `${parsed.basePath || ""}/playback/`.replace(/\/{2,}/g, "/");
+
+      return (
+        target.origin === parsed.origin &&
+        target.pathname.startsWith(prefix)
+      );
+    });
+
+    if (!match) {
+      return null;
+    }
+
+    return {
+      url: target.toString(),
+      origin: target.origin,
+      addonName: clean(match?.name) || "Comet",
+    };
+  } catch {
+    return null;
+  }
+};
+
+const isBareElfHostedComet = (value) => {
+  const parsed = parseAddonUrl(value);
+
+  if (!parsed) {
+    return false;
+  }
+
+  return (
+    parsed.origin === "https://comet.elfhosted.com" &&
+    (!parsed.basePath || parsed.basePath === "/")
+  );
+};
+
+const buildAddonUrl = (addonUrl, resourcePath) => {
+  const parsed = parseAddonUrl(addonUrl);
+
+  if (!parsed) {
+    return "";
+  }
+
+  const path = String(resourcePath || "").replace(/^\/+/, "");
+
+  const joinedPath =
+    `${parsed.basePath}/${path}`.replace(/\/{2,}/g, "/");
+
+  return `${parsed.origin}${joinedPath}${parsed.search}`;
+};
+
+const getManifestUrl = (value) =>
+  buildAddonUrl(value, "manifest.json");
+
+const getStreamUrl = (value, type, streamId) =>
+  buildAddonUrl(
+    value,
+    `stream/${encodeURIComponent(type)}/${encodeURIComponent(
+      streamId
+    )}.json`
+  );
+
+const streamTitle = (stream) =>
+  String(
+    stream?.title ||
+      stream?.name ||
+      stream?.filename ||
+      "Stream"
+  )
+    .split("\n")[0]
+    .trim();
+
+const streamReportedSeeders = (stream) => {
+  const text = [
+    stream?.description,
+    stream?.title,
+    stream?.name,
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join(" ");
+
+  const match = text.match(
+    /(?:👤\s*|seeders?\s*:\s*)(\d+)/i
+  );
+
+  return match ? Math.max(0, Number(match[1] || 0)) : 0;
+};
+
+const isAddonControlStream = (stream, addonName = "") => {
+  // Verification pages and QR challenges are not media. Reject explicit
+  // provider challenge results without attempting to bypass them or changing
+  // normal media streams, including all Live TV playback.
+  const challengeUrl = clean(stream?.url || stream?.src || stream?.link || stream?.externalUrl || stream?.external_url || stream?.file);
+  const challengeMessage = [stream?.name, stream?.title, stream?.description, stream?.message, stream?.status]
+    .map(clean).join(" ");
+  if (
+    /^https?:\/\/(?:challenges|verify)\.cloudflare\.com(?:\/|$)/i.test(challengeUrl) ||
+    /^https?:\/\/(?:www\.)?(?:hcaptcha\.com|recaptcha\.net)\/(?:recaptcha|hcaptcha)\//i.test(challengeUrl) ||
+    /^https?:\/\/[^/?#]+\/(?:[^?#]*\/)?(?:cdn-cgi\/challenge-platform|captcha|recaptcha|hcaptcha|turnstile|verify[-_]?human|verify[-_]?you[-_]?are[-_]?human|human[-_]?verification|bot[-_]?check|security[-_]?check)(?:[/?#]|$)/i.test(challengeUrl) ||
+    /\b(?:captcha (?:required|challenge)|verify (?:you are )?human|verification (?:required|challenge)|cloudflare challenge|scan (?:the )?qr (?:code )?to verify)\b/i.test(challengeMessage)
+  ) return true;
+
+  const name = clean(
+    stream?.name
+  );
+
+  if (
+    /^\s*\[(?:❌|⚠️|ℹ️|🔄|RD🔄)/i.test(name)
+  ) {
+    return true;
+  }
+
+  /*
+   * The Orion Stremio addon returns its own short error.mp4 as a 'stream'
+   * when the Orion API/debrid resolver fails. It is NOT a playable movie.
+   * This exact guard leaves legitimate Orion magnet/direct candidates alone
+   * and never changes the user's working Torrentio/Comet/Live TV sources.
+   */
+  if (/^orion(?:[ _-]?\d+)?$/i.test(clean(addonName))) {
+    const errorTitle = clean(stream?.title || stream?.description);
+    const errorClip = clean(stream?.url || stream?.link || stream?.src);
+    if (/^\s*(?:⚠️\s*)?ERROR!/i.test(errorTitle) ||
+        /^https:\/\/(?:www\.)?github\.com\/gorlev\/orion-stremio-addon\/blob\/main\/videos\/error(?:-general)?\.mp4(?:\?.*)?$/i.test(errorClip) ||
+        /^https:\/\/raw\.githubusercontent\.com\/gorlev\/orion-stremio-addon\/main\/videos\/error(?:-general)?\.mp4(?:\?.*)?$/i.test(errorClip)) {
+      return true;
+    }
+  }
+
+  const text = [
+    addonName,
+    name,
+    stream?.title,
+    stream?.description,
+    stream?.url,
+    stream?.externalUrl,
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join(" ");
+
+  return /\bcomet\s+sync\b|debrid_sync_triggered|account\s+sync\s+started|refreshing\s+your\s+debrid\s+library|obsolete\s+configuration|\[❌\]\s*comet|\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)|\bwrong\s+ip\b|infringing[_\s-]?file|\bcopyright\b/i.test(
+    text
+  );
+};
+
+const addonSupportsStreams = (manifest) => {
+  const resources = Array.isArray(manifest?.resources)
+    ? manifest.resources
+    : [];
+
+  if (resources.length === 0) {
+    return null;
+  }
+
+  return resources.some((resource) => {
+    if (typeof resource === "string") {
+      return resource === "stream";
+    }
+
+    return resource?.name === "stream";
+  });
+};
+
+const addonSupportsType = (manifest, mediaType) => {
+  const types = Array.isArray(manifest?.types)
+    ? manifest.types
+    : [];
+
+  if (types.length === 0) {
+    return null;
+  }
+
+  const wanted =
+    mediaType === "tv"
+      ? "series"
+      : "movie";
+
+  return types.includes(wanted);
+};
+
+const readAddonResponseText = async (
+  response,
+  maxBytes =
+    ADDON_RESPONSE_LIMIT_BYTES
+) => {
+  const contentLength =
+    Number(
+      response.headers.get(
+        "content-length"
+      ) ||
+        0
+    );
+
+  if (
+    Number.isFinite(
+      contentLength
+    ) &&
+    contentLength >
+      maxBytes
+  ) {
+    throw new Error(
+      "Addon response exceeded the safety size limit."
+    );
+  }
+
+  if (!response.body) {
+    return "";
+  }
+
+  const reader =
+    response.body.getReader();
+  const decoder =
+    new TextDecoder();
+  let total = 0;
+  let text = "";
+
+  while (true) {
+    const {
+      done,
+      value,
+    } =
+      await reader.read();
+
+    if (done) {
+      break;
+    }
+
+    total +=
+      Number(
+        value?.byteLength ||
+          0
+      );
+
+    if (
+      total >
+      maxBytes
+    ) {
+      try {
+        await reader.cancel();
+      } catch {
+        // The response is already being discarded.
+      }
+
+      throw new Error(
+        "Addon response exceeded the safety size limit."
+      );
+    }
+
+    text +=
+      decoder.decode(
+        value,
+        {
+          stream: true,
+        }
+      );
+  }
+
+  text +=
+    decoder.decode();
+
+  return text;
+};
+
+const fetchAddonResponse = async (
+  value,
+  controller
+) => {
+  let current =
+    validatedAddonUrl(
+      value
+    );
+
+  for (
+    let redirectCount = 0;
+    redirectCount <=
+      ADDON_REDIRECT_LIMIT;
+    redirectCount += 1
+  ) {
+    const response =
+      await fetch(
+        current.toString(),
+        {
+          signal:
+            controller.signal,
+          redirect:
+            "manual",
+
+          headers: {
+            Accept:
+              "application/json, text/plain, */*",
+
+            "User-Agent":
+              "Media-God/1.0 Stremio-Compatible-Client",
+          },
+        }
+      );
+
+    if (
+      response.status >= 300 &&
+      response.status < 400
+    ) {
+      const location =
+        clean(
+          response.headers.get(
+            "location"
+          )
+        );
+
+      try {
+        await response.body?.cancel?.();
+      } catch {
+        // Headers are enough for redirect validation.
+      }
+
+      if (!location) {
+        return response;
+      }
+
+      if (
+        redirectCount >=
+        ADDON_REDIRECT_LIMIT
+      ) {
+        throw new Error(
+          "Addon redirected too many times."
+        );
+      }
+
+      current =
+        validatedAddonUrl(
+          new URL(
+            location,
+            current
+          ).toString()
+        );
+
+      continue;
+    }
+
+    return response;
+  }
+
+  throw new Error(
+    "Addon redirected too many times."
+  );
+};
+
+const fetchJsonWithTimeout = async (
+  url,
+  timeoutMs = 4500
+) => {
+  const controller = new AbortController();
+
+  const timeout = setTimeout(
+    () => controller.abort(),
+    timeoutMs
+  );
+
+  try {
+    const response =
+      await fetchAddonResponse(
+        url,
+        controller
+      );
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: response.status,
+        data: null,
+        error: `HTTP ${response.status}`,
+      };
+    }
+
+    const text =
+      await readAddonResponseText(
+        response
+      );
+
+    try {
+      return {
+        ok: true,
+        status: response.status,
+        data:
+          text
+            ? JSON.parse(text)
+            : {},
+      };
+    } catch {
+      return {
+        ok: false,
+        status: response.status,
+        data: null,
+        error:
+          "Response was not valid JSON.",
+      };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+
+      error:
+        error?.name === "AbortError"
+          ? "Timed out"
+          : error?.message ||
+            "Request failed",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const isTorrentioRequest = (value) => {
+  try {
+    const parsed = new URL(clean(value));
+    return /(^|\.)torrentio\.strem\.fun$/i.test(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
+const wait = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+const fetchAddonJson = async (
+  url,
+  timeoutMs = 4500
+) => {
+  let result = await fetchJsonWithTimeout(
+    url,
+    timeoutMs
+  );
+
+  const retryableStatus =
+    result?.status === 429 ||
+    result?.status === 500 ||
+    result?.status === 502 ||
+    result?.status === 503 ||
+    result?.status === 504 ||
+    (
+      result?.status === 403 &&
+      isTorrentioRequest(url)
+    );
+
+  if (retryableStatus) {
+    await wait(
+      result?.status === 429
+        ? 650
+        : 300
+    );
+
+    result = await fetchJsonWithTimeout(
+      url,
+      timeoutMs
+    );
+  }
+
+  return result;
+};
+
+const getRequestHeaders = (stream) =>
+  stream?.behaviorHints?.proxyHeaders?.request ||
+  stream?.behavior_hints?.proxyHeaders?.request ||
+  stream?.behavior_hints?.proxy_headers?.request ||
+  null;
+
+const hasRequiredRequestHeaders = (stream) => {
+  const requestHeaders =
+    getRequestHeaders(stream);
+
+  return (
+    requestHeaders &&
+    typeof requestHeaders === "object" &&
+    Object.keys(requestHeaders).length > 0
+  );
+};
+
+const normaliseStream = (
+  stream,
+  addonName,
+  index
+) => {
+  if (!stream) {
+    return null;
+  }
+
+  const label =
+    `${addonName}: ${streamTitle(stream)}`;
+  const cometUncachedDownload =
+    isCometUncachedDownloadStream(stream, addonName);
+
+  if (!cometUncachedDownload && isAddonControlStream(stream, addonName)) {
+    return {
+      unsupported: true,
+      reason: "addon_control_stream",
+      label,
+    };
+  }
+
+  const externalUrl = clean(
+    stream?.externalUrl ||
+      stream?.external_url
+  );
+
+  if (isHttp(externalUrl)) {
+    return {
+      id:
+        `${addonName}-${index}-provider`,
+
+      label,
+      addon: addonName,
+      type: "provider",
+      src: externalUrl,
+      url: externalUrl,
+    };
+  }
+
+  const ytId = clean(
+    stream?.ytId ||
+      stream?.yt_id
+  );
+
+  if (ytId) {
+    const url =
+      `https://www.youtube.com/watch?v=${encodeURIComponent(
+        ytId
+      )}`;
+
+    return {
+      id:
+        `${addonName}-${index}-youtube`,
+
+      label,
+      addon: addonName,
+      type: "youtube",
+      src: url,
+      url,
+    };
+  }
+
+  const rawUrl = clean(
+    stream?.url ||
+      stream?.link ||
+      stream?.src
+  );
+
+  const infoHash =
+    clean(
+      stream?.infoHash ||
+        stream?.info_hash
+    ) ||
+    infoHashFromValue(rawUrl) ||
+    infoHashFromBehaviorHints(stream) ||
+    (cometUncachedDownload
+      ? cometPlaybackHashFromValue(rawUrl)
+      : "");
+  const cacheSignal = addonDebridCacheSignal(stream, addonName);
+
+  /*
+   * Real-Debrid retired its instant-availability endpoint. Modern addons such
+   * as Torrentio and Comet therefore carry the cache verdict themselves and,
+   * for cached rows, commonly return a ready /resolve/realdebrid URL. Keep that
+   * URL intact instead of converting the same row back into a magnet.
+   */
+  if (
+    cacheSignal.cached &&
+    cacheSignal.resolvedUrl &&
+    !hasRequiredRequestHeaders(stream)
+  ) {
+    return {
+      id: `${addonName}-${index}-${infoHash || "cached-rd"}-ready`,
+      label,
+      addon: addonName,
+      type: "url",
+      src: cacheSignal.resolvedUrl,
+      url: cacheSignal.resolvedUrl,
+      infoHash: infoHash || undefined,
+      fileIdx:
+        stream?.fileIdx ??
+        stream?.file_idx ??
+        undefined,
+      behaviorHints:
+        stream?.behaviorHints ||
+        stream?.behavior_hints ||
+        undefined,
+      description: clean(stream?.description),
+      reportedSeeders: streamReportedSeeders(stream),
+      debridProvider: "realdebrid",
+      viaRealDebrid: true,
+      debridCached: true,
+      runtimeReadyCached: true,
+      debridCacheChecked: true,
+      debridCacheCheckState: "cached",
+      cacheRequired: false,
+      cometUncached: false,
+      cacheLabel: "cached",
+      resolutionStrategy: "cached_debrid",
+    };
+  }
+
+  if (cometUncachedDownload) {
+    if (!infoHash) {
+      return {
+        unsupported: true,
+        reason: "comet_uncached_missing_hash",
+        label,
+      };
+    }
+
+    const providedTrackers = normaliseTrackerList(
+      stream?.sources,
+      stream?.announce,
+      stream?.trackers
+    );
+
+    /*
+     * Prefer Comet's exact Stremio tracker metadata when it is available, but
+     * do not throw away an otherwise valid uncached info hash when that
+     * companion metadata is missing. Media God can still submit a tracker-rich
+     * magnet to Real-Debrid using its public fallback tracker set. This avoids
+     * the old behaviour where a visible [RD⬇] source could never create an RD
+     * download simply because Comet omitted `sources` on that particular row.
+     */
+    const effectiveTrackers = normaliseTrackerList(
+      providedTrackers,
+      PUBLIC_FALLBACK_TRACKERS
+    );
+
+    const cacheMagnet = magnetFromHash(
+      infoHash,
+      streamTitle(stream),
+      effectiveTrackers
+    );
+
+    const originalTrackerMagnet = magnetFromHash(
+      infoHash,
+      streamTitle(stream),
+      providedTrackers.length > 0 ? providedTrackers : effectiveTrackers
+    );
+
+    return {
+      id: `${addonName}-${index}-${infoHash}-cache`,
+      label,
+      addon: addonName,
+      type: "rd",
+      src: cacheMagnet,
+      url: cacheMagnet,
+      magnet: cacheMagnet,
+      richMagnet: originalTrackerMagnet,
+      infoHash,
+      fileIdx:
+        stream?.fileIdx ??
+        stream?.file_idx ??
+        undefined,
+      behaviorHints:
+        stream?.behaviorHints ||
+        stream?.behavior_hints ||
+        undefined,
+      description: clean(stream?.description),
+      reportedSeeders: streamReportedSeeders(stream),
+      debridProvider: "realdebrid",
+      viaRealDebrid: true,
+      cacheRequired: true,
+      cometUncached: true,
+      cometPlaybackUrl:
+        isHttp(rawUrl) ? rawUrl : "",
+      resolutionStrategy:
+        providedTrackers.length > 0 ? "rd_magnet" : "comet_uncached",
+      torrentTrackers: effectiveTrackers,
+      torrentMetadataSource:
+        providedTrackers.length > 0 ? "comet" : "public_fallback",
+    };
+  }
+
+  const suppliedTrackers = normaliseTrackerList(
+    stream?.sources,
+    stream?.announce,
+    stream?.trackers
+  );
+
+  /*
+   * Server-side addon lookup is Media God's normal source path, so enrich
+   * generic info-hash magnets here as well as in the browser fallback. Many
+   * addons omit announce URLs because a cached debrid hit does not need them;
+   * the same bare hash is insufficiently discoverable when RD must perform a
+   * fresh uncached BitTorrent download.
+   */
+  const magnet =
+    isMagnet(rawUrl)
+      ? enrichMagnetWithTrackers(rawUrl, suppliedTrackers)
+      : infoHash
+        ? magnetFromHash(
+            infoHash,
+            streamTitle(stream),
+            normaliseTrackerList(
+              suppliedTrackers,
+              PUBLIC_FALLBACK_TRACKERS
+            )
+          )
+        : "";
+
+  if (magnet) {
+    return {
+      id:
+        `${addonName}-${index}-${infoHash || "magnet"}`,
+
+      label,
+      addon: addonName,
+
+      type:
+        "rd",
+
+      src:
+        magnet,
+
+      url:
+        magnet,
+
+      magnet,
+
+      infoHash:
+        infoHash ||
+        undefined,
+
+      fileIdx:
+        stream?.fileIdx ??
+        stream?.file_idx ??
+        undefined,
+
+      behaviorHints:
+        stream?.behaviorHints ||
+        stream?.behavior_hints ||
+        undefined,
+
+      // Preserve addon codec/language evidence (MediaFusion commonly puts it here).
+      description: clean(stream?.description),
+
+      debridProvider:
+        cacheSignal.cached ? "realdebrid" : undefined,
+
+      viaRealDebrid:
+        cacheSignal.cached ? true : undefined,
+
+      debridCached:
+        cacheSignal.cached ? true : undefined,
+
+      debridCacheChecked:
+        cacheSignal.cached ? true : undefined,
+
+      debridCacheCheckState:
+        cacheSignal.cached ? "cached" : undefined,
+
+      cacheRequired:
+        cacheSignal.cached ? false : undefined,
+
+      cacheLabel:
+        cacheSignal.cached ? "cached" : undefined,
+
+      resolutionStrategy:
+        cacheSignal.cached ? "cached_debrid" : "rd_magnet",
+
+      /*
+       * Comet's [RD⚡] rows already carry a ready playback URL as well as the
+       * torrent hash. Keep that URL as a native-runtime fallback instead of
+       * throwing it away when we normalise the row into a magnet. Media God can
+       * still prefer strict Real-Debrid inspection first, but the installed app
+       * can hand this ready URL to Media3 and let the native English gate inspect
+       * the real tracks if metadata qualification times out.
+       */
+      providerPlaybackUrl:
+        cacheSignal.cached &&
+        isHttp(rawUrl) &&
+        !hasRequiredRequestHeaders(stream)
+          ? rawUrl
+          : undefined,
+
+      torrentTrackers:
+        suppliedTrackers,
+    };
+  }
+
+  if (isHttp(rawUrl)) {
+    if (
+      hasRequiredRequestHeaders(stream)
+    ) {
+      return {
+        unsupported:
+          true,
+
+        reason:
+          "requires_request_headers",
+
+        label,
+      };
+    }
+
+    return {
+      id:
+        `${addonName}-${index}-${rawUrl.slice(-24)}`,
+
+      label,
+      addon: addonName,
+
+      type:
+        "url",
+
+      src:
+        rawUrl,
+
+      url:
+        rawUrl,
+
+      behaviorHints:
+        stream?.behaviorHints ||
+        stream?.behavior_hints ||
+        undefined,
+      // Direct MediaFusion/Torrentio rows often carry audio metadata only here.
+      description: clean(stream?.description),
+      debridProvider:
+        cacheSignal.cached ? "realdebrid" : undefined,
+      viaRealDebrid:
+        cacheSignal.cached ? true : undefined,
+      debridCached:
+        cacheSignal.cached ? true : undefined,
+      runtimeReadyCached:
+        cacheSignal.cached ? true : undefined,
+      debridCacheChecked:
+        cacheSignal.cached ? true : undefined,
+      debridCacheCheckState:
+        cacheSignal.cached ? "cached" : undefined,
+      cacheRequired:
+        cacheSignal.cached ? false : undefined,
+      cacheLabel:
+        cacheSignal.cached ? "cached" : undefined,
+      resolutionStrategy:
+        cacheSignal.cached ? "cached_debrid" : undefined,
+    };
+  }
+
+  return null;
+};
+
+const magnetRichness = (value) => {
+  const magnet = clean(value);
+
+  if (!/^magnet:\?/i.test(magnet)) {
+    return -1;
+  }
+
+  const trackerCount = (magnet.match(/(?:[?&])tr=/gi) || []).length;
+  const hasName = /(?:[?&])dn=/i.test(magnet) ? 1 : 0;
+
+  return trackerCount * 10000 + hasName * 1000 + Math.min(magnet.length, 999);
+};
+
+const richestMagnet = (...values) =>
+  values
+    .map((value) => clean(value))
+    .filter((value) => /^magnet:\?/i.test(value))
+    .sort((a, b) => magnetRichness(b) - magnetRichness(a))[0] || "";
+
+const mergeSameHashSource = (current, incoming, hash) => {
+  const mergedTorrentTrackers = normaliseTrackerList(
+    current?.torrentTrackers,
+    incoming?.torrentTrackers
+  );
+  const hasAuthoritativeTorrentMetadata = [current, incoming].some((item) => {
+    const trackers = Array.isArray(item?.torrentTrackers)
+      ? item.torrentTrackers.filter(Boolean)
+      : [];
+
+    return (
+      trackers.length > 0 &&
+      item?.torrentMetadataSource !== "public_fallback"
+    );
+  });
+  const mergedCometPlaybackUrl =
+    current?.cometPlaybackUrl || incoming?.cometPlaybackUrl || "";
+  const mergedCometUncached =
+    current?.cometUncached === true || incoming?.cometUncached === true;
+  const mergedAuthoritativeCached = [current, incoming].some(
+    (item) =>
+      item?.debridCached === true ||
+      item?.runtimeReadyCached === true
+  );
+  const cachedResolvedSource = [current, incoming].find(
+    (item) =>
+      item?.runtimeReadyCached === true &&
+      isHttp(item?.src || item?.url)
+  );
+  const cachedResolvedUrl = clean(
+    cachedResolvedSource?.src || cachedResolvedSource?.url
+  );
+  const fallbackMagnet = richestMagnet(
+    current?.richMagnet,
+    incoming?.richMagnet,
+    current?.magnet,
+    incoming?.magnet,
+    current?.src,
+    incoming?.src
+  );
+  const mergedTitle = clean(
+    current?.label ||
+      incoming?.label ||
+      current?.name ||
+      incoming?.name ||
+      ""
+  );
+  const directTrackerMagnet =
+    hash && mergedTorrentTrackers.length > 0
+      ? magnetFromHash(hash, mergedTitle, mergedTorrentTrackers)
+      : "";
+  const playbackMagnet = directTrackerMagnet
+    ? enrichMagnetWithTrackers(directTrackerMagnet, mergedTorrentTrackers)
+    : fallbackMagnet;
+
+  const addons = Array.from(
+    new Set(
+      [
+        ...(Array.isArray(current?.sourceAddons) ? current.sourceAddons : []),
+        current?.addon,
+        ...(Array.isArray(incoming?.sourceAddons) ? incoming.sourceAddons : []),
+        incoming?.addon,
+      ]
+        .map((value) => clean(value))
+        .filter(Boolean)
+    )
+  );
+
+  return {
+    ...incoming,
+    ...current,
+    infoHash: current?.infoHash || incoming?.infoHash || hash || undefined,
+    fileIdx:
+      current?.fileIdx ??
+      incoming?.fileIdx ??
+      undefined,
+    ...(cachedResolvedUrl
+      ? {
+          type: "url",
+          src: cachedResolvedUrl,
+          url: cachedResolvedUrl,
+        }
+      : playbackMagnet
+        ? {
+            src: playbackMagnet,
+            url: playbackMagnet,
+            magnet: playbackMagnet,
+          }
+        : {}),
+    richMagnet:
+      directTrackerMagnet ||
+      fallbackMagnet ||
+      current?.richMagnet ||
+      incoming?.richMagnet ||
+      undefined,
+    torrentTrackers: mergedTorrentTrackers,
+    reportedSeeders: Math.max(
+      0,
+      Number(current?.reportedSeeders || 0),
+      Number(incoming?.reportedSeeders || 0)
+    ),
+    cometPlaybackUrl:
+      mergedCometPlaybackUrl,
+    debridProvider:
+      mergedAuthoritativeCached
+        ? "realdebrid"
+        : current?.debridProvider || incoming?.debridProvider || undefined,
+    debridCached:
+      mergedAuthoritativeCached
+        ? true
+        : current?.debridCached ?? incoming?.debridCached,
+    runtimeReadyCached:
+      Boolean(
+        cachedResolvedUrl ||
+        current?.runtimeReadyCached === true ||
+        incoming?.runtimeReadyCached === true
+      ),
+    debridCacheChecked:
+      mergedAuthoritativeCached
+        ? true
+        : current?.debridCacheChecked ?? incoming?.debridCacheChecked,
+    debridCacheCheckState:
+      mergedAuthoritativeCached
+        ? "cached"
+        : current?.debridCacheCheckState || incoming?.debridCacheCheckState || undefined,
+    cacheRequired:
+      mergedAuthoritativeCached
+        ? false
+        : Boolean(current?.cacheRequired === true || incoming?.cacheRequired === true),
+    cacheLabel:
+      mergedAuthoritativeCached
+        ? "cached"
+        : current?.cacheLabel || incoming?.cacheLabel || undefined,
+    cometUncached:
+      mergedAuthoritativeCached ? false : mergedCometUncached,
+    torrentMetadataSource:
+      hasAuthoritativeTorrentMetadata
+        ? current?.torrentMetadataSource === "comet" ||
+          incoming?.torrentMetadataSource === "comet"
+          ? "comet"
+          : "addon"
+        : current?.torrentMetadataSource ||
+          incoming?.torrentMetadataSource ||
+          undefined,
+    resolutionStrategy:
+      mergedAuthoritativeCached
+        ? "cached_debrid"
+        : mergedCometUncached &&
+            !hasAuthoritativeTorrentMetadata &&
+            /^https?:\/\//i.test(mergedCometPlaybackUrl)
+          ? "comet_uncached"
+          : mergedTorrentTrackers.length > 0
+            ? "rd_magnet"
+            : current?.resolutionStrategy || incoming?.resolutionStrategy || undefined,
+    behaviorHints:
+      current?.behaviorHints || incoming?.behaviorHints || undefined,
+    description:
+      current?.description || incoming?.description || undefined,
+    sourceAddons: addons,
+  };
+};
+
+const dedupe = (items) => {
+  const output = [];
+  const indexByKey = new Map();
+
+  for (const item of items || []) {
+    const raw = clean(
+      item?.magnet ||
+        item?.url ||
+        item?.src
+    );
+
+    const hash = clean(
+      item?.infoHash ||
+        infoHashFromValue(raw)
+    ).toLowerCase();
+
+    const fileIdx =
+      item?.fileIdx ??
+      item?.file_idx ??
+      "";
+    const fileKey =
+      fileIdx === "" || fileIdx == null
+        ? ""
+        : `:${String(fileIdx)}`;
+
+    /*
+     * Different files inside one torrent are different playable choices.
+     * Deduplicating by hash alone discarded every later file-index row.
+     */
+    const key =
+      hash
+        ? `hash:${hash}${fileKey}`
+        : clean(
+            item?.url ||
+              item?.magnet ||
+              item?.src
+          );
+
+    if (!key) {
+      continue;
+    }
+
+    if (!indexByKey.has(key)) {
+      indexByKey.set(key, output.length);
+      output.push({
+        ...item,
+        ...(hash && /^magnet:\?/i.test(raw) && item?.cometUncached !== true
+          ? { richMagnet: raw }
+          : {}),
+      });
+      continue;
+    }
+
+    const existingIndex = indexByKey.get(key);
+
+    if (hash && Number.isInteger(existingIndex)) {
+      output[existingIndex] = mergeSameHashSource(
+        output[existingIndex],
+        item,
+        hash
+      );
+    }
+  }
+
+  return output;
+};
+
+const healthCheckAddon = async (addon) => {
+  const addonName =
+    clean(addon?.name) ||
+    "Addon";
+
+  if (isBareElfHostedComet(addon?.url)) {
+    return {
+      name: addonName,
+      status: "configuration_required",
+      stream_count: 0,
+      playable_count: 0,
+      message:
+        "Comet needs a configured manifest URL for Media God. Open Comet Configure, add your debrid service, then paste its generated manifest URL.",
+    };
+  }
+
+  const manifestUrl =
+    getManifestUrl(
+      addon?.url
+    );
+
+  if (!manifestUrl) {
+    return {
+      name:
+        addonName,
+
+      status:
+        "invalid_url",
+
+      stream_count:
+        0,
+
+      playable_count:
+        0,
+
+      message:
+        "Addon URL is invalid.",
+    };
+  }
+
+  const result =
+    await fetchAddonJson(
+      manifestUrl,
+      8000
+    );
+
+  if (!result.ok) {
+    return {
+      name:
+        addonName,
+
+      status:
+        result.status === 0
+          ? "unreachable"
+          : `http_${result.status}`,
+
+      stream_count:
+        0,
+
+      playable_count:
+        0,
+
+      message:
+        result.error ||
+        `Manifest endpoint returned ${result.status}.`,
+    };
+  }
+
+  const manifest =
+    result.data ||
+    {};
+
+  const supportsStreams =
+    addonSupportsStreams(
+      manifest
+    );
+
+  if (
+    supportsStreams === false
+  ) {
+    return {
+      name:
+        addonName,
+
+      status:
+        "no_stream_resource",
+
+      stream_count:
+        0,
+
+      playable_count:
+        0,
+
+      message:
+        "Manifest is reachable but does not advertise stream support.",
+    };
+  }
+
+  return {
+    name:
+      addonName,
+
+    status:
+      "ok",
+
+    stream_count:
+      0,
+
+    playable_count:
+      0,
+
+    message:
+      `Manifest reachable${
+        manifest?.name
+          ? ` (${clean(manifest.name)})`
+          : ""
+      }.`,
+  };
+};
+
+const lookupAddon = async ({
+  addon,
+  type,
+  streamId,
+  alternateStreamIds = [],
+  mediaType,
+  skipManifest = false,
+  manifestTimeoutMs = 3000,
+  streamTimeoutMs = 5000,
+}) => {
+  const addonName =
+    clean(addon?.name) ||
+    "Addon";
+
+  if (isBareElfHostedComet(addon?.url)) {
+    return {
+      streams: [],
+      diagnostic: {
+        name: addonName,
+        status: "configuration_required",
+        stream_count: 0,
+        playable_count: 0,
+        message:
+          "Comet is using its bare public manifest. Add a configured Comet manifest to enable stream lookup.",
+      },
+    };
+  }
+
+  const manifestUrl =
+    getManifestUrl(
+      addon?.url
+    );
+
+  const targetUrl =
+    getStreamUrl(
+      addon?.url,
+      type,
+      streamId
+    );
+
+  if (
+    !manifestUrl ||
+    !targetUrl
+  ) {
+    return {
+      streams:
+        [],
+
+      diagnostic: {
+        name:
+          addonName,
+
+        status:
+          "invalid_url",
+
+        stream_count:
+          0,
+
+        playable_count:
+          0,
+
+        message:
+          "Addon URL is invalid.",
+      },
+    };
+  }
+
+  let manifest =
+    null;
+
+  let manifestStatus =
+    "unknown";
+
+  if (!skipManifest) {
+    const manifestResult =
+      await fetchAddonJson(
+        manifestUrl,
+        manifestTimeoutMs
+      );
+
+    if (
+      manifestResult.ok
+    ) {
+      manifest =
+        manifestResult.data;
+
+      manifestStatus =
+        "ok";
+
+      const supportsStreams =
+        addonSupportsStreams(
+          manifest
+        );
+
+      if (
+        supportsStreams === false
+      ) {
+        return {
+          streams:
+            [],
+
+          diagnostic: {
+            name:
+              addonName,
+
+            status:
+              "no_stream_resource",
+
+            stream_count:
+              0,
+
+            playable_count:
+              0,
+
+            message:
+              "Manifest does not advertise stream support.",
+          },
+        };
+      }
+
+      const supportsType =
+        addonSupportsType(
+          manifest,
+          mediaType
+        );
+
+      if (
+        supportsType === false
+      ) {
+        return {
+          streams:
+            [],
+
+          diagnostic: {
+            name:
+              addonName,
+
+            status:
+              "wrong_media_type",
+
+            stream_count:
+              0,
+
+            playable_count:
+              0,
+
+            message:
+              "Addon does not advertise this media type.",
+          },
+        };
+      }
+    } else {
+      manifestStatus =
+        manifestResult.status === 0
+          ? "unreachable"
+          : `http_${manifestResult.status}`;
+    }
+  } else {
+    manifestStatus =
+      "skipped_fast";
+  }
+
+  let result =
+    await fetchAddonJson(
+      targetUrl,
+      streamTimeoutMs
+    );
+
+  let alternateIdUsed = "";
+
+  /*
+   * Some addons (notably Comet) can return HTTP 404 for a freshly-added TMDB
+   * id even though the same title is resolvable through an IMDb/search id.
+   * Treat 404 as an identifier miss, not as a terminal addon failure, and try
+   * the alternate ids Media God already prepared before surfacing the error.
+   */
+  if (
+    !result.ok &&
+    result.status === 404 &&
+    Array.isArray(alternateStreamIds) &&
+    alternateStreamIds.length > 0
+  ) {
+    for (const alternateStreamId of alternateStreamIds) {
+      if (!alternateStreamId || alternateStreamId === streamId) {
+        continue;
+      }
+
+      const alternateUrl = getStreamUrl(
+        addon?.url,
+        type,
+        alternateStreamId
+      );
+
+      if (!alternateUrl) {
+        continue;
+      }
+
+      const alternateResult = await fetchAddonJson(
+        alternateUrl,
+        streamTimeoutMs
+      );
+
+      if (alternateResult.ok) {
+        result = alternateResult;
+        alternateIdUsed = alternateStreamId;
+        break;
+      }
+    }
+  }
+
+  if (
+    !result.ok
+  ) {
+    return {
+      streams:
+        [],
+
+      diagnostic: {
+        name:
+          addonName,
+
+        status:
+          result.status === 0
+            ? "unreachable"
+            : `http_${result.status}`,
+
+        stream_count:
+          0,
+
+        playable_count:
+          0,
+
+        message:
+          result.status === 404
+            ? `No stream was found for the available TMDB/IMDb/title identifiers. Manifest status: ${manifestStatus}.`
+            : result.error ||
+              `Stream endpoint returned ${result.status}. Manifest status: ${manifestStatus}.`,
+      },
+    };
+  }
+
+  let rawStreams =
+    Array.isArray(
+      result.data?.streams
+    )
+      ? result.data.streams
+      : [];
+
+  if (
+    rawStreams.length === 0 &&
+    Array.isArray(alternateStreamIds) &&
+    alternateStreamIds.length > 0
+  ) {
+    for (const alternateStreamId of alternateStreamIds) {
+      if (!alternateStreamId || alternateStreamId === streamId) {
+        continue;
+      }
+
+      const alternateUrl = getStreamUrl(
+        addon?.url,
+        type,
+        alternateStreamId
+      );
+
+      if (!alternateUrl) {
+        continue;
+      }
+
+      const alternateResult = await fetchAddonJson(
+        alternateUrl,
+        streamTimeoutMs
+      );
+
+      const alternateStreams =
+        alternateResult.ok &&
+        Array.isArray(alternateResult.data?.streams)
+          ? alternateResult.data.streams
+          : [];
+
+      if (alternateStreams.length > 0) {
+        rawStreams = alternateStreams;
+        alternateIdUsed = alternateStreamId;
+        break;
+      }
+    }
+  }
+
+  /*
+   * The comprehensive lookup must be exhaustive, not "first non-empty wins".
+   * IMDb/TMDb can legitimately return only one provider row while the same
+   * addon exposes the rest of the releases under its title+year namespace.
+   * Continue Watching commonly fast-starts that one Real-Debrid/library file,
+   * so always merge the safe year-qualified aliases during the full pass.
+   * This also recovers reboot/remake rows without mixing other years.
+   */
+  if (
+    !skipManifest &&
+    rawStreams.length > 0 &&
+    !isAuthoritativeStreamId(alternateIdUsed || streamId)
+  ) {
+    for (const alternateStreamId of yearQualifiedSearchIds(alternateStreamIds)) {
+      if (
+        !alternateStreamId ||
+        alternateStreamId === streamId ||
+        alternateStreamId === alternateIdUsed
+      ) {
+        continue;
+      }
+
+      const alternateUrl = getStreamUrl(
+        addon?.url,
+        type,
+        alternateStreamId
+      );
+
+      if (!alternateUrl) {
+        continue;
+      }
+
+      const alternateResult = await fetchAddonJson(
+        alternateUrl,
+        streamTimeoutMs
+      );
+
+      const alternateStreams =
+        alternateResult.ok &&
+        Array.isArray(alternateResult.data?.streams)
+          ? alternateResult.data.streams
+          : [];
+
+      if (alternateStreams.length > 0) {
+        rawStreams = dedupe([
+          ...rawStreams,
+          ...alternateStreams,
+        ]);
+        alternateIdUsed = alternateStreamId;
+      }
+    }
+  }
+
+  let torrentMetadataRecovered = 0;
+
+  /*
+   * Comet currently auto-disables Torrent Mode when a debrid service is first
+   * configured. That is sensible for Stremio's UI, but it hides the companion
+   * torrent row containing the exact tracker `sources` Media God needs to hand
+   * an uncached torrent to Real-Debrid itself. Query an in-memory clone of the
+   * same Comet config with only enableTorrent=true and merge those metadata
+   * rows into the original response. No user setting or stored addon URL is
+   * changed.
+   */
+  const uncachedRowsMissingTorrentSources = rawStreams.some(
+    (stream) =>
+      isCometUncachedDownloadStream(stream, addonName) &&
+      normaliseTrackerList(
+        stream?.sources,
+        stream?.announce,
+        stream?.trackers
+      ).length === 0
+  );
+  const torrentModeManifest = uncachedRowsMissingTorrentSources
+    ? cometTorrentModeManifestUrl(addon?.url, addonName)
+    : "";
+
+  if (torrentModeManifest) {
+    const metadataStreamId = alternateIdUsed || streamId;
+    const torrentModeTarget = getStreamUrl(
+      torrentModeManifest,
+      type,
+      metadataStreamId
+    );
+
+    if (torrentModeTarget) {
+      const torrentModeResult = await fetchAddonJson(
+        torrentModeTarget,
+        streamTimeoutMs
+      );
+      const torrentModeStreams =
+        torrentModeResult.ok && Array.isArray(torrentModeResult.data?.streams)
+          ? torrentModeResult.data.streams
+          : [];
+      const metadataRows = torrentModeStreams.filter(
+        (stream) =>
+          clean(stream?.infoHash || stream?.info_hash) &&
+          Array.isArray(stream?.sources) &&
+          stream.sources.length > 0
+      );
+
+      if (metadataRows.length > 0) {
+        rawStreams = [...rawStreams, ...metadataRows];
+        torrentMetadataRecovered = metadataRows.length;
+      }
+    }
+  }
+
+  let unsupportedHeaders =
+    0;
+
+  let unsupportedControlStreams =
+    0;
+
+  let ipBoundDirectStreams =
+    0;
+
+  // All ElfHosted-configured VOD addons can generate IP-bound direct links.
+  // Browser discovery remains available from the viewer's own connection.
+  const ipBoundElfHostedOrigin =
+    /(^|\.)elfhosted\.com$/i.test(
+      (() => {
+        try { return new URL(addon?.url).hostname; }
+        catch { return ""; }
+      })()
+    );
+
+  const deferIpBoundDirectToBrowser =
+    ipBoundElfHostedOrigin;
+
+  const normalised =
+    rawStreams
+      .map(
+        (
+          stream,
+          index
+        ) =>
+          normaliseStream(
+            stream,
+            addonName,
+            index
+          )
+      )
+      .filter(
+        (item) => {
+          if (
+            item?.unsupported
+          ) {
+            if (
+              item.reason ===
+              "requires_request_headers"
+            ) {
+              unsupportedHeaders +=
+                1;
+            }
+
+            if (
+              item.reason ===
+              "addon_control_stream"
+            ) {
+              unsupportedControlStreams +=
+                1;
+            }
+
+            return false;
+          }
+
+          /*
+           * ElfHosted Comet and AIOStreams can bind generated direct debrid
+           * URLs to the IP address that requested the stream resource. A URL
+           * generated here on the Base44 server will therefore fail with
+           * "Wrong IP" when the user's phone/TV later tries to play it. Keep
+           * torrent/info-hash results server-side, but deliberately defer
+           * these direct HTTP links so Media God's browser fallback requests
+           * them from the actual playback device instead.
+           */
+          if (
+            item?.type === "url" &&
+            (deferIpBoundDirectToBrowser ||
+              /(^|\.)elfhosted\.com$/i.test(
+                (() => {
+                  try { return new URL(item?.src || item?.url).hostname; }
+                  catch { return ""; }
+                })()
+              ))
+          ) {
+            ipBoundDirectStreams += 1;
+            return false;
+          }
+
+          return Boolean(item);
+        }
+      );
+
+  return {
+    streams:
+      normalised,
+
+    diagnostic: {
+      name:
+        addonName,
+
+      status:
+        ipBoundDirectStreams > 0
+          ? "browser_required"
+          : normalised.length > 0
+            ? "ok"
+            : "no_playable_streams",
+
+      stream_count:
+        rawStreams.length,
+
+      playable_count:
+        normalised.length,
+
+      message:
+        ipBoundDirectStreams > 0
+          ? `${ipBoundDirectStreams} ${addonName} direct source${
+              ipBoundDirectStreams === 1 ? " was" : "s were"
+            } deferred to the playback device because this ElfHosted addon binds these links to the requesting IP.${
+              normalised.length > 0
+                ? ` ${normalised.length} non-IP-bound source${normalised.length === 1 ? " remains" : "s remain"} usable from the server.`
+                : ""
+            }${
+              torrentMetadataRecovered > 0
+                ? ` Recovered torrent-source metadata for ${torrentMetadataRecovered} Comet result${torrentMetadataRecovered === 1 ? "" : "s"}.`
+                : ""
+            }`
+          : normalised.length > 0
+            ? `${normalised.length} playable source${
+                normalised.length === 1
+                  ? ""
+                  : "s"
+              } found${alternateIdUsed ? ` using alternate id ${alternateIdUsed}` : ""}.${
+                torrentMetadataRecovered > 0
+                  ? ` Recovered torrent-source metadata for ${torrentMetadataRecovered} Comet result${torrentMetadataRecovered === 1 ? "" : "s"}.`
+                  : ""
+              }`
+          : unsupportedControlStreams > 0
+            ? `${unsupportedControlStreams} addon sync/control item${
+                unsupportedControlStreams === 1 ? " was" : "s were"
+              } returned and ignored because it is not playable media.`
+            : unsupportedHeaders > 0
+            ? `${rawStreams.length} stream${
+                rawStreams.length === 1
+                  ? " was"
+                  : "s were"
+              } returned, but ${unsupportedHeaders} require request headers that the browser player cannot safely apply.`
+            : rawStreams.length > 0
+              ? `${rawStreams.length} stream${
+                  rawStreams.length === 1
+                    ? " was"
+                    : "s were"
+                } returned, but none contained a supported direct URL, external URL, YouTube id, magnet, or info hash.`
+              : `Addon returned zero streams. Manifest status: ${manifestStatus}.`,
+    },
+  };
+};
+
+export default async function (req) {
+  try {
+    const base44 =
+      createClientFromRequest(req);
+
+    /*
+     * Playback discovery must not depend on optional Media God sign-in.
+     *
+     * Authenticated sessions may add their private, user-scoped addon rows
+     * below. Signed-out/guest sessions deliberately continue with only the
+     * credential-free built-in discovery addons. This keeps movie/episode
+     * source discovery available everywhere without exposing another user's
+     * addon configuration.
+     */
+    let user =
+      null;
+
+    try {
+      user =
+        await base44.auth.me();
+    } catch {
+      user =
+        null;
+    }
+
+    let body =
+      {};
+
+    try {
+      body =
+        await req.json();
+    } catch {
+      body =
+        {};
+    }
+
+    let addons =
+      [];
+
+    if (user) {
+      try {
+        addons =
+          await base44.entities.Addon.list(
+            "-created_date",
+            100
+          );
+      } catch {
+        addons =
+          [];
+      }
+    }
+
+    const includedAddonNames = new Set(
+      (Array.isArray(body?.include_addons) ? body.include_addons : [])
+        .map((value) => clean(value).toLowerCase().replace(/[^a-z0-9]/g, ""))
+        .filter(Boolean)
+    );
+
+    const excludedAddonNames =
+      new Set(
+        (
+          Array.isArray(
+            body?.exclude_addons
+          )
+            ? body.exclude_addons
+            : []
+        )
+          .map(
+            (value) =>
+              clean(value).toLowerCase()
+          )
+          .filter(Boolean)
+      );
+
+    const allActiveAddons =
+      withBuiltinPlaybackAddons(addons).filter(
+        (addon) =>
+          addon?.installed !== false &&
+          addon?.active !== false &&
+          addon?.url &&
+          (!Array.isArray(addon?.mediaTypes) || addon.mediaTypes.includes(
+            body.media_type === "tv" || body.mediaType === "tv" ? "tv" : "movie"
+          ))
+      );
+
+    const activeAddons = allActiveAddons.filter((addon) => {
+      const name = clean(addon?.name).toLowerCase();
+      const normalizedName = name.replace(/[^a-z0-9]/g, "");
+      if (excludedAddonNames.has(name)) return false;
+      return includedAddonNames.size === 0 || includedAddonNames.has(normalizedName);
+    });
+
+    if (
+      allActiveAddons.length === 0
+    ) {
+      return Response.json({
+        streams:
+          [],
+
+        diagnostics:
+          [],
+
+        addons_checked:
+          0,
+
+        addons_available:
+          0,
+
+        reason:
+          "No playback addon is currently available.",
+      });
+    }
+
+    if (
+      activeAddons.length === 0
+    ) {
+      return Response.json({
+        streams:
+          [],
+
+        diagnostics:
+          [],
+
+        addons_checked:
+          0,
+
+        addons_available:
+          allActiveAddons.length,
+
+        reason:
+          "All active addons were already satisfied by the fast source pass.",
+      });
+    }
+
+    const action =
+      clean(
+        body?.action
+      ).toLowerCase();
+
+    if (action === "trigger_comet_playback") {
+      const target = configuredCometPlaybackTarget(
+        body?.playback_url || body?.playbackUrl,
+        allActiveAddons
+      );
+
+      if (!target) {
+        return Response.json(
+          {
+            triggered: false,
+            error:
+              "The Comet playback URL does not belong to an active configured Comet addon.",
+            error_code: "COMET_PLAYBACK_URL_REJECTED",
+          },
+          { status: 400 }
+        );
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30_000);
+
+      try {
+        /*
+         * Trigger Comet from the Base44 backend, not from the user's browser.
+         * Current Comet resolves uncached playback server-side and can retrieve
+         * the exact stored torrent `sources_json` for this hash. Mobile browser
+         * CORS/manual-redirect behaviour must never decide whether an uncached
+         * Real-Debrid job gets created.
+         */
+        const response = await fetch(target.url, {
+          method: "GET",
+          redirect: "manual",
+          signal: controller.signal,
+          headers: {
+            accept: "*/*",
+            "cache-control": "no-cache",
+            pragma: "no-cache",
+            "user-agent": "Media-God/Comet-Uncached-Trigger",
+          },
+        });
+
+        const contentType = clean(response.headers.get("content-type"));
+        const location = clean(response.headers.get("location"));
+        let locationHost = "";
+
+        if (location) {
+          try {
+            locationHost = new URL(location, target.origin).hostname;
+          } catch {
+            locationHost = "";
+          }
+        }
+
+        try {
+          await response.body?.cancel?.();
+        } catch {
+          // Headers/status are enough: Comet has already completed its handler.
+        }
+
+        return Response.json({
+          triggered: true,
+          addon: target.addonName,
+          upstream_status: response.status,
+          redirected: response.status >= 300 && response.status < 400,
+          location_host: locationHost,
+          content_type: contentType,
+          status_video:
+            response.status === 200 && /video\//i.test(contentType),
+        });
+      } catch (error) {
+        return Response.json(
+          {
+            triggered: false,
+            error:
+              error?.name === "AbortError"
+                ? "Comet did not answer the uncached playback request within 30 seconds."
+                : error?.message || "Comet uncached playback request failed.",
+            error_code:
+              error?.name === "AbortError"
+                ? "COMET_TRIGGER_TIMEOUT"
+                : "COMET_TRIGGER_FAILED",
+          },
+          { status: 502 }
+        );
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    if (
+      action === "health"
+    ) {
+      const settled =
+        await Promise.allSettled(
+          activeAddons
+            .slice(
+              0,
+              30
+            )
+            .map(
+              (addon) =>
+                healthCheckAddon(
+                  addon
+                )
+            )
+        );
+
+      const diagnostics =
+        settled.map(
+          (
+            result,
+            index
+          ) => {
+            if (
+              result.status ===
+              "fulfilled"
+            ) {
+              return result.value;
+            }
+
+            return {
+              name:
+                clean(
+                  activeAddons[index]?.name
+                ) ||
+                `Addon ${index + 1}`,
+
+              status:
+                "error",
+
+              stream_count:
+                0,
+
+              playable_count:
+                0,
+
+              message:
+                result.reason?.message ||
+                "Addon health check failed.",
+            };
+          }
+        );
+
+      return Response.json({
+        action:
+          "health",
+
+        streams:
+          [],
+
+        diagnostics,
+
+        addons_checked:
+          activeAddons.length,
+
+        addons_available:
+          allActiveAddons.length,
+      });
+    }
+
+    const imdbId =
+      clean(
+        body.imdb_id ||
+          body.imdbId
+      );
+
+    const title =
+      clean(
+        body.title
+      );
+
+    const tmdbId =
+      clean(
+        body.tmdb_id ||
+          body.tmdbId
+      );
+
+    const year =
+      clean(
+        body.year
+      );
+
+    const alternateYears =
+      (
+        Array.isArray(
+          body.alternate_years ||
+          body.alternateYears
+        )
+          ? (
+              body.alternate_years ||
+              body.alternateYears
+            )
+          : []
+      )
+        .map(clean)
+        .filter(
+          (value) =>
+            /^\d{4}$/.test(value) &&
+            value !== year
+        )
+        .filter(
+          (value, index, list) =>
+            list.indexOf(value) === index
+        );
+
+    const alternateTitles =
+      (
+        Array.isArray(
+          body.alternate_titles ||
+          body.alternateTitles
+        )
+          ? (
+              body.alternate_titles ||
+              body.alternateTitles
+            )
+          : []
+      )
+        .map(clean)
+        .filter(
+          (value) =>
+            value &&
+            value.toLowerCase() !== title.toLowerCase()
+        )
+        .filter(
+          (value, index, list) =>
+            list.findIndex(
+              (candidate) =>
+                candidate.toLowerCase() === value.toLowerCase()
+            ) === index
+        )
+        .slice(0, 8);
+
+    const mediaType =
+      body.media_type === "tv" ||
+      body.mediaType === "tv"
+        ? "tv"
+        : "movie";
+
+    const season =
+      body.season != null &&
+      body.season !== ""
+        ? Number(
+            body.season
+          )
+        : null;
+
+    const episode =
+      body.episode != null &&
+      body.episode !== ""
+        ? Number(
+            body.episode
+          )
+        : null;
+
+    if (
+      mediaType === "tv" &&
+      (
+        season == null ||
+        episode == null ||
+        !Number.isFinite(
+          season
+        ) ||
+        !Number.isFinite(
+          episode
+        )
+      )
+    ) {
+      return Response.json({
+        streams:
+          [],
+
+        diagnostics:
+          [],
+
+        addons_checked:
+          activeAddons.length,
+
+        addons_available:
+          allActiveAddons.length,
+
+        reason:
+          "Select a valid season and episode first.",
+      });
+    }
+
+    if (
+      !imdbId &&
+      !tmdbId &&
+      !title
+    ) {
+      return Response.json(
+        {
+          error:
+            "An IMDb id or title is required.",
+
+          streams:
+            [],
+
+          diagnostics:
+            [],
+
+          addons_checked:
+            activeAddons.length,
+
+          addons_available:
+            allActiveAddons.length,
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    const type =
+      mediaType === "tv"
+        ? "series"
+        : "movie";
+
+    /*
+     * A supplied year is part of the media identity, not an optional hint.
+     * Franchise names such as "Resident Evil" are too ambiguous to query as a
+     * bare title when the caller asked for a specific release year.
+     */
+    const streamId =
+      imdbId
+        ? mediaType === "tv"
+          ? `${imdbId}:${season}:${episode}`
+          : imdbId
+        : tmdbId
+          ? mediaType === "tv"
+            ? `tmdb:${tmdbId}:${season}:${episode}`
+            : `tmdb:${tmdbId}`
+          : year
+            ? `search:${title}:${year}${mediaType === "tv" ? `:${season}:${episode}` : ""}`
+            : mediaType === "tv"
+              ? `search:${title}:${season}:${episode}`
+              : `search:${title}`;
+
+    const fastMode =
+      body?.fast_mode === true ||
+      body?.fastMode === true;
+
+    const episodeSuffix =
+      mediaType === "tv"
+        ? `:${season}:${episode}`
+        : "";
+
+    const titleWords =
+      title
+        .split(/\s+/)
+        .filter(Boolean);
+
+    const ambiguousShortTitle =
+      titleWords.length === 1 &&
+      title.length <= 6;
+
+    const candidateTitles = [
+      title,
+      ...alternateTitles,
+    ]
+      .map(clean)
+      .filter(Boolean)
+      .flatMap((candidateTitle) => {
+        const punctuationNormalised = candidateTitle
+          .replace(/[^a-zA-Z0-9\s]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        return punctuationNormalised &&
+          punctuationNormalised.toLowerCase() !== candidateTitle.toLowerCase()
+          ? [candidateTitle, punctuationNormalised]
+          : [candidateTitle];
+      })
+      .filter(
+        (value, index, list) =>
+          list.findIndex(
+            (candidate) =>
+              candidate.toLowerCase() === value.toLowerCase()
+          ) === index
+      )
+      .slice(0, 12);
+
+    const yearSearchIds = [
+      ...candidateTitles
+        .filter(() => Boolean(year))
+        .map(
+          (candidateTitle) =>
+            `search:${candidateTitle}:${year}${episodeSuffix}`
+        ),
+      ...candidateTitles.flatMap((candidateTitle) =>
+        alternateYears.map(
+          (candidateYear) =>
+            `search:${candidateTitle}:${candidateYear}${episodeSuffix}`
+        )
+      ),
+    ];
+    // Only movies get a yearless retry, and only after all ID- and
+    // year-qualified searches have been attempted. This recovers providers
+    // that ignore year metadata without weakening TV episode identity.
+    const unqualifiedTitleSearchIds =
+      mediaType === "movie" &&
+      !(
+        ambiguousShortTitle &&
+        (imdbId || tmdbId)
+      )
+        ? candidateTitles.map(
+            (candidateTitle) =>
+              `search:${candidateTitle}${episodeSuffix}`
+          )
+        : [];
+
+    const broadAlternateStreamIds = [
+      tmdbId
+        ? `tmdb:${tmdbId}${episodeSuffix}`
+        : "",
+      imdbId
+        ? `imdb:${imdbId}${episodeSuffix}`
+        : "",
+      tmdbId
+        ? `${tmdbId}${episodeSuffix}`
+        : "",
+      ...yearSearchIds,
+      ...unqualifiedTitleSearchIds,
+      mediaType === "tv" && title && !year
+        ? `search:${title}${episodeSuffix}`
+        : "",
+    ]
+      .filter(Boolean)
+      .filter(
+        (value, index, list) =>
+          value !== streamId &&
+          list.indexOf(value) === index
+      );
+
+    const alternateStreamIds =
+      fastMode
+        ? broadAlternateStreamIds.slice(0, 8)
+        : broadAlternateStreamIds.slice(0, 16);
+
+    /*
+     * Fast mode is allowed to use shorter timeouts and fewer alternate IDs,
+     * but it must never cap discovery to six addons. If the comprehensive pass
+     * is delayed or a provider times out, that old cap can become the user's
+     * entire visible source pool. Query every configured addon in both modes.
+     */
+    const selectedAddons = activeAddons;
+
+    const settled =
+      await Promise.allSettled(
+        selectedAddons.map(
+          (addon) =>
+            lookupAddon({
+              addon,
+              type,
+              streamId,
+              alternateStreamIds,
+              mediaType,
+              skipManifest:
+                fastMode,
+              manifestTimeoutMs:
+                fastMode ? 900 : 3000,
+              streamTimeoutMs:
+                fastMode ? 1800 : 5000,
+            })
+        )
+      );
+
+    const streams =
+      dedupe(
+        settled.flatMap(
+          (result) =>
+            result.status ===
+            "fulfilled"
+              ? result.value.streams
+              : []
+        )
+      );
+
+    const diagnostics =
+      settled.map(
+        (
+          result,
+          index
+        ) => {
+          if (
+            result.status ===
+            "fulfilled"
+          ) {
+            return result.value.diagnostic;
+          }
+
+          return {
+            name:
+              clean(
+                selectedAddons[index]?.name
+              ) ||
+              `Addon ${index + 1}`,
+
+            status:
+              "error",
+
+            stream_count:
+              0,
+
+            playable_count:
+              0,
+
+            message:
+              result.reason?.message ||
+              "Addon lookup failed.",
+          };
+        }
+      );
+
+    return Response.json({
+      streams,
+
+      diagnostics,
+
+      addons_checked:
+        selectedAddons.length,
+
+      addons_available:
+        allActiveAddons.length,
+
+      fast_mode:
+        fastMode,
+
+      media_type:
+        mediaType,
+
+      imdb_id:
+        imdbId,
+
+      title,
+
+      alternate_years:
+        alternateYears,
+
+      season,
+
+      episode,
+    });
+  } catch (error) {
+    return Response.json(
+      {
+        error:
+          error?.message ||
+          "Unable to fetch addon streams.",
+
+        streams:
+          [],
+
+        diagnostics:
+          [],
+      },
+      {
+        status:
+          500,
+      }
+    );
+  }
+}
