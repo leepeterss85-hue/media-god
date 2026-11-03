@@ -1277,11 +1277,11 @@ export default function HomeDashboard({ onOpenTvService }) {
           />
         </div>
 
-        {!hiddenHomeSections.has("continue-watching") && (
-          <div data-mg-home-snap="true" data-mg-home-second="continue-watching">
-            <ContinueWatchingRow onOpenDetail={open} />
-          </div>
-        )}
+        {/* Continue Watching is essential account history, not a hideable
+            recommendation row. Preserve its second-row position for everyone. */}
+        <div data-mg-home-snap="true" data-mg-home-second="continue-watching">
+          <ContinueWatchingRow onOpenDetail={open} />
+        </div>
 
         {(uxPreferences.homeOrder || []).filter((id) => id !== "continue-watching").map((sectionId) => {
           const section = renderHomeSection(sectionId);
