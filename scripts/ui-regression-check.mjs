@@ -224,7 +224,7 @@ expect(
     homeDashboard.includes('(uxPreferences.homeOrder || []).filter((id) => id !== "continue-watching").map((sectionId) =>') &&
     homeDashboard.includes('data-mg-home-second="continue-watching"') &&
     homeDashboard.indexOf('<HeroSlider') < homeDashboard.indexOf('data-mg-home-second="continue-watching"') &&
-    homeDashboard.includes('!hiddenHomeSections.has("continue-watching")') &&
+    !homeDashboard.includes('!hiddenHomeSections.has("continue-watching")') &&
     homeDashboard.includes("renderHomeSection(sectionId)") &&
     homeDashboard.includes('case "new-films"') &&
     homeDashboard.includes('case "new-tv"') &&
