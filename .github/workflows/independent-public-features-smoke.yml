@@ -1,0 +1,45 @@
+name: Independent Media God Public Features Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'deploy/media-god-api/**'
+      - '.github/workflows/independent-public-features-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  public-features-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: News feed available without Base44
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 3 --max-time 60 \
+            -X POST 'https://media-god-metadata-api-production.up.railway.app/functions/getEntertainmentNews' \
+            -H 'Origin: https://mysterious-media-vault-pro.base44.app' \
+            -H 'Content-Type: application/json' \
+            --data '{"section":"all"}' \
+            | jq -e '(.stories | type == "array") and (.stories | length > 0) and (.updatedAt | type == "string")'
+      - name: Skip-intro endpoint handles exact TV identity
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 3 --max-time 30 \
+            -X POST 'https://media-god-metadata-api-production.up.railway.app/functions/getSkipSegments' \
+            -H 'Origin: https://mysterious-media-vault-pro.base44.app' \
+            -H 'Content-Type: application/json' \
+            --data '{"imdb_id":"tt0944947","season":1,"episode":1,"duration":3600}' \
+            | jq -e '.imdb_id == "tt0944947" and .season == 1 and .episode == 1 and (.markers | type == "object") and (.providers | type == "array")'
+      - name: Fire Stick APK redirect resolver check
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --retry 2 --retry-delay 3 --max-time 30 \
+            -X POST 'https://media-god-metadata-api-production.up.railway.app/functions/getFireTvApkLink' \
+            -H 'Origin: https://mysterious-media-vault-pro.base44.app' \
+            -H 'Content-Type: application/json' \
+            --data '{}' \
+            | jq -e '(.url | type == "string") and (.url | startswith("https://")) and (.size | type == "number")'
