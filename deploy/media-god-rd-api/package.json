@@ -1,0 +1,12 @@
+{
+  "name": "media-god-secure-real-debrid-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "start": "node server.mjs",
+    "check": "node --check server.mjs && node --check realDebrid.mjs && node --check realDebridAuth.mjs && node --check findRdLibrary.mjs && node --check verifiedUserClient.mjs"
+  },
+  "dependencies": {"@base44/sdk": "0.8.57"}
+}
