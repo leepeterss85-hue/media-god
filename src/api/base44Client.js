@@ -1,6 +1,7 @@
 import { createClient } from '@base44/sdk';
 import { appParams } from '@/lib/app-params';
 import { withGuestDebridPayload } from '@/components/mg/guestDebridDevice';
+import { invokeIndependentMetadata } from './independentMetadata.js';
 
 const { appId, token, functionsVersion, appBaseUrl } = appParams;
 
@@ -23,11 +24,19 @@ const DEVICE_SCOPED_DEBRID_FUNCTIONS = new Set([
 
 const rawInvoke = base44.functions.invoke.bind(base44.functions);
 
-base44.functions.invoke = (name, payload = {}, ...rest) =>
-  rawInvoke(
+base44.functions.invoke = (name, payload = {}, ...rest) => {
+  // Public catalogue, search and metadata never use Base44 integration
+  // credits. This endpoint contains no personal data or credentials.
+  if (name === 'getTmdbMovies') {
+    return invokeIndependentMetadata(payload);
+  }
+  // Preserve the existing authenticated, device-scoped paths for all private
+  // actions until their secure backend migrations are individually verified.
+  return rawInvoke(
     name,
     DEVICE_SCOPED_DEBRID_FUNCTIONS.has(String(name || ''))
       ? withGuestDebridPayload(payload)
       : payload,
     ...rest
   );
+};
