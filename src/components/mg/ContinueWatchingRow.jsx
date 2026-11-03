@@ -351,7 +351,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
         } else if ([402, 429].includes(status) || /integration credit|credits limit|quota exceeded|resource exhausted/i.test(String(error?.message || ""))) {
           setSyncError("Base44 is limiting history requests. Your watch progress has not been deleted. Please retry when the service is available.");
         } else {
-          setSyncError("Continue Watching could not refresh. Your saved history is still in your account. Please retry.");
+          setSyncError("Continue Watching could not refresh. The displayed list may be out of date; your saved history is still in your account. Please retry.");
         }
       })
       .finally(() => { if (version === loadVersionRef.current) setLoading(false); });
