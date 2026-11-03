@@ -37,5 +37,6 @@ test("known-good resume buttons and profile-isolated history remain unchanged", 
   assert.match(row, /profiledLibrary\.ContinueWatching\s*\.list/);
   assert.match(profiles, /created_by_id: ownerId/);
   assert.match(profiles, /profileOwnsRow\(row, profileId\)/);
-  assert.doesNotMatch(row, /ContinueWatching\.delete\(/);
+  assert.match(row, /const remove = async \(id, event\) =>/);
+  assert.match(row, /await profiledLibrary\.ContinueWatching\.delete\(id\)/);
 });
