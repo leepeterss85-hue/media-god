@@ -1,7 +1,7 @@
 import { createClient } from '@base44/sdk';
 import { appParams } from '@/lib/app-params';
 import { withGuestDebridPayload } from '@/components/mg/guestDebridDevice';
-import { invokeIndependentMetadata } from './independentMetadata.js';
+import { invokeIndependentMetadata, invokeIndependentImdbResolver } from './independentMetadata.js';
 
 const { appId, token, functionsVersion, appBaseUrl } = appParams;
 
@@ -29,6 +29,9 @@ base44.functions.invoke = (name, payload = {}, ...rest) => {
   // credits. This endpoint contains no personal data or credentials.
   if (name === 'getTmdbMovies') {
     return invokeIndependentMetadata(payload);
+  }
+  if (name === 'resolveImdb' || name === 'resolveTvImdb') {
+    return invokeIndependentImdbResolver(name, payload);
   }
   // Preserve the existing authenticated, device-scoped paths for all private
   // actions until their secure backend migrations are individually verified.
