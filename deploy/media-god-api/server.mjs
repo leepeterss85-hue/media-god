@@ -13,6 +13,26 @@ const allowedOrigins = new Set(
 );
 const cache = new Map();
 const rateLimits = new Map();
+let tmdbReady = false;
+const checkTmdb = async () => {
+  if (!process.env.TMDB_API_KEY) {
+    tmdbReady = false;
+    console.error("[media-api] TMDB key missing");
+    return;
+  }
+  try {
+    const url = new URL("https://api.themoviedb.org/3/configuration");
+    url.searchParams.set("api_key", process.env.TMDB_API_KEY);
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    tmdbReady = response.ok;
+    console.info("[media-api] TMDB upstream", response.ok ? "ready" : "unavailable", response.status);
+  } catch {
+    tmdbReady = false;
+    console.error("[media-api] TMDB upstream unreachable");
+  }
+};
+void checkTmdb();
+setInterval(() => void checkTmdb(), 10 * 60_000).unref();
 const CACHE_MS = 300_000;
 const BODY_LIMIT_BYTES = 16 * 1024;
 const RATE_LIMIT = 150;
@@ -44,8 +64,8 @@ const serve = async (req, res) => {
   const route = (req.url || "/").split("?")[0];
   if (!okOrigin(origin)) return sendJson(res, 403, { error: "Origin not allowed" });
   if (route === "/health" && req.method === "GET") {
-    return sendJson(res, 200, {
-      status: process.env.TMDB_API_KEY ? "ready" : "missing_configuration",
+    return sendJson(res, tmdbReady ? 200 : 503, {
+      status: tmdbReady ? "ready" : "upstream_unavailable",
       service: "media-god-metadata",
     }, origin);
   }
