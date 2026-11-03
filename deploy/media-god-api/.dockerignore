@@ -2,3 +2,5 @@
 !server.mjs
 !getTmdbMovies.mjs
 !package.json
+!resolveImdb.mjs
+!resolveTvImdb.mjs
