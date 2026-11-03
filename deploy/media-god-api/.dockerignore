@@ -4,3 +4,4 @@
 !package.json
 !resolveImdb.mjs
 !resolveTvImdb.mjs
+!fetchAddonStreams.mjs
