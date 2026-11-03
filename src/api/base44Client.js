@@ -1,7 +1,7 @@
 import { createClient } from '@base44/sdk';
 import { appParams } from '@/lib/app-params';
 import { withGuestDebridPayload } from '@/components/mg/guestDebridDevice';
-import { invokeIndependentMetadata, invokeIndependentImdbResolver } from './independentMetadata.js';
+import { invokeIndependentMetadata, invokeIndependentImdbResolver, invokeIndependentAddonSources } from './independentMetadata.js';
 
 const { appId, token, functionsVersion, appBaseUrl } = appParams;
 
@@ -32,6 +32,9 @@ base44.functions.invoke = (name, payload = {}, ...rest) => {
   }
   if (name === 'resolveImdb' || name === 'resolveTvImdb') {
     return invokeIndependentImdbResolver(name, payload);
+  }
+  if (name === 'fetchAddonStreams' && !payload?.action) {
+    return invokeIndependentAddonSources(payload);
   }
   // Preserve the existing authenticated, device-scoped paths for all private
   // actions until their secure backend migrations are individually verified.
