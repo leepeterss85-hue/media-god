@@ -65,6 +65,7 @@ test('Continue Watching is the second Home row after featured, only once, withou
   assert.equal((home.match(/<ContinueWatchingRow /g) || []).length, 1,
     'Never show two Continue Watching rows');
   assert.match(home, /homeOrder \|\| \[\]\)\.filter\(\(id\) => id !== "continue-watching"\)/);
-  assert.match(home, /hiddenHomeSections\.has\("continue-watching"\)/);
+  assert.doesNotMatch(home, /!hiddenHomeSections\.has\("continue-watching"\)/,
+    "Account history must never be hidden by local Home preferences");
   assert.match(home, /featured>continue-watching>new-films>new-tv/);
 });
