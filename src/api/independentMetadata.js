@@ -97,3 +97,49 @@ export async function invokeIndependentMetadata(payload = {}, {
     clearTimeout(timeout);
   }
 }
+
+const PUBLIC_IMDB_RESOLVERS = new Set(["resolveImdb", "resolveTvImdb"]);
+export async function invokeIndependentImdbResolver(name, payload = {}, {
+  fetchImpl = globalThis.fetch,
+  storage = safeStorage(),
+} = {}) {
+  if (!PUBLIC_IMDB_RESOLVERS.has(name)) {
+    throw new Error("Unsupported public identity resolver");
+  }
+  const input = payload && typeof payload === "object" && !Array.isArray(payload)
+    ? payload : {};
+  // The independent endpoint needs only public media identity fields. Never
+  // forward account tokens, Real-Debrid credentials, or arbitrary SDK payloads.
+  const allowed = [
+    "imdb_id", "imdbId", "tmdb_id", "tmdbId", "id",
+    "title", "year", "media_type", "mediaType",
+  ];
+  const request = Object.fromEntries(
+    allowed.filter(key => input[key] !== undefined).map(key => [key, input[key]]),
+  );
+  const cacheRequest = { __resolver: name, ...request };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const endpoint = INDEPENDENT_METADATA_API_URL.replace(
+      "/functions/getTmdbMovies", `/functions/${name}`);
+    const response = await fetchImpl(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+      credentials: "omit",
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`Identity service returned ${response.status}`);
+    const data = await response.json();
+    if (!data || typeof data !== "object") throw new Error("Identity service response invalid");
+    saveCache(cacheRequest, data, storage);
+    return { data };
+  } catch (error) {
+    const cached = readCache(cacheRequest, storage);
+    if (cached) return { data: cached, stale: true };
+    throw new Error("Identity lookup temporarily unavailable", { cause: error });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
