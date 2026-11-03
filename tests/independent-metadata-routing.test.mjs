@@ -6,6 +6,7 @@ import {
   invokeIndependentMetadata,
   invokeIndependentImdbResolver,
   invokeIndependentAddonSources,
+  invokeIndependentPublicFeature,
 } from "../src/api/independentMetadata.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
@@ -139,4 +140,46 @@ test("public source gateway never queries other viewers' configured addons", () 
   assert.match(handler, /Addon: \{ list: async \(\) => \[\] \}/);
   assert.match(handler, /BUILTIN_PUBLIC_PLAYBACK_ADDONS/);
   assert.match(server, /"\/functions\/fetchAddonStreams": fetchAddonStreams/);
+});
+
+test("news and skip metadata bypass Base44 and strip all account credentials", async () => {
+  const seen = [];
+  for (const [name, payload, expected] of [
+    ["getEntertainmentNews", { section: "tv", forceRefresh: true, rd_token: "DO_NOT_FORWARD" }, { stories: [], updatedAt: "2026-11-03" }],
+    ["getSkipSegments", { imdb_id: "tt0944947", season: 1, episode: 2, duration: 2700, rd_token: "DO_NOT_FORWARD" }, { markers: {}, providers: [] }],
+    ["getFireTvApkLink", { token: "DO_NOT_FORWARD", user_id: "SECRET" }, { url: "https://release-assets.githubusercontent.com/signed" }],
+  ]) {
+    const result = await invokeIndependentPublicFeature(name, payload, {
+      fetchImpl: async (url, options) => {
+        seen.push({ url, options });
+        return { ok: true, json: async () => expected };
+      },
+    });
+    assert.deepEqual(result.data, expected);
+  }
+  assert.equal(seen.length, 3);
+  for (const { url, options } of seen) {
+    assert.match(url, /\/functions\/(?:getEntertainmentNews|getSkipSegments|getFireTvApkLink)$/);
+    assert.equal(options.method, "POST");
+    assert.equal(options.credentials, "omit");
+    assert.doesNotMatch(options.body, /DO_NOT_FORWARD|rd_token|user_id|SECRET/);
+  }
+  assert.equal(seen[2].options.body, "{}");
+});
+
+test("the three independently hosted public handlers are wired and never fall back to credit-limited functions", () => {
+  const client = read("src/api/base44Client.js");
+  assert.match(client, /name === 'getEntertainmentNews'/);
+  assert.match(client, /name === 'getSkipSegments'/);
+  assert.match(client, /name === 'getFireTvApkLink'/);
+  assert.match(client, /return invokeIndependentPublicFeature\(name, payload\)/);
+  const server = read("deploy/media-god-api/server.mjs");
+  const docker = read("deploy/media-god-api/Dockerfile");
+  for (const name of ["getEntertainmentNews", "getSkipSegments", "getFireTvApkLink"]) {
+    assert.match(server, new RegExp('"/functions/' + name + '": ' + name));
+    assert.match(docker, new RegExp(name + '\\.mjs'));
+  }
+  // GitHub's temporary signed APK URLs must not be served from the
+  // 5-minute request cache, even when news and skip metadata are cached.
+  assert.match(server, /route !== "\/functions\/getFireTvApkLink"/);
 });
