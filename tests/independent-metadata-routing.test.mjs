@@ -5,6 +5,7 @@ import {
   INDEPENDENT_METADATA_API_URL,
   invokeIndependentMetadata,
   invokeIndependentImdbResolver,
+  invokeIndependentAddonSources,
 } from "../src/api/independentMetadata.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
@@ -109,4 +110,33 @@ test("independent backend ports IMDb logic without Base44 integration runtime", 
   assert.doesNotMatch(tv, /base44:runtime/);
   assert.match(imdb, /TMDB_API_KEY/);
   assert.match(tv, /TMDB_API_KEY/);
+});
+
+test("credit-independent public source lookup strips secret-bearing fields", async () => {
+  let endpoint = "", body = "", options = {};
+  const data = { streams: [], addons_checked: 2, diagnostics: [] };
+  const response = await invokeIndependentAddonSources(
+    { imdb_id: "tt1375666", media_type: "movie", rd_token: "SECRET",
+      addon_manifest_url: "https://secret.example/api?token=SECRET" },
+    { fetchImpl: async (url, init) => {
+        endpoint = url; body = init.body; options = init;
+        return { ok: true, json: async () => data };
+      } },
+  );
+  assert.match(endpoint, /\/functions\/fetchAddonStreams$/);
+  assert.deepEqual(response.data, data);
+  assert.doesNotMatch(body, /SECRET|rd_token|addon_manifest_url/);
+  assert.equal(options.credentials, "omit");
+  const client = read("src/api/base44Client.js");
+  assert.match(client, /name === 'fetchAddonStreams' && !payload\?\.action/);
+  assert.match(client, /return invokeIndependentAddonSources\(payload\)/);
+});
+
+test("public source gateway never queries other viewers' configured addons", () => {
+  const handler = read("deploy/media-god-api/fetchAddonStreams.mjs");
+  const server = read("deploy/media-god-api/server.mjs");
+  assert.match(handler, /auth: \{ me: async \(\) => null \}/);
+  assert.match(handler, /Addon: \{ list: async \(\) => \[\] \}/);
+  assert.match(handler, /BUILTIN_PUBLIC_PLAYBACK_ADDONS/);
+  assert.match(server, /"\/functions\/fetchAddonStreams": fetchAddonStreams/);
 });
