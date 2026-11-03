@@ -6,6 +6,6 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check getTmdbMovies.mjs && node --check resolveImdb.mjs && node --check resolveTvImdb.mjs && node --check fetchAddonStreams.mjs"
+    "check": "node --check server.mjs && node --check getTmdbMovies.mjs && node --check resolveImdb.mjs && node --check resolveTvImdb.mjs && node --check fetchAddonStreams.mjs && node --check getEntertainmentNews.mjs && node --check getSkipSegments.mjs && node --check getFireTvApkLink.mjs"
   }
 }
