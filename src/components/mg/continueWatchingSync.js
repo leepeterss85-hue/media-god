@@ -30,7 +30,10 @@ export function watchContinueWatchingChanges(refresh, {
   }
   documentObject.addEventListener('visibilitychange', refreshOnVisible);
   const timer = windowObject.setInterval(refreshIfVisible, intervalMs);
-  refreshIfVisible();
+  // Initial account history must load even when a Fire TV WebView or Base44
+  // editor briefly reports visibilityState='hidden' during navigation.
+  // Subsequent polling still respects visibility to avoid wasteful requests.
+  refresh();
   return () => {
     stopped = true;
     windowObject.clearInterval(timer);
