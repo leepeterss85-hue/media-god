@@ -50,3 +50,12 @@ jobs:
             -H 'Content-Type: application/json' \
             --data '{"tmdb_id":1399,"media_type":"tv"}' \
             | jq -e '.imdb_id == "tt0944947"'
+      - name: Discover public sources without Base44 backend
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 3 --max-time 35 \
+            -X POST https://media-god-metadata-api-production.up.railway.app/functions/fetchAddonStreams \
+            -H "Origin: https://mysterious-media-vault-pro.base44.app" \
+            -H 'Content-Type: application/json' \
+            --data '{"imdb_id":"tt1375666","tmdb_id":27205,"title":"Inception","media_type":"movie","fast_mode":true}' \
+            | jq -e '(.streams | type == "array") and (.diagnostics | type == "array")'
