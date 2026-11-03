@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import realDebrid from "../deploy/media-god-rd-api/realDebrid.mjs";
 import realDebridAuth from "../deploy/media-god-rd-api/realDebridAuth.mjs";
+import multiDebrid from "../deploy/media-god-rd-api/multiDebrid.mjs";
 import { createClientFromRequest } from "../deploy/media-god-rd-api/verifiedUserClient.mjs";
 
 const source = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
@@ -96,4 +97,30 @@ test("Railway RD service requires a real Base44 session, protects actions and ex
   assert.match(server, /\/functions\/findRdLibrary/);
   const guests = source("deploy/media-god-rd-api/guestDebrid.mjs");
   assert.doesNotMatch(guests, /asServiceRole|process\.env\..*TOKEN/);
+});
+
+test("authenticated Real-Debrid cache-check route returns valid structures", async () => {
+  const user = {id:"verified-cache", rd_token:"private-dummy-rd", debrid_provider_priority:["realdebrid"]};
+  const res = await multiDebrid(request("check_cache", user, {body:{hashes:[]}}));
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.deepEqual(data.cached, {});
+  assert.deepEqual(data.bestProviderByHash, {});
+});
+
+test("client redirects all main RD actions and cached-source checks to verified backend", () => {
+  const client = source("src/api/base44Client.js");
+  const helper = source("src/api/independentRealDebrid.js");
+  assert.match(client, /INDEPENDENT_RD_FUNCTIONS\.has\(String\(name \|\| ''\)\)/);
+  assert.match(client, /readAccountSessionToken\(\)/);
+  assert.match(client, /invokeIndependentRealDebrid\(name, payload, \{ token: sessionToken \}\)/);
+  for (const name of ["realDebrid", "realDebridAuth", "findRdLibrary", "multiDebrid"]) {
+    assert.match(helper, new RegExp('"' + name + '"'));
+  }
+  assert.match(helper, /getAccessToken/);
+  assert.match(helper, /credentials: "omit"/);
+  assert.match(helper, /"Authorization": \`Bearer \$\{session\}\`/);
+  assert.doesNotMatch(helper, /localStorage\.setItem|process\.env/);
+  const server = source("deploy/media-god-rd-api/server.mjs");
+  assert.match(server, /"\/functions\/multiDebrid": multiDebrid/);
 });
