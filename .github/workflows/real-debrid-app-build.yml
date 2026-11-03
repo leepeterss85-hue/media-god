@@ -1,0 +1,35 @@
+name: Real-Debrid App Compile and Integration
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/api/independentRealDebrid.js'
+      - 'src/api/base44Client.js'
+      - 'deploy/media-god-rd-api/**'
+      - 'tests/independent-real-debrid.test.mjs'
+      - '.github/workflows/real-debrid-app-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  app-compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked frontend dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build production frontend with independent RD routing
+        run: npm run build
+      - name: Validate secure RD service and main route
+        run: |
+          set -euo pipefail
+          node --test tests/independent-real-debrid.test.mjs
+          node --check deploy/media-god-rd-api/server.mjs
+          node --check deploy/media-god-rd-api/multiDebrid.mjs
