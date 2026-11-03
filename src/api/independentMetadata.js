@@ -143,3 +143,47 @@ export async function invokeIndependentImdbResolver(name, payload = {}, {
     clearTimeout(timeout);
   }
 }
+
+/*
+ * Public Stremio addon discovery. This deliberately does NOT accept private
+ * addon manifests, Real-Debrid tokens, or proxy arbitrary URLs. The Railway
+ * service has only its vetted credential-free built-in addon catalogue.
+ * Never cache user-specific resolved media URLs in localStorage.
+ */
+export async function invokeIndependentAddonSources(payload = {}, {
+  fetchImpl = globalThis.fetch,
+} = {}) {
+  const input = payload && typeof payload === "object" && !Array.isArray(payload)
+    ? payload : {};
+  const allowed = [
+    "imdb_id", "imdbId", "tmdb_id", "tmdbId", "title", "year",
+    "alternate_years", "alternate_titles", "media_type", "mediaType",
+    "season", "episode", "fast_mode", "exclude_addons", "include_addons",
+  ];
+  const request = Object.fromEntries(
+    allowed.filter(key => input[key] !== undefined).map(key => [key, input[key]]),
+  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetchImpl(
+      INDEPENDENT_METADATA_API_URL.replace(
+        "/functions/getTmdbMovies", "/functions/fetchAddonStreams"),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+        credentials: "omit",
+        signal: controller.signal,
+      },
+    );
+    if (!response.ok) throw new Error(`Public source lookup HTTP ${response.status}`);
+    const data = await response.json();
+    if (!data || typeof data !== "object" || !Array.isArray(data.streams)) {
+      throw new Error("Public source lookup returned invalid data");
+    }
+    return { data };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
