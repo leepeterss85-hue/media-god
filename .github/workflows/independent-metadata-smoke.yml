@@ -32,3 +32,21 @@ jobs:
             -H 'Content-Type: application/json' \
             --data '{"media_type":"movie","query":"Inception","page":1}' \
             | jq -e '(.movies | type == "array") and (.movies | length > 0)'
+      - name: Resolve exact movie IMDb identity without Base44
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 3 --max-time 30 \
+            -X POST https://media-god-metadata-api-production.up.railway.app/functions/resolveImdb \
+            -H "Origin: https://mysterious-media-vault-pro.base44.app" \
+            -H 'Content-Type: application/json' \
+            --data '{"tmdb_id":27205,"media_type":"movie"}' \
+            | jq -e '.imdb_id == "tt1375666"'
+      - name: Resolve exact TV IMDb identity without Base44
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 3 --max-time 30 \
+            -X POST https://media-god-metadata-api-production.up.railway.app/functions/resolveTvImdb \
+            -H "Origin: https://mysterious-media-vault-pro.base44.app" \
+            -H 'Content-Type: application/json' \
+            --data '{"tmdb_id":1399,"media_type":"tv"}' \
+            | jq -e '.imdb_id == "tt0944947"'
