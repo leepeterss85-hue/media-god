@@ -5,3 +5,6 @@
 !resolveImdb.mjs
 !resolveTvImdb.mjs
 !fetchAddonStreams.mjs
+!getEntertainmentNews.mjs
+!getSkipSegments.mjs
+!getFireTvApkLink.mjs
