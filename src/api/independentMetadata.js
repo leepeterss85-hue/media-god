@@ -187,3 +187,60 @@ export async function invokeIndependentAddonSources(payload = {}, {
     clearTimeout(timeout);
   }
 }
+
+/**
+ * Non-sensitive public app features. All payload fields are whitelisted and
+ * deliberately exclude account, debrid, addon and device credentials.
+ * No fallback to credit-limited Base44 functions.
+ */
+const PUBLIC_FEATURE_FIELDS = {
+  getEntertainmentNews: ["section", "forceRefresh"],
+  getSkipSegments: [
+    "imdb_id", "imdbId", "season", "episode",
+    "duration", "duration_seconds", "durationSeconds",
+  ],
+  getFireTvApkLink: [],
+};
+export async function invokeIndependentPublicFeature(name, payload = {}, {
+  fetchImpl = globalThis.fetch,
+} = {}) {
+  if (!Object.prototype.hasOwnProperty.call(PUBLIC_FEATURE_FIELDS, name)) {
+    throw new Error("Unsupported public feature");
+  }
+  if (typeof fetchImpl !== "function") {
+    throw new Error("Public feature network unavailable");
+  }
+  const input = payload && typeof payload === "object" && !Array.isArray(payload)
+    ? payload : {};
+  const fields = PUBLIC_FEATURE_FIELDS[name];
+  const request = Object.fromEntries(
+    fields.filter(key => input[key] !== undefined).map(key => [key, input[key]]),
+  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), name === "getEntertainmentNews" ? 60_000 : 20_000);
+  try {
+    const endpoint = INDEPENDENT_METADATA_API_URL.replace(
+      "/functions/getTmdbMovies",
+      `/functions/${name}`,
+    );
+    const response = await fetchImpl(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+      signal: controller.signal,
+      credentials: "omit",
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      throw new Error(`Independent ${name} returned ${response.status}`);
+    }
+    const data = await response.json();
+    if (!data || typeof data !== "object" || data.error) {
+      throw new Error(`Invalid ${name} response`);
+    }
+    // Never cache signed APK links or user-specific information.
+    return { data };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
