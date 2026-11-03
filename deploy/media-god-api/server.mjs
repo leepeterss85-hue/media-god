@@ -4,6 +4,9 @@ import getTmdbMovies from "./getTmdbMovies.mjs";
 import resolveImdb from "./resolveImdb.mjs";
 import resolveTvImdb from "./resolveTvImdb.mjs";
 import fetchAddonStreams from "./fetchAddonStreams.mjs";
+import getEntertainmentNews from "./getEntertainmentNews.mjs";
+import getSkipSegments from "./getSkipSegments.mjs";
+import getFireTvApkLink from "./getFireTvApkLink.mjs";
 
 // Public film/TV metadata only. Personal account history and Real-Debrid
 // credentials are never sent to this service.
@@ -77,6 +80,9 @@ const serve = async (req, res) => {
     "/functions/resolveImdb": resolveImdb,
     "/functions/resolveTvImdb": resolveTvImdb,
     "/functions/fetchAddonStreams": fetchAddonStreams,
+    "/functions/getEntertainmentNews": getEntertainmentNews,
+    "/functions/getSkipSegments": getSkipSegments,
+    "/functions/getFireTvApkLink": getFireTvApkLink,
   }[route];
   if (!handler) {
     return sendJson(res, 404, { error: "Not found" }, origin);
@@ -85,7 +91,7 @@ const serve = async (req, res) => {
     res.writeHead(204, corsHeaders(origin)); res.end(); return;
   }
   if (req.method !== "POST") return sendJson(res, 405, { error: "POST required" }, origin);
-  if (!process.env.TMDB_API_KEY) {
+  if (["/functions/getTmdbMovies", "/functions/resolveImdb", "/functions/resolveTvImdb"].includes(route) && !tmdbReady) {
     return sendJson(res, 503, { error: "Metadata service not configured" }, origin);
   }
   const ip = ipFor(req);
@@ -112,7 +118,7 @@ const serve = async (req, res) => {
     }
     const key = createHash("sha256").update(route + ":" + JSON.stringify(body)).digest("hex");
     const cached = cache.get(key);
-    if (cached && cached.expires > now) {
+    if (cached && cached.expires > now && !body.forceRefresh) {
       return sendJson(res, cached.status, cached.data, origin);
     }
     const request = new Request("http://127.0.0.1" + route, {
@@ -125,7 +131,8 @@ const serve = async (req, res) => {
     let data;
     try { data = JSON.parse(text); }
     catch { return sendJson(res, 502, { error: "Invalid metadata response" }, origin); }
-    if (result.ok && cache.size < 1500) {
+    // APK asset links are short-lived signed URLs, so never cache them.
+    if (result.ok && route !== "/functions/getFireTvApkLink" && cache.size < 1500) {
       cache.set(key, { status: result.status, data, expires: now + CACHE_MS });
     }
     sendJson(res, result.status, data, origin);
