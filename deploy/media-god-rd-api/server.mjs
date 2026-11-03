@@ -3,6 +3,7 @@ import { createClient } from "@base44/sdk";
 import realDebrid from "./realDebrid.mjs";
 import realDebridAuth from "./realDebridAuth.mjs";
 import findRdLibrary from "./findRdLibrary.mjs";
+import multiDebrid from "./multiDebrid.mjs";
 
 const APP_ID = process.env.BASE44_APP_ID || "6a95b85c1b5a8657bf3906c8";
 const ALLOWED_ORIGINS = new Set(
@@ -14,6 +15,7 @@ const HANDLERS = Object.freeze({
   "/functions/realDebrid": realDebrid,
   "/functions/realDebridAuth": realDebridAuth,
   "/functions/findRdLibrary": findRdLibrary,
+  "/functions/multiDebrid": multiDebrid,
 });
 const MAX_BODY = 128 * 1024;
 const rate = new Map();
