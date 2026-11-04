@@ -8,3 +8,5 @@
 !guestDebrid.mjs
 !package.json
 !multiDebrid.mjs
+
+!fetchAddonStreams.mjs
