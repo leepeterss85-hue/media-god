@@ -1,0 +1,30 @@
+name: Media God Native Resume Verification
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/components/mg/ContinueWatchingAssist.jsx'
+      - 'tests/native-continue-watching-position.test.mjs'
+      - 'tests/resume-seek.test.mjs'
+      - '.github/workflows/continue-watching-native-resume.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  resume-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Exact native resume and cross-device regression tests
+        run: node --test tests/native-continue-watching-position.test.mjs tests/resume-seek.test.mjs tests/continue-watching-source-recovery.test.mjs
+      - name: Compile production web and APK-hosted assets
+        run: npm run build
