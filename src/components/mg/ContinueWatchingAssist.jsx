@@ -221,6 +221,11 @@ export default function ContinueWatchingAssist() {
     writesByKey: new Map(),
     pendingResume: 0,
     pendingResumeKey: "",
+    // A native session is identified by the request ID returned from the
+    // accepted Android/Fire TV launch. Old callback IDs never write progress
+    // against another film, episode or source handoff.
+    nativeRequestId: "",
+    nativeRequestContentKey: "",
     lookupToken: 0,
     lastSaveAt: 0,
     completedKey: "",
@@ -537,6 +542,8 @@ export default function ContinueWatchingAssist() {
       state.completedKey = "";
       state.pendingResume = 0;
       state.pendingResumeKey = next ? contentKeyFor(next) : "";
+      state.nativeRequestId = "";
+      state.nativeRequestContentKey = "";
 
       if (next) {
         findResume(next);
@@ -640,6 +647,79 @@ export default function ContinueWatchingAssist() {
       );
     };
 
+    // Android's native Media3/LibVLC player has no HTMLVideoElement, so the
+    // WebView's timeupdate listener never sees its real playhead. Associate
+    // native progress/exit callbacks with the exact launch request instead.
+    const onNativeResumeSession = (event) => {
+      const detail = event?.detail || {};
+      const context = state.context;
+      const requestId = String(detail.requestId || "").trim();
+      if (!context || !requestId) return;
+
+      const type = detail.mediaType === "tv" ? "tv" : "movie";
+      if (context.mediaType !== type) return;
+      const tmdbId = String(detail.tmdbId || "");
+      if (context.tmdbId && tmdbId && tmdbId !== context.tmdbId) return;
+      if (type === "tv" && (
+        positiveInt(detail.season) !== context.season ||
+        positiveInt(detail.episode) !== context.episode
+      )) return;
+
+      state.nativeRequestId = requestId;
+      state.nativeRequestContentKey = contentKeyFor(context);
+    };
+
+    const nativeEventMatches = (detail) => Boolean(
+      state.context &&
+      state.nativeRequestId &&
+      String(detail?.requestId || "") === state.nativeRequestId &&
+      state.nativeRequestContentKey === contentKeyFor(state.context)
+    );
+
+    const saveNativePosition = (time, duration) => {
+      const safeTime = Number(time);
+      const safeDuration = Number(duration);
+      if (!Number.isFinite(safeTime) || safeTime < MIN_RESUME_SECONDS ||
+          !Number.isFinite(safeDuration) || safeDuration < 0) return;
+
+      // Use the saved manually chosen source, not a short-lived resolved RD
+      // URL. A native progress callback contains no source or credentials.
+      const video = state.lastPosition.video || { currentSrc: "", poster: "" };
+      state.lastPosition = { time: safeTime, duration: safeDuration, video };
+      void save(state.context, safeTime, safeDuration, video, true);
+    };
+
+    const onNativePlaybackProgress = (event) => {
+      const detail = event?.detail || {};
+      if (!nativeEventMatches(detail)) return;
+      const context = state.context;
+      const tmdbId = String(detail.tmdbId || "");
+      if (context.tmdbId && tmdbId && tmdbId !== context.tmdbId) return;
+      if (context.mediaType === "tv" && (
+        positiveInt(detail.season) !== context.season ||
+        positiveInt(detail.episode) !== context.episode
+      )) return;
+
+      saveNativePosition(detail.positionSeconds, detail.durationSeconds);
+    };
+
+    const onNativePlayerResult = (event) => {
+      const detail = event?.detail || {};
+      if (!nativeEventMatches(detail)) return;
+      // This also covers films (which have no regular native episode-marker
+      // reports). Back/Exit, source switch and stop must persist the real
+      // final playhead before the player closes and clears its context.
+      saveNativePosition(
+        Number(detail.positionMs || 0) / 1000,
+        Number(detail.durationMs || 0) / 1000
+      );
+      state.nativeRequestId = "";
+      state.nativeRequestContentKey = "";
+    };
+
+    window.addEventListener("mg:native-resume-session", onNativeResumeSession);
+    window.addEventListener("mg:native-playback-progress", onNativePlaybackProgress);
+    window.addEventListener("mg:native-player-result", onNativePlayerResult);
     window.addEventListener("mg:continue-watching-progress", onPlaybackProgress);
     window.addEventListener("mg:continue-watching-source", onSelectedSource);
     window.addEventListener("mg:player-context", onContext);
@@ -659,6 +739,9 @@ export default function ContinueWatchingAssist() {
 
     return () => {
       flush(true);
+      window.removeEventListener("mg:native-resume-session", onNativeResumeSession);
+      window.removeEventListener("mg:native-playback-progress", onNativePlaybackProgress);
+      window.removeEventListener("mg:native-player-result", onNativePlayerResult);
       window.removeEventListener("mg:continue-watching-progress", onPlaybackProgress);
       window.removeEventListener("mg:continue-watching-source", onSelectedSource);
       window.removeEventListener("mg:player-context", onContext);
