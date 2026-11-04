@@ -35,6 +35,25 @@ base44.functions.invoke = async (name, payload = {}, ...rest) => {
     return invokeIndependentImdbResolver(name, payload);
   }
   if (name === 'fetchAddonStreams' && !payload?.action) {
+    // Signed-in Media God accounts may have their own configured torrent
+    // addons. The public Railway service knows only fixed free manifests,
+    // so querying it alone silently loses all of those account sources.
+    // The authenticated Railway service verifies auth.me() and reads Addon
+    // entities scoped to this user. Never send their configured manifests,
+    // debrid tokens or session data to the public metadata endpoint.
+    const sessionToken = await readAccountSessionToken();
+    if (sessionToken) {
+      try {
+        return await invokeIndependentRealDebrid(name, payload, {
+          token: sessionToken,
+          timeoutMs: 60_000,
+        });
+      } catch {
+        // Keep source discovery available if the account session expired or
+        // the private gateway is restarting; anonymous public addons can
+        // still be searched without consuming Base44 integration credits.
+      }
+    }
     return invokeIndependentAddonSources(payload);
   }
   if (name === 'getEntertainmentNews' || name === 'getSkipSegments' ||
