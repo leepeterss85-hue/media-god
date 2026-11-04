@@ -228,6 +228,7 @@ export default function ContinueWatchingAssist() {
     nativeRequestId: "",
     nativeRequestContentKey: "",
     nativeContextStartedAt: 0,
+    closedNativeRequests: new Set(),
     lookupToken: 0,
     lastSaveAt: 0,
     completedKey: "",
@@ -568,6 +569,7 @@ export default function ContinueWatchingAssist() {
       state.nativeRequestId = "";
       state.nativeRequestContentKey = "";
       state.nativeContextStartedAt = next ? Date.now() : 0;
+      state.closedNativeRequests.clear();
 
       if (next) {
         findResume(next);
@@ -686,7 +688,8 @@ export default function ContinueWatchingAssist() {
       const context = state.context;
       const requestId = String(detail?.requestId || "");
       const requestStart = /^mg-(\\d{11,})-/.exec(requestId);
-      if (!context || !requestStart || !state.nativeContextStartedAt) return false;
+      if (!context || !requestStart || !state.nativeContextStartedAt ||
+          state.closedNativeRequests.has(requestId)) return false;
       const startedAt = Number(requestStart[1]);
       if (!Number.isFinite(startedAt) ||
           startedAt < state.nativeContextStartedAt - 5000 ||
@@ -747,6 +750,10 @@ export default function ContinueWatchingAssist() {
         Number(detail.positionMs || 0) / 1000,
         Number(detail.durationMs || 0) / 1000
       );
+      state.closedNativeRequests.add(String(detail.requestId));
+      if (state.closedNativeRequests.size > 20) {
+        state.closedNativeRequests.delete(state.closedNativeRequests.values().next().value);
+      }
       state.nativeRequestId = "";
       state.nativeRequestContentKey = "";
     };
