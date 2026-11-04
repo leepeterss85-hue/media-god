@@ -289,6 +289,11 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
 
         const byIdentity = new Map();
 
+        // A position only counts when it was measured against a real runtime.
+        const hasMeasuredPosition = (item) =>
+          Number(item?.duration || 0) > 0 &&
+          Number(item?.progress || 0) >= MIN_PROGRESS_SECONDS;
+
         entries.forEach((entry) => {
           const identity = identityFor(entry.meta);
           const state =
@@ -299,33 +304,44 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           const existing = byIdentity.get(stateIdentity);
 
           /*
-           * Entries are already newest-first. Keep the newest row for each
-           * content/state pair so a fresh replay cannot be hidden by an older
-           * completed record. Completed history and in-progress resume state
-           * deliberately remain separate because Recently Watched uses the
-           * completed rows.
+           * Entries are already newest-first, so the newest row keeps the
+           * display metadata. Resume needs both halves of the history though:
+           * the durable source from whichever row has one, and the measured
+           * playhead from whichever row has one. Keeping only the newest row
+           * silently discarded the other half, which is why resuming a title
+           * opened the same player without its position or its source.
            */
           if (!existing) {
             byIdentity.set(stateIdentity, entry);
             return;
           }
 
-          if (!hasSavedPlayableSource(existing.item) &&
+          let mergedItem = existing.item;
+
+          if (!hasSavedPlayableSource(mergedItem) &&
               hasSavedPlayableSource(entry.item)) {
-            // Recover a stable source saved by an older row without losing
-            // the newer row's playback position (e.g. 52 minutes).
-            byIdentity.set(stateIdentity, {
-              ...existing,
-              item: {
-                ...existing.item,
-                video_url: entry.item.video_url,
-                source_type: entry.item.source_type,
-              },
-            });
-            // The older record is a recovery copy until the next save.
-            return;
+            mergedItem = {
+              ...mergedItem,
+              video_url: entry.item.video_url,
+              source_type: entry.item.source_type,
+              source_name: entry.item.source_name ?? mergedItem.source_name,
+            };
           }
 
+          if (!hasMeasuredPosition(mergedItem) && hasMeasuredPosition(entry.item)) {
+            mergedItem = {
+              ...mergedItem,
+              progress: entry.item.progress,
+              duration: entry.item.duration,
+            };
+          }
+
+          byIdentity.set(stateIdentity, {
+            ...existing,
+            item: mergedItem,
+            meta: existing.meta,
+            ratio: progressRatio(mergedItem),
+          });
         });
 
         const winners = Array.from(byIdentity.values());

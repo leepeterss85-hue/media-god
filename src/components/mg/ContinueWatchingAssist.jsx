@@ -233,6 +233,7 @@ export default function ContinueWatchingAssist() {
       time: 0,
       duration: 0,
       video: null,
+      poster: "",
     },
   });
 
@@ -322,11 +323,20 @@ export default function ContinueWatchingAssist() {
                 ? "onlyflix"
                 : "file";
 
+      /*
+       * An HTMLVideoElement's own .poster attribute is empty for most players,
+       * so writing it blindly erased the stored artwork on every save. Only
+       * write the poster when we actually know one.
+       */
+      const posterUrl = String(
+        video?.poster || state.lastPosition.poster || ""
+      ).trim();
+
       const patch = {
         progress,
         duration: safeDuration,
         video_url: sourceUrl,
-        poster_url: String(video?.poster || ""),
+        ...(posterUrl ? { poster_url: posterUrl } : {}),
         source_type: sourceType,
         title: context.title,
         year: context.year || "",
@@ -376,9 +386,15 @@ export default function ContinueWatchingAssist() {
             // must NEVER erase the genuine position saved on another device.
             const preservePlayhead = safeTime <= MIN_RESUME_SECONDS &&
               Number(row.progress || 0) > MIN_RESUME_SECONDS;
+            // A player that cannot report its total length must not wipe the
+            // duration that makes the saved position meaningful.
+            const keepKnownDuration = !safeDuration &&
+              Number(row.duration || 0) > 0;
             const savedPatch = preservePlayhead
               ? { ...patch, progress: row.progress, duration: row.duration }
-              : patch;
+              : keepKnownDuration
+                ? { ...patch, duration: row.duration }
+                : patch;
             await profiledLibrary.ContinueWatching.update(
               row.id,
               preserveSource
@@ -537,6 +553,7 @@ export default function ContinueWatchingAssist() {
         time: 0,
         duration: 0,
         video: null,
+        poster: "",
       };
       state.lastSaveAt = 0;
       state.completedKey = "";
@@ -579,6 +596,7 @@ export default function ContinueWatchingAssist() {
         time,
         duration,
         video,
+        poster: state.lastPosition.poster || "",
       };
 
       save(state.context, time, duration, video, false);
@@ -626,7 +644,12 @@ export default function ContinueWatchingAssist() {
         state.selectedSource = source;
       }
       const video = { currentSrc: detail.url || "", poster: detail.poster || "" };
-      state.lastPosition = { time, duration: Number.isFinite(duration) ? duration : 0, video };
+      state.lastPosition = {
+        time,
+        duration: Number.isFinite(duration) ? duration : 0,
+        video,
+        poster: String(detail.poster || "").trim() || state.lastPosition.poster || "",
+      };
       save(state.context, time, state.lastPosition.duration, video, detail.force === true);
     };
 
