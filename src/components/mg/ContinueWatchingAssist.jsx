@@ -687,7 +687,7 @@ export default function ContinueWatchingAssist() {
     const nativeRequestMatchesContext = (detail) => {
       const context = state.context;
       const requestId = String(detail?.requestId || "");
-      const requestStart = /^mg-(\\d{11,})-/.exec(requestId);
+      const requestStart = /^mg-(\d{11,})-/.exec(requestId);
       if (!context || !requestStart || !state.nativeContextStartedAt ||
           state.closedNativeRequests.has(requestId)) return false;
       const startedAt = Number(requestStart[1]);
