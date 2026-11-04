@@ -17,6 +17,7 @@ export const INDEPENDENT_RD_FUNCTIONS = new Set([
   "realDebridAuth",
   "findRdLibrary",
   "multiDebrid",
+  "fetchAddonStreams",
 ]);
 
 const PRIVATE_FIELDS = new Set([
