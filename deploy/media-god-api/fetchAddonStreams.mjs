@@ -2936,10 +2936,25 @@ export default async function (req) {
         }
       );
 
+    // Discovery providers can reply 429/unreachable even when this API
+    // returns a valid HTTP 200 envelope. Surface the true source status so
+    // the UI does not mistake an upstream outage for a missing title.
+    const temporarilyRateLimited = streams.length === 0 &&
+      diagnostics.some((item) => item?.status === "http_429");
+    const providerUnavailable = streams.length === 0 &&
+      diagnostics.some((item) =>
+        item?.status === "unreachable" ||
+        /^http_5\d\d$/.test(String(item?.status || "")));
     return Response.json({
       streams,
 
       diagnostics,
+      ...(temporarilyRateLimited ? {
+        reason: "Torrent provider is temporarily rate-limiting searches. Retry shortly or use another configured source.",
+        retry_after_seconds: 45,
+      } : providerUnavailable ? {
+        reason: "Configured torrent providers are currently unreachable. Try another source or retry later.",
+      } : {}),
 
       addons_checked:
         selectedAddons.length,
