@@ -1,0 +1,38 @@
+name: Media God Torrent Source Recovery Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'deploy/media-god-api/**'
+      - 'deploy/media-god-rd-api/**'
+      - 'src/api/base44Client.js'
+      - 'src/api/independentRealDebrid.js'
+      - 'tests/authenticated-addon-discovery.test.mjs'
+      - '.github/workflows/torrent-source-integration.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  torrent-source-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Validate public and authenticated Railway backend handlers
+        run: |
+          set -euo pipefail
+          node --check deploy/media-god-api/server.mjs
+          node --check deploy/media-god-api/fetchAddonStreams.mjs
+          node --check deploy/media-god-rd-api/server.mjs
+          node --check deploy/media-god-rd-api/fetchAddonStreams.mjs
+          node --test tests/authenticated-addon-discovery.test.mjs tests/independent-real-debrid.test.mjs tests/independent-metadata-routing.test.mjs
+      - name: Production app compile
+        run: npm run build
