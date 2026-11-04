@@ -774,6 +774,9 @@ export default function ContinueWatchingAssist() {
 
     if (initial) {
       state.context = initial;
+      // The tracker may mount after PlayerProvider published the context.
+      // Allow an already-started native request from this short window.
+      state.nativeContextStartedAt = Date.now() - 15000;
       findResume(initial);
     }
 
