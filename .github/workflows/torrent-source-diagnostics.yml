@@ -1,0 +1,37 @@
+name: Media God Torrent Source Availability Diagnostics
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/torrent-source-diagnostics.yml'
+      - 'deploy/media-god-api/fetchAddonStreams.mjs'
+      - 'deploy/media-god-api/server.mjs'
+      - 'src/api/independentMetadata.js'
+      - 'src/api/base44Client.js'
+
+permissions:
+  contents: read
+
+jobs:
+  probe-public-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Check representative movie and episode source availability (no source URLs)
+        shell: bash
+        run: |
+          set -euo pipefail
+          api='https://media-god-metadata-api-production.up.railway.app/functions/fetchAddonStreams'
+          for case in movie_fast movie_full episode_fast episode_full; do
+            case "$case" in
+              movie_fast) payload='{"imdb_id":"tt1375666","tmdb_id":"27205","title":"Inception","media_type":"movie","fast_mode":true}' ;;
+              movie_full) payload='{"imdb_id":"tt1375666","tmdb_id":"27205","title":"Inception","media_type":"movie","fast_mode":false}' ;;
+              episode_fast) payload='{"imdb_id":"tt0096697","title":"The Simpsons","media_type":"tv","season":1,"episode":1,"fast_mode":true}' ;;
+              episode_full) payload='{"imdb_id":"tt0096697","title":"The Simpsons","media_type":"tv","season":1,"episode":1,"fast_mode":false}' ;;
+            esac
+            echo "--- $case ---"
+            status=$(curl --silent --show-error --max-time 95 -X POST "$api" -o /tmp/result.json -w '%{http_code}' -H 'Origin: https://mysterious-media-vault-pro.base44.app' -H 'Content-Type: application/json' --data "$payload" || true)
+            echo "HTTP $status"
+            jq -c '{count:(.streams|length),checked:.addons_checked,available:.addons_available,reason:(.reason // .error // null),diagnostics:[.diagnostics[]? | {name,status,stream_count,playable_count,message:(.message//""|tostring|.[0:160])}]}' /tmp/result.json
+          done
