@@ -45,6 +45,7 @@ const normaliseContext = (value) => {
     season: positiveInt(value?.season),
     episode: positiveInt(value?.episode),
     episodeName: String(value?.episodeName || "").trim(),
+    playbackSessionId: value?.playbackSessionId ?? null,
   };
 };
 
@@ -226,6 +227,7 @@ export default function ContinueWatchingAssist() {
     // against another film, episode or source handoff.
     nativeRequestId: "",
     nativeRequestContentKey: "",
+    nativeContextStartedAt: 0,
     lookupToken: 0,
     lastSaveAt: 0,
     completedKey: "",
@@ -538,9 +540,13 @@ export default function ContinueWatchingAssist() {
       // Context is republished for skip markers, auto-next and preferences.
       // It is not a new playback session. Resetting here lost the user's
       // chosen source before Android returned its final seek position.
-      if (next && state.context && sameContent(next, state.context)) {
-        // Keep the same object reference while an async resume lookup is in
-        // flight, otherwise the valid lookup is discarded as stale.
+      if (next && state.context && sameContent(next, state.context) &&
+          (next.playbackSessionId == null ||
+           state.context.playbackSessionId == null ||
+           next.playbackSessionId === state.context.playbackSessionId)) {
+        // Context is often republished within a playback session for skip
+        // markers or settings. A different playbackSessionId, however, is a
+        // real restart of even the SAME title: reject its old native result.
         Object.assign(state.context, next);
         return;
       }
@@ -561,6 +567,7 @@ export default function ContinueWatchingAssist() {
       state.pendingResumeKey = next ? contentKeyFor(next) : "";
       state.nativeRequestId = "";
       state.nativeRequestContentKey = "";
+      state.nativeContextStartedAt = next ? Date.now() : 0;
 
       if (next) {
         findResume(next);
@@ -670,34 +677,38 @@ export default function ContinueWatchingAssist() {
       );
     };
 
-    // Android's native Media3/LibVLC player has no HTMLVideoElement, so the
-    // WebView's timeupdate listener never sees its real playhead. Associate
-    // native progress/exit callbacks with the exact launch request instead.
-    const onNativeResumeSession = (event) => {
-      const detail = event?.detail || {};
+    // Android Media3/LibVLC plays outside the WebView, so HTML video events
+    // cannot record its real playhead. Existing native progress/results carry
+    // a requestId created as mg-<start-timestamp>-<source>-<random>.
+    // The timestamp plus account context rejects callbacks from a previous
+    // movie or episode WITHOUT changing the protected native bridge.
+    const nativeRequestMatchesContext = (detail) => {
       const context = state.context;
-      const requestId = String(detail.requestId || "").trim();
-      if (!context || !requestId) return;
-
-      const type = detail.mediaType === "tv" ? "tv" : "movie";
-      if (context.mediaType !== type) return;
-      const tmdbId = String(detail.tmdbId || "");
-      if (context.tmdbId && tmdbId && tmdbId !== context.tmdbId) return;
-      if (type === "tv" && (
-        positiveInt(detail.season) !== context.season ||
-        positiveInt(detail.episode) !== context.episode
-      )) return;
-
-      state.nativeRequestId = requestId;
-      state.nativeRequestContentKey = contentKeyFor(context);
+      const requestId = String(detail?.requestId || "");
+      const requestStart = /^mg-(\\d{11,})-/.exec(requestId);
+      if (!context || !requestStart || !state.nativeContextStartedAt) return false;
+      const startedAt = Number(requestStart[1]);
+      if (!Number.isFinite(startedAt) ||
+          startedAt < state.nativeContextStartedAt - 5000 ||
+          startedAt > Date.now() + 5000) return false;
+      if (state.nativeRequestId && state.nativeRequestId !== requestId) return false;
+      if (state.nativeRequestContentKey &&
+          state.nativeRequestContentKey !== contentKeyFor(context)) return false;
+      const tmdbId = String(detail?.tmdbId || "");
+      if (context.tmdbId && tmdbId && context.tmdbId !== tmdbId) return false;
+      if (detail?.season != null && context.mediaType === "tv" &&
+          positiveInt(detail.season) !== context.season) return false;
+      if (detail?.episode != null && context.mediaType === "tv" &&
+          positiveInt(detail.episode) !== context.episode) return false;
+      return true;
     };
 
-    const nativeEventMatches = (detail) => Boolean(
-      state.context &&
-      state.nativeRequestId &&
-      String(detail?.requestId || "") === state.nativeRequestId &&
-      state.nativeRequestContentKey === contentKeyFor(state.context)
-    );
+    const bindNativeRequest = (detail) => {
+      if (!nativeRequestMatchesContext(detail)) return false;
+      state.nativeRequestId = String(detail.requestId);
+      state.nativeRequestContentKey = contentKeyFor(state.context);
+      return true;
+    };
 
     const saveNativePosition = (time, duration) => {
       const safeTime = Number(time);
@@ -714,7 +725,7 @@ export default function ContinueWatchingAssist() {
 
     const onNativePlaybackProgress = (event) => {
       const detail = event?.detail || {};
-      if (!nativeEventMatches(detail)) return;
+      if (!bindNativeRequest(detail)) return;
       const context = state.context;
       const tmdbId = String(detail.tmdbId || "");
       if (context.tmdbId && tmdbId && tmdbId !== context.tmdbId) return;
@@ -728,7 +739,7 @@ export default function ContinueWatchingAssist() {
 
     const onNativePlayerResult = (event) => {
       const detail = event?.detail || {};
-      if (!nativeEventMatches(detail)) return;
+      if (!bindNativeRequest(detail)) return;
       // This also covers films (which have no regular native episode-marker
       // reports). Back/Exit, source switch and stop must persist the real
       // final playhead before the player closes and clears its context.
@@ -740,7 +751,6 @@ export default function ContinueWatchingAssist() {
       state.nativeRequestContentKey = "";
     };
 
-    window.addEventListener("mg:native-resume-session", onNativeResumeSession);
     window.addEventListener("mg:native-playback-progress", onNativePlaybackProgress);
     window.addEventListener("mg:native-player-result", onNativePlayerResult);
     window.addEventListener("mg:continue-watching-progress", onPlaybackProgress);
@@ -762,7 +772,6 @@ export default function ContinueWatchingAssist() {
 
     return () => {
       flush(true);
-      window.removeEventListener("mg:native-resume-session", onNativeResumeSession);
       window.removeEventListener("mg:native-playback-progress", onNativePlaybackProgress);
       window.removeEventListener("mg:native-player-result", onNativePlayerResult);
       window.removeEventListener("mg:continue-watching-progress", onPlaybackProgress);
