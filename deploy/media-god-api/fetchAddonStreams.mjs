@@ -937,39 +937,53 @@ const isTorrentioRequest = (value) => {
 const wait = (ms) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+// Back off per addon origin when it asks us to slow down. Retrying 429
+// immediately multiplied traffic across every fast/full search and left all
+// movies with empty torrent lists. Other configured providers remain usable.
+const addonCooldownUntil = new Map();
+const addonOrigin = (value) => {
+  try { return new URL(clean(value)).origin; }
+  catch { return ""; }
+};
 const fetchAddonJson = async (
   url,
   timeoutMs = 4500
 ) => {
-  let result = await fetchJsonWithTimeout(
-    url,
-    timeoutMs
-  );
+  const origin = addonOrigin(url);
+  const now = Date.now();
+  const cooldown = origin ? Number(addonCooldownUntil.get(origin) || 0) : 0;
+  if (cooldown > now) {
+    return {
+      ok: false, status: 429, data: null,
+      error: `Addon rate limited; retry in ${Math.max(1, Math.ceil((cooldown - now) / 1000))} seconds.`,
+    };
+  }
+  if (origin && cooldown > 0) addonCooldownUntil.delete(origin);
+  const result = await fetchJsonWithTimeout(url, timeoutMs);
+  if (result?.status === 429) {
+    // Respect upstream rate limiting rather than retrying after 650 ms.
+    // Use a bounded cooldown so a transient failure can recover.
+    if (origin) addonCooldownUntil.set(origin, Date.now() + 45_000);
+    if (addonCooldownUntil.size > 300) {
+      for (const [key, expiry] of addonCooldownUntil) {
+        if (expiry <= Date.now()) addonCooldownUntil.delete(key);
+      }
+      if (addonCooldownUntil.size > 300) addonCooldownUntil.clear();
+    }
+    return { ...result, error: "Addon rate limited (HTTP 429); retry shortly." };
+  }
 
   const retryableStatus =
-    result?.status === 429 ||
     result?.status === 500 ||
     result?.status === 502 ||
     result?.status === 503 ||
     result?.status === 504 ||
-    (
-      result?.status === 403 &&
-      isTorrentioRequest(url)
-    );
+    (result?.status === 403 && isTorrentioRequest(url));
 
   if (retryableStatus) {
-    await wait(
-      result?.status === 429
-        ? 650
-        : 300
-    );
-
-    result = await fetchJsonWithTimeout(
-      url,
-      timeoutMs
-    );
+    await wait(300);
+    return fetchJsonWithTimeout(url, timeoutMs);
   }
-
   return result;
 };
 
