@@ -398,11 +398,17 @@ export default function ContinueWatchingAssist() {
               : keepKnownDuration
                 ? { ...patch, duration: row.duration }
                 : patch;
+            const patchWithPoster = {
+              ...savedPatch,
+              // Native Media3 callbacks do not carry a poster. Preserve the
+              // existing image rather than blanking Continue Watching.
+              poster_url: savedPatch.poster_url || row.poster_url || "",
+            };
             await profiledLibrary.ContinueWatching.update(
               row.id,
               preserveSource
-                ? { ...savedPatch, video_url: row.video_url, source_type: row.source_type }
-                : savedPatch
+                ? { ...patchWithPoster, video_url: row.video_url, source_type: row.source_type }
+                : patchWithPoster
             );
             window.dispatchEvent(new CustomEvent(EMBED_HISTORY_CHANGED));
             return;
