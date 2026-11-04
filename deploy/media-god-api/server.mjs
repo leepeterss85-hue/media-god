@@ -131,9 +131,18 @@ const serve = async (req, res) => {
     let data;
     try { data = JSON.parse(text); }
     catch { return sendJson(res, 502, { error: "Invalid metadata response" }, origin); }
-    // APK asset links are short-lived signed URLs, so never cache them.
+    // Never keep a provider failure disguised as an empty 200 result in the
+    // five-minute source cache. Torrentio can return HTTP 429 upstream while
+    // the discovery envelope itself is HTTP 200. Short-lived negative entries
+    // prevent bursts but allow recovery without forcing users to wait five
+    // minutes after their addon comes back.
+    const sourceLookup = route === "/functions/fetchAddonStreams";
+    const emptySourceLookup = sourceLookup &&
+      (!Array.isArray(data?.streams) || data.streams.length === 0);
+    const cacheTtl = emptySourceLookup ? 8_000 : CACHE_MS;
+    // APK links are signed and must never be served from a shared cache.
     if (result.ok && route !== "/functions/getFireTvApkLink" && cache.size < 1500) {
-      cache.set(key, { status: result.status, data, expires: now + CACHE_MS });
+      cache.set(key, { status: result.status, data, expires: now + cacheTtl });
     }
     sendJson(res, result.status, data, origin);
   } catch {
