@@ -1072,6 +1072,22 @@ export const playNativeFireTv = ({
 
     setNativePlaybackOwnership(accepted);
 
+    if (accepted && !live && typeof window !== "undefined") {
+      // Native Media3/LibVLC has a separate clock from the WebView. Tie its
+      // progress and final exit position to this exact session, without
+      // exposing the source URL, request headers or account credentials.
+      window.dispatchEvent(new CustomEvent("mg:native-resume-session", {
+        detail: {
+          requestId: payload.requestId,
+          mediaType: payload.mediaType,
+          tmdbId: payload.tmdbId,
+          season: payload.season,
+          episode: payload.episode,
+          startTime: Math.max(0, Number(payload.startPositionMs || 0)) / 1000,
+        },
+      }));
+    }
+
     return accepted;
   } catch {
     setNativePlaybackOwnership(false);
