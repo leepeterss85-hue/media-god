@@ -6,7 +6,7 @@
   "engines": {"node": ">=22"},
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check realDebrid.mjs && node --check realDebridAuth.mjs && node --check findRdLibrary.mjs && node --check multiDebrid.mjs && node --check verifiedUserClient.mjs"
+    "check": "node --check server.mjs && node --check realDebrid.mjs && node --check realDebridAuth.mjs && node --check findRdLibrary.mjs && node --check multiDebrid.mjs && node --check fetchAddonStreams.mjs && node --check verifiedUserClient.mjs"
   },
   "dependencies": {"@base44/sdk": "0.8.57"}
 }
