@@ -8,8 +8,11 @@ import {
   startNativeFireTvUpdate,
 } from "@/components/mg/nativeFireTvBridge";
 import { fetchLatestNativeRelease } from "@/components/mg/nativeReleaseInfo";
+import { isFireTvHardware, isMobileUpdaterSignatureError } from "./mobileUpdaterCompatibility";
 
 const SESSION_DISMISS_PREFIX = "mg:android-mobile-app-update-dismissed:";
+const OFFICIAL_FIRE_TV_APK =
+  "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk";
 
 const looksLikeAndroidMobile = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -135,6 +138,22 @@ export default function AndroidMobileAppUpdateNotice({ enabled = true }) {
   }, []);
 
   const latestCode = Number(release?.versionCode || 0);
+  const installedOnFireTv = isFireTvHardware({
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+    platform: typeof navigator !== "undefined" ? navigator.platform : "",
+    tvRemote: typeof document !== "undefined" && (
+      document.documentElement?.classList?.contains("mg-fire-tv") ||
+      document.documentElement?.classList?.contains("mg-tv-remote") ||
+      document.body?.classList?.contains("mg-fire-tv") ||
+      document.body?.classList?.contains("mg-tv-remote")
+    ),
+  });
+  const legacySigningError = isMobileUpdaterSignatureError(updateState.message);
+  // Mobile 1.0.93 may mistake unavailable archive-signing metadata for a
+  // certificate mismatch. The old native updater cannot fix itself, so offer
+  // official external installation while Android enforces signature checks.
+  const showMobileInstaller = !installedOnFireTv &&
+    (legacySigningError || !nativeInfo?.selfUpdateSupported);
 
   const canSelfUpdate = useMemo(
     () =>
@@ -201,16 +220,18 @@ export default function AndroidMobileAppUpdateNotice({ enabled = true }) {
     });
   };
 
-  const openFallback = () => {
-    const target = String(release?.apkUrl || release?.releaseUrl || "").trim();
-    if (!target) {
-      return;
-    }
-
-    if (!openNativeFireTvExternalUrl(target)) {
-      window.open(target, "_blank", "noopener,noreferrer");
+  const openOfficialUrl = (target) => {
+    const url = String(target || "").trim();
+    if (!url) return;
+    if (!openNativeFireTvExternalUrl(url)) {
+      window.open(url, "_blank", "noopener,noreferrer");
     }
   };
+
+  const openFallback = () => {
+    openOfficialUrl(release?.apkUrl || release?.releaseUrl || "");
+  };
+  const openFireTvApk = () => openOfficialUrl(OFFICIAL_FIRE_TV_APK);
 
   if (!enabled || !visible || !release) {
     return null;
@@ -232,15 +253,19 @@ export default function AndroidMobileAppUpdateNotice({ enabled = true }) {
 
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-300">
-              Android phone & tablet update
+              {installedOnFireTv ? "Fire TV app edition" : "Android phone & tablet update"}
             </p>
             <h2 className="mt-1 text-xl font-bold text-white">
-              Media God Mobile {release.versionName || "update"} available
+              {installedOnFireTv
+                ? "Use the dedicated Media God Fire TV app"
+                : `Media God Mobile ${release.versionName || "update"} available`}
             </h2>
             <p className="mt-2 text-sm leading-6 text-white/70">
-              {canSelfUpdate
-                ? "Media God Mobile can download this update itself. Android will ask you to approve installation before anything is replaced."
-                : "Open the Android Mobile APK from GitHub to update this installation."}
+              {installedOnFireTv
+                ? "This television appears to be running the Android phone APK. Mobile 1.0.94 and Fire TV 1.4.119 are separate apps, not old and new versions of the same app. Install the dedicated Fire TV APK alongside Mobile, sign in and test before removing anything."
+                : canSelfUpdate
+                  ? "Media God Mobile can download this update itself. Android will ask you to approve installation before anything is replaced."
+                  : "Open the Android Mobile APK from GitHub to update this installation."}
             </p>
           </div>
 
@@ -256,7 +281,25 @@ export default function AndroidMobileAppUpdateNotice({ enabled = true }) {
           </button>
         </div>
 
-        {canSelfUpdate && (
+        {installedOnFireTv && (
+          <div className="mt-5 rounded-2xl border border-cyan-400/30 bg-black/25 p-4">
+            <p className="text-sm leading-6 text-white/80">
+              Install <strong>Media God Fire TV 1.4.119</strong>. It has a different Android package name, so it installs beside the Mobile edition and does not delete its data. Account-backed history is available when you sign into the same account.
+            </p>
+            <p className="mt-2 text-xs text-white/65">
+              Keep the old Mobile app until you have tested the TV version. Do not press Update Mobile 1.0.94 here.
+            </p>
+            <button
+              type="button"
+              onClick={openFireTvApk}
+              className="mt-4 min-h-12 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-bold text-black outline-none hover:brightness-110 focus:ring-4 focus:ring-cyan-300/40"
+            >
+              Open official Fire TV APK
+            </button>
+          </div>
+        )}
+
+        {canSelfUpdate && !installedOnFireTv && !legacySigningError && (
           <div className="mt-5 rounded-2xl border border-cyan-400/30 bg-black/25 p-4">
             <div className="flex items-center gap-2 text-sm font-bold text-white">
               {updateBusy || updateState.status === "starting" ? (
@@ -318,13 +361,19 @@ export default function AndroidMobileAppUpdateNotice({ enabled = true }) {
           </div>
         )}
 
-        {!canSelfUpdate && (
+        {legacySigningError && !installedOnFireTv && (
+          <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm leading-5 text-amber-100">
+            The old Mobile updater could not confirm the APK signature. Some Android versions do not expose archive signing details. This does not prove the certificates differ. Do not uninstall Media God. Install the official signed APK over the existing app; Android itself will verify the certificate before replacing it. If Android rejects it, keep the original app installed.
+          </p>
+        )}
+
+        {showMobileInstaller && (
           <button
             type="button"
             onClick={openFallback}
-            className="mt-5 min-h-12 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-bold text-black outline-none hover:brightness-110 focus:ring-4 focus:ring-cyan-300/40"
+            className="mt-4 min-h-12 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-bold text-black outline-none hover:brightness-110 focus:ring-4 focus:ring-cyan-300/40"
           >
-            Open Android Mobile APK
+            Open official Android Mobile APK
           </button>
         )}
 
