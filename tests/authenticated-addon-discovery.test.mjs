@@ -79,9 +79,13 @@ test("source lookup is isolated to the verified account and never exposed by the
   assert.match(privateServer, /"\/functions\/fetchAddonStreams": fetchAddonStreams/);
   assert.match(privateServer, /client\.auth\.me\(\)/);
   assert.match(privateServer, /if \(!verified\) return respond\(res, 401/);
-  assert.match(client, /readAccountSessionToken\(\)/);
-  assert.match(client, /invokeIndependentRealDebrid\(name, payload/);
-  assert.match(client, /return invokeIndependentAddonSources\(payload\)/);
+  const recovery = read("src/api/addonSourceRecovery.js");
+  assert.match(client, /searchAddonSourcesWithPublicFallback\(payload/);
+  assert.match(client, /readToken: readAccountSessionToken/);
+  assert.match(client, /invokeIndependentRealDebrid\('fetchAddonStreams', request, options\)/);
+  assert.match(client, /searchPublic: invokeIndependentAddonSources/);
+  assert.match(recovery, /if \(!sessionToken\) return searchPublic\(payload\)/);
+  assert.match(recovery, /personal\.data\.streams\.length > 0/);
   assert.match(publicHandler, /auth: \{ me: async \(\) => null \}/);
   assert.doesNotMatch(publicServer, /"\/functions\/fetchAddonStreams":.*verifiedClient/);
 });
