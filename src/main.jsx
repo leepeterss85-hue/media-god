@@ -12,6 +12,7 @@ import { installFireTvStableMode } from '@/components/mg/fireTvStableMode.js'
 import { createFireTvRepeatLimiter } from '@/components/mg/fireTvRepeatLimiter.js'
 import {
   clearFireTvStateFromAndroidMobile,
+  createAndroidTvDpadDetector,
   isAndroidMobileRuntime,
   isFireTvRuntime,
 } from '@/components/mg/runtimePlatform.js'
@@ -66,6 +67,8 @@ const keyCode = (event) =>
 const keyName = (event) =>
   String(event?.key || event?.code || '')
 
+const detectGenericAndroidTvDpad = createAndroidTvDpadDetector()
+
 const isStrongTvRemoteEvent = (event) => {
   const code = keyCode(event)
   const key = keyName(event)
@@ -89,7 +92,7 @@ const isStrongTvRemoteEvent = (event) => {
     return true
   }
 
-  return (
+  if (
     key === 'Select' ||
     key === 'Accept' ||
     key === 'BrowserBack' ||
@@ -97,7 +100,22 @@ const isStrongTvRemoteEvent = (event) => {
     key === 'MediaPlayPause' ||
     key === 'MediaRewind' ||
     key === 'MediaFastForward'
-  )
+  ) return true
+
+  // Stock Android TV boxes can turn physical DPAD events into browser
+  // Arrow keys (37-40) while advertising a generic Android touch UA.
+  // Require two nearby D-pad arrows before switching an unidentified box
+  // into TV mode; never alter an explicit Media God phone/tablet wrapper.
+  const active = document.activeElement
+  const tag = String(active?.tagName || '').toLowerCase()
+  const editable = tag === 'textarea' ||
+    (tag === 'input' && String(active?.type || '').toLowerCase() !== 'range') ||
+    Boolean(active?.isContentEditable)
+  return detectGenericAndroidTvDpad(event, {
+    userAgent: navigator?.userAgent || '',
+    mobileApp: isAndroidMobileRuntime(),
+    editable,
+  })
 }
 
 const isVisible = (element) => {
