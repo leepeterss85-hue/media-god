@@ -93,3 +93,14 @@ test("scraper URLs still use an embedded web player and direct streams keep thei
   assert.match(player,/const playOnlyFlix = useCallback\(\(media\) => \{/);
   assert.match(player,/startEmbed\(url, media, "onlyflix"\)/);
 });
+
+test("browse-time source discovery has separate fast and exhaustive deadlines", () => {
+  const code = read("src/components/mg/catalogueSourceAvailability.js");
+  assert.match(code, /SOURCE_FAST_DEADLINE_MS = 9_000/);
+  assert.match(code, /SOURCE_FULL_DEADLINE_MS = 16_000/);
+  assert.match(code, /Promise\.race\(\[/);
+  assert.match(code, /clearTimeout\(timer\)/);
+  assert.match(code, /\.catch\(\(\) => 'unknown'\)/);
+  assert.match(code, /active -= 1;/);
+  assert.match(code, /pump\(\);/);
+});
