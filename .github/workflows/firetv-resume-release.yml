@@ -1,0 +1,239 @@
+name: Fire TV Resume Fix - Signed APK Update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/components/mg/ContinueWatchingRow.jsx"
+      - "src/components/mg/resumeHistoryPolicy.js"
+      - "tests/firetv-resume-routing.test.mjs"
+      - "firetv-android/app/build.gradle.kts"
+      - "public/firetv-update.json"
+      - ".github/workflows/firetv-resume-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: media-god-firetv-resume-release
+  cancel-in-progress: false
+
+jobs:
+  resume-verification:
+    name: Verify Resume, account history, and production web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Film/episode resume and cross-device history tests
+        run: |
+          node --test tests/firetv-resume-routing.test.mjs tests/native-continue-watching-position.test.mjs tests/resume-seek.test.mjs tests/continue-watching-source-recovery.test.mjs tests/native-release-ready-gate.test.mjs
+      - name: Compile live website used by Fire Stick
+        run: npm run build
+
+  ffmpeg-extension:
+    name: Obtain known-good Fire TV Media3 FFmpeg extension
+    if: ${{ contains(github.event.head_commit.message, 'release(firetv):') || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install media build tools only when needed
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;26.1.10909125" "cmake;3.22.1"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - uses: actions/cache@v4
+        id: ffmpeg-cache
+        with:
+          path: firetv-android/app/libs/decoder-ffmpeg.aar
+          key: media3-ffmpeg-1.8.0-ffmpeg6-ndk26b-v1
+      - if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: bash scripts/build-media3-ffmpeg.sh 1.8.0 firetv-android/app/libs/decoder-ffmpeg.aar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firetv-resume-ffmpeg
+          path: firetv-android/app/libs/decoder-ffmpeg.aar
+          if-no-files-found: error
+
+  firetv-emulator:
+    name: Fire TV native playback lifecycle regression
+    if: ${{ contains(github.event.head_commit.message, 'release(firetv):') || github.event_name == 'workflow_dispatch' }}
+    needs: ffmpeg-extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: firetv-resume-ffmpeg
+          path: firetv-android/app/libs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools" "emulator" "system-images;android-35;google_apis;x86_64"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm || true
+      - name: Run existing native player regression tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: gradle -p firetv-android :app:connectedDebugAndroidTest --stacktrace
+
+  signed-firetv-release:
+    name: Sign, verify, archive, and publish Fire TV 1.4.119
+    if: ${{ contains(github.event.head_commit.message, 'release(firetv):') || github.event_name == 'workflow_dispatch' }}
+    needs: [resume-verification, ffmpeg-extension, firetv-emulator]
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      FIRETV_KEYSTORE_BASE64: ${{ secrets.FIRETV_KEYSTORE_BASE64 }}
+      FIRETV_KEYSTORE_PASSWORD: ${{ secrets.FIRETV_KEYSTORE_PASSWORD }}
+      FIRETV_KEY_ALIAS: ${{ secrets.FIRETV_KEY_ALIAS }}
+      FIRETV_KEY_PASSWORD: ${{ secrets.FIRETV_KEY_PASSWORD }}
+      FIRETV_KEYSTORE_PATH: firetv-release.jks
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: firetv-resume-ffmpeg
+          path: firetv-android/app/libs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Validate incremented Fire TV version and manifest
+        run: |
+          python3 - <<'PY'
+          import json,re
+          from pathlib import Path
+          gradle=Path("firetv-android/app/build.gradle.kts").read_text()
+          manifest=json.loads(Path("public/firetv-update.json").read_text())
+          code=int(re.search(r"versionCode\s*=\s*(\d+)",gradle).group(1))
+          name=re.search(r'versionName\s*=\s*"([^"]+)"',gradle).group(1)
+          assert code == 124 and name == "1.4.119", (code,name)
+          assert (manifest["versionCode"],manifest["versionName"]) == (code,name)
+          assert manifest["apkUrl"].endswith("/firetv-latest/Media-God-Fire-TV.apk")
+          print("Fire TV version",name,"code",code)
+          PY
+      - name: Restore existing permanent Fire TV signing identity
+        run: |
+          set -euo pipefail
+          for value in FIRETV_KEYSTORE_BASE64 FIRETV_KEYSTORE_PASSWORD FIRETV_KEY_ALIAS FIRETV_KEY_PASSWORD; do
+            test -n "${!value:-}" || { echo "Missing Fire TV signing secret: $value"; exit 1; }
+          done
+          printf '%s' "$FIRETV_KEYSTORE_BASE64" | base64 --decode > "firetv-android/app/$FIRETV_KEYSTORE_PATH"
+      - name: Build signed Fire TV APK without changing phone APK
+        run: |
+          gradle -p firetv-android :app:assembleRelease --stacktrace
+          cp firetv-android/app/build/outputs/apk/release/app-release.apk Media-God-Fire-TV.apk
+      - name: Verify signed APK and installed upgrade version
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Media-God-Fire-TV.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Media-God-Fire-TV.apk | grep -E "package: name='com.mediagod.firetv'.*versionCode='124'.*versionName='1.4.119'"
+          test "$(stat -c %s Media-God-Fire-TV.apk)" -gt 1000000
+          sha256sum Media-God-Fire-TV.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Media-God-Fire-TV-1.4.119
+          path: Media-God-Fire-TV.apk
+          retention-days: 30
+          if-no-files-found: error
+      - name: Archive previous signed Fire TV APK and publish verified update
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          prior="$(gh api "repos/$repo/releases/tags/firetv-latest")"
+          oldsha="$(jq -r '.target_commitish' <<< "$prior")"
+          [[ "$oldsha" =~ ^[0-9a-f]{40}$ ]] || { echo "Previous release not pinned to a commit"; exit 1; }
+          jq -e '.draft == false and (any(.assets[]; .name == "Media-God-Fire-TV.apk" and .state == "uploaded" and .size > 1000000))' <<< "$prior" >/dev/null
+          mkdir -p "$RUNNER_TEMP/old-tv" "$RUNNER_TEMP/verify-new"
+          jq -r '.body // ""' <<< "$prior" > "$RUNNER_TEMP/old-tv/NOTES.md"
+          gh release download firetv-latest --repo "$repo" --pattern Media-God-Fire-TV.apk --dir "$RUNNER_TEMP/old-tv"
+          test -s "$RUNNER_TEMP/old-tv/Media-God-Fire-TV.apk"
+          archive="stable-firetv-${oldsha:0:12}"
+          if ! gh release view "$archive" --repo "$repo" >/dev/null 2>&1; then
+            gh release create "$archive" --repo "$repo" --target "$oldsha" --latest=false \
+              --title "Media God verified Fire TV rollback ($archive)" \
+              --notes "Original signed Fire TV APK from $oldsha, archived before the 1.4.119 resume update." \
+              "$RUNNER_TEMP/old-tv/Media-God-Fire-TV.apk"
+          fi
+          # Publish a separately downloadable candidate first; it survives
+          # even if rotating the stable pointer encounters a GitHub error.
+          candidate="firetv-resume-1.4.119-${GITHUB_SHA:0:12}"
+          if ! gh release view "$candidate" --repo "$repo" >/dev/null 2>&1; then
+            gh release create "$candidate" --repo "$repo" --target "$GITHUB_SHA" --latest=false \
+              --title "Media God Fire TV 1.4.119 signed update" \
+              --notes "Fire TV-only Continue Watching seek fix. Compatible with the existing signed installation." \
+              Media-God-Fire-TV.apk
+          fi
+          gh release download "$candidate" --repo "$repo" --pattern Media-God-Fire-TV.apk --dir "$RUNNER_TEMP/verify-new"
+          cmp Media-God-Fire-TV.apk "$RUNNER_TEMP/verify-new/Media-God-Fire-TV.apk"
+          revert_to_previous() {
+            echo "Restoring previously verified Fire TV release after an incomplete promotion"
+            gh release delete firetv-latest --repo "$repo" --cleanup-tag --yes >/dev/null 2>&1 || true
+            gh release create firetv-latest --repo "$repo" --target "$oldsha" \
+              --title "Media God Fire TV" \
+              --notes-file "$RUNNER_TEMP/old-tv/NOTES.md" \
+              "$RUNNER_TEMP/old-tv/Media-God-Fire-TV.apk" || true
+          }
+          trap revert_to_previous ERR
+          gh release delete firetv-latest --repo "$repo" --cleanup-tag --yes
+          gh release create firetv-latest --repo "$repo" --target "$GITHUB_SHA" \
+            --title "Media God Fire TV 1.4.119 - Continue Watching Resume" \
+            --notes "Signed Fire TV resume update built from commit $GITHUB_SHA." \
+            Media-God-Fire-TV.apk
+          gh release download firetv-latest --repo "$repo" --pattern Media-God-Fire-TV.apk --dir "$RUNNER_TEMP/verify-new/final"
+          cmp Media-God-Fire-TV.apk "$RUNNER_TEMP/verify-new/final/Media-God-Fire-TV.apk"
+          gh api "repos/$repo/releases/tags/firetv-latest" | jq -e --arg sha "$GITHUB_SHA" '
+            .target_commitish == $sha and
+            (any(.assets[]; .name == "Media-God-Fire-TV.apk" and .state == "uploaded" and .size > 1000000))
+          ' >/dev/null
+          printf 'Verified Media God Fire TV 1.4.119 release.\n\nVerified-APK-Commit: %s\nDedicated Fire TV emulator, Resume regression, signing, asset and published download verified. Phone APK unchanged.\n' "$GITHUB_SHA" > "$RUNNER_TEMP/verified-notes.txt"
+          gh release edit firetv-latest --repo "$repo" --notes-file "$RUNNER_TEMP/verified-notes.txt"
+          trap - ERR
+          echo "Media God Fire TV 1.4.119 is published and eligible for in-app updates"
