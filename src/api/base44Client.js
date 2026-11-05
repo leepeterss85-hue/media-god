@@ -3,6 +3,7 @@ import { appParams } from '@/lib/app-params';
 import { withGuestDebridPayload } from '@/components/mg/guestDebridDevice';
 import { invokeIndependentMetadata, invokeIndependentImdbResolver, invokeIndependentAddonSources, invokeIndependentPublicFeature } from './independentMetadata.js';
 import { INDEPENDENT_RD_FUNCTIONS, invokeIndependentRealDebrid, readAccountSessionToken } from './independentRealDebrid.js';
+import { searchAddonSourcesWithPublicFallback } from './addonSourceRecovery.js';
 
 const { appId, token, functionsVersion, appBaseUrl } = appParams;
 
@@ -35,56 +36,12 @@ base44.functions.invoke = async (name, payload = {}, ...rest) => {
     return invokeIndependentImdbResolver(name, payload);
   }
   if (name === 'fetchAddonStreams' && !payload?.action) {
-    // Signed-in Media God accounts may have their own configured torrent
-    // addons. The public Railway service knows only fixed free manifests,
-    // so querying it alone silently loses all of those account sources.
-    // The authenticated Railway service verifies auth.me() and reads Addon
-    // entities scoped to this user. Never send their configured manifests,
-    // debrid tokens or session data to the public metadata endpoint.
-    const sessionToken = await readAccountSessionToken();
-    if (sessionToken) {
-      try {
-        const personal = await invokeIndependentRealDebrid(name, payload, {
-          token: sessionToken,
-          // Source discovery is not an RD media resolve. A stalled personal
-          // addon must not trap an Android box on "Loading sources" for 60s.
-          timeoutMs: 22_000,
-        });
-        if (Array.isArray(personal?.data?.streams) &&
-            personal.data.streams.length > 0) {
-          return personal;
-        }
-
-        // An authenticated 200 response with zero results can still be a
-        // failed provider search (e.g. an addon HTTP 429). Try the separate
-        // public service before reporting that no playable source exists.
-        const publicSources = await invokeIndependentAddonSources(payload);
-        if (!Array.isArray(publicSources?.data?.streams) ||
-            publicSources.data.streams.length === 0) return personal;
-
-        return {
-          ...personal,
-          data: {
-            ...personal.data,
-            streams: publicSources.data.streams,
-            diagnostics: [
-              ...(Array.isArray(personal.data?.diagnostics) ? personal.data.diagnostics : []),
-              ...(Array.isArray(publicSources.data?.diagnostics) ? publicSources.data.diagnostics : []),
-            ],
-            addons_checked: Math.max(
-              Number(personal.data?.addons_checked || 0),
-              Number(publicSources.data?.addons_checked || 0),
-            ),
-            reason: "Recovered available public addon sources after the configured providers returned none.",
-          },
-        };
-      } catch {
-        // Keep source discovery available if the account session expired,
-        // the private gateway is restarting or a slow addon timed out.
-        // Do not route these searches back through Base44 credits.
-      }
-    }
-    return invokeIndependentAddonSources(payload);
+    return searchAddonSourcesWithPublicFallback(payload, {
+      readToken: readAccountSessionToken,
+      searchPersonal: (request, options) =>
+        invokeIndependentRealDebrid('fetchAddonStreams', request, options),
+      searchPublic: invokeIndependentAddonSources,
+    });
   }
   if (name === 'getEntertainmentNews' || name === 'getSkipSegments' ||
       name === 'getFireTvApkLink') {
