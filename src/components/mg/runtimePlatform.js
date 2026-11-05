@@ -1,6 +1,17 @@
 const FIRE_TV_RE =
   /(?:\bAFT[A-Z0-9]*\b|Fire\s*TV|AmazonWebAppPlatform|Silk|MediaGodFireTV)/i;
 
+// Android TV boxes do not always identify themselves as Fire TV. Some ship
+// stock Android WebViews whose UA looks like a generic tablet, but devices
+// that explicitly advertise TV hardware must receive D-pad focus handling.
+// Keep this separate from the phone app marker (which always wins below).
+const ANDROID_TV_RE =
+  /(?:Android[\s/._-]*TV|Google[\s/._-]*TV|NVIDIA[\s_-]*SHIELD(?:[\s_-]*Android[\s_-]*TV)?|\bMi[\s_-]*Box\b|\bMIBOX\b|\bMiTV\b|\bMecool\b|\bChromecast\s+with\s+Google\s+TV\b|\bONN[\s_-]*(?:4K|Streaming[\s_-]*Box)\b)/i;
+
+export const isKnownTvUserAgent = (value) =>
+  FIRE_TV_RE.test(String(value || "")) ||
+  ANDROID_TV_RE.test(String(value || ""));
+
 const ANDROID_MOBILE_APP_RE =
   /(?:MediaGodMobile|AndroidMobile)/i;
 
@@ -52,7 +63,7 @@ export const isFireTvRuntime = () => {
     !hasClass("mg-touch-device");
 
   return (
-    FIRE_TV_RE.test(userAgent) ||
+    isKnownTvUserAgent(userAgent) ||
     classDetected ||
     androidNoTouch
   );
@@ -117,4 +128,4 @@ export const clearFireTvStateFromAndroidMobile = () => {
   return true;
 };
 
-export { FIRE_TV_RE, ANDROID_MOBILE_APP_RE };
+export { FIRE_TV_RE, ANDROID_TV_RE, ANDROID_MOBILE_APP_RE };
