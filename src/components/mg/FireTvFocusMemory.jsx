@@ -2,9 +2,7 @@ import {
   useEffect,
   useRef,
 } from "react";
-
-const FIRE_TV_RE =
-  /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
+import { isFireTvRuntime } from "./runtimePlatform";
 
 const FOCUSABLE = [
   'button:not([disabled])',
@@ -19,29 +17,10 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
-const isFireTv = () => {
-  if (
-    typeof navigator ===
-    "undefined"
-  ) {
-    return false;
-  }
-
-  return (
-    FIRE_TV_RE.test(
-      String(
-        navigator.userAgent ||
-          ""
-      )
-    ) ||
-    document.documentElement.classList.contains(
-      "mg-fire-tv"
-    ) ||
-    document.body.classList.contains(
-      "mg-fire-tv"
-    )
-  );
-};
+// Use the exact same Android TV / Fire TV device classification as the
+// main remote navigator. Previously this focus-memory component used its own
+// Fire-only user-agent check and skipped recovery on Google TV / Android boxes.
+const isFireTv = () => isFireTvRuntime();
 
 const visible = (
   element,
