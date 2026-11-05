@@ -4,6 +4,7 @@ import {
   isFireTvRuntime,
 } from "@/components/mg/runtimePlatform";
 import { tapOnlyFlixForRemote } from "@/components/mg/onlyFlixRemoteActions";
+import { createFireTvFocusRefreshScheduler } from "./fireTvFocusWork";
 
 const FOCUSABLE = [
   'button:not([disabled])',
@@ -1429,7 +1430,12 @@ export default function FireTvRemote() {
     document.addEventListener("focusin", keepFocusedControlVisible, true);
     window.addEventListener("mg:tv-remote-detected", activateTvMode);
 
-    const observer = new MutationObserver(focusOverlay);
+    // Movie posters and catalogue rows can create hundreds of mutations in
+    // one frame. Running a full overlay/focus scan for every mutation blocks
+    // Fire Stick key handling. Schedule ONLY the passive scan; D-pad/Select
+    // events remain synchronous and retain their original behaviour.
+    const scheduleFocusOverlay = createFireTvFocusRefreshScheduler(focusOverlay);
+    const observer = new MutationObserver(scheduleFocusOverlay);
 
     observer.observe(document.body, {
       childList: true,
@@ -1445,6 +1451,7 @@ export default function FireTvRemote() {
       document.removeEventListener("focusin", keepFocusedControlVisible, true);
       window.removeEventListener("mg:tv-remote-detected", activateTvMode);
       observer.disconnect();
+      scheduleFocusOverlay.cancel();
       document.documentElement.classList.remove("mg-fire-tv-mode");
       document.body?.classList.remove("mg-fire-tv-mode");
     };
