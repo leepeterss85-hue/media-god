@@ -1,6 +1,7 @@
 import {
   useEffect,
   useRef,
+  useState,
 } from "react";
 import { isFireTvRuntime } from "./runtimePlatform";
 
@@ -802,6 +803,20 @@ const restoreSnapshot =
   };
 
 export default function FireTvFocusMemory() {
+  const [tvModeReady, setTvModeReady] = useState(isFireTv);
+
+  // Unknown Android boxes can only reveal their physical remote after the
+  // first D-pad presses. The focus-memory effect used to exit permanently on
+  // initial render and never activate after TV mode was detected.
+  useEffect(() => {
+    const onRemoteDetected = () => {
+      if (isFireTv()) setTvModeReady(true);
+    };
+    window.addEventListener("mg:tv-remote-detected", onRemoteDetected);
+    onRemoteDetected();
+    return () => window.removeEventListener("mg:tv-remote-detected", onRemoteDetected);
+  }, []);
+
   const stateRef =
     useRef({
       currentScope:
@@ -816,6 +831,7 @@ export default function FireTvFocusMemory() {
 
   useEffect(() => {
     if (
+      !tvModeReady ||
       !isFireTv()
     ) {
       return undefined;
@@ -1081,7 +1097,7 @@ export default function FireTvFocusMemory() {
       state.currentScope =
         null;
     };
-  }, []);
+  }, [tvModeReady]);
 
   return null;
 }
