@@ -62,7 +62,7 @@ test("TV focus-memory shares device runtime and activates after late remote dete
   const focusMemory = read("src/components/mg/FireTvFocusMemory.jsx");
   const runtime = read("src/components/mg/runtimePlatform.js");
   const main = read("src/main.jsx");
-  assert.match(focusMemory,/import \{ isFireTvRuntime \} from "\.\/runtimePlatform"/);
+  assert.match(focusMemory,/import \{ isFireTvRuntime \} from "\.\/runtimePlatform\.js"/);
   assert.match(focusMemory,/setTvModeReady\(true\)/);
   assert.match(focusMemory,/window\.addEventListener\("mg:tv-remote-detected", onRemoteDetected\)/);
   assert.match(focusMemory,/\}, \[tvModeReady\]\)/);
