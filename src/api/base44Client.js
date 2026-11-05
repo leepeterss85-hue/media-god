@@ -44,14 +44,44 @@ base44.functions.invoke = async (name, payload = {}, ...rest) => {
     const sessionToken = await readAccountSessionToken();
     if (sessionToken) {
       try {
-        return await invokeIndependentRealDebrid(name, payload, {
+        const personal = await invokeIndependentRealDebrid(name, payload, {
           token: sessionToken,
-          timeoutMs: 60_000,
+          // Source discovery is not an RD media resolve. A stalled personal
+          // addon must not trap an Android box on "Loading sources" for 60s.
+          timeoutMs: 22_000,
         });
+        if (Array.isArray(personal?.data?.streams) &&
+            personal.data.streams.length > 0) {
+          return personal;
+        }
+
+        // An authenticated 200 response with zero results can still be a
+        // failed provider search (e.g. an addon HTTP 429). Try the separate
+        // public service before reporting that no playable source exists.
+        const publicSources = await invokeIndependentAddonSources(payload);
+        if (!Array.isArray(publicSources?.data?.streams) ||
+            publicSources.data.streams.length === 0) return personal;
+
+        return {
+          ...personal,
+          data: {
+            ...personal.data,
+            streams: publicSources.data.streams,
+            diagnostics: [
+              ...(Array.isArray(personal.data?.diagnostics) ? personal.data.diagnostics : []),
+              ...(Array.isArray(publicSources.data?.diagnostics) ? publicSources.data.diagnostics : []),
+            ],
+            addons_checked: Math.max(
+              Number(personal.data?.addons_checked || 0),
+              Number(publicSources.data?.addons_checked || 0),
+            ),
+            reason: "Recovered available public addon sources after the configured providers returned none.",
+          },
+        };
       } catch {
-        // Keep source discovery available if the account session expired or
-        // the private gateway is restarting; anonymous public addons can
-        // still be searched without consuming Base44 integration credits.
+        // Keep source discovery available if the account session expired,
+        // the private gateway is restarting or a slow addon timed out.
+        // Do not route these searches back through Base44 credits.
       }
     }
     return invokeIndependentAddonSources(payload);
