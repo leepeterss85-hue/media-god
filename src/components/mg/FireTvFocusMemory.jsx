@@ -544,24 +544,26 @@ const snapshotFocus =
       return null;
     }
 
-    const items =
-      focusables(
-        scope
-      );
-    const rowContext = rowContextFor(element);
+    const focusKey = normaliseText(
+      element.getAttribute("data-mg-focus-key") ||
+      element.getAttribute("data-mg-live-tv-key")
+    );
+
+    // A stable focus key lets us relocate a control without scanning every
+    // catalogue button. Previously each focusin ran focusables(scope), which
+    // measured all posters/controls and their ancestor styles, and then
+    // rowContextFor() measured the whole row a second time. On a Fire Stick
+    // this blocked the next D-pad press even though the focused key is known.
+    // Preserve the full fallback search for unkeyed legacy controls.
+    const rowContext = focusKey
+      ? { rowLabel: "", rowCardIndex: -1 }
+      : rowContextFor(element);
+    const fallbackIndex = focusKey ? -1 : focusables(scope).indexOf(element);
 
     return {
       element,
 
-      focusKey:
-        normaliseText(
-          element.getAttribute(
-            "data-mg-focus-key"
-          ) ||
-            element.getAttribute(
-              "data-mg-live-tv-key"
-            )
-        ),
+      focusKey,
 
       ariaLabel:
         normaliseText(
@@ -588,10 +590,7 @@ const snapshotFocus =
             ""
         ).toLowerCase(),
 
-      index:
-        items.indexOf(
-          element
-        ),
+      index: fallbackIndex,
 
       rowLabel:
         rowContext.rowLabel,
