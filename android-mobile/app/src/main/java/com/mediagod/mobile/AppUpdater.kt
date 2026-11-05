@@ -264,9 +264,16 @@ class AppUpdater(
         val currentSigners = signerDigests(currentInfo)
         val archiveSigners = signerDigests(archiveInfo)
 
+        /*
+         * Some Android and Fire OS PackageManager versions cannot read the
+         * signing certificate of an APK archive. An unreadable certificate
+         * is NOT proof of a different signing identity. Only reject when both
+         * certificates are available and definitely different; Android's
+         * package installer still enforces the signature match when installing.
+         */
         if (
-            currentSigners.isEmpty() ||
-            archiveSigners.isEmpty() ||
+            currentSigners.isNotEmpty() &&
+            archiveSigners.isNotEmpty() &&
             currentSigners.intersect(archiveSigners).isEmpty()
         ) {
             throw IllegalStateException("Downloaded APK signing identity does not match Media God Mobile.")
@@ -313,9 +320,13 @@ class AppUpdater(
     private fun signerDigests(info: PackageInfo): Set<String> {
         val signatures =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                info.signingInfo?.apkContentsSigners ?: emptyArray()
+                val signingInfo = info.signingInfo
+                buildList {
+                    addAll(signingInfo?.apkContentsSigners?.toList().orEmpty())
+                    addAll(signingInfo?.signingCertificateHistory?.toList().orEmpty())
+                }.distinctBy { it.toCharsString() }
             } else {
-                info.signatures ?: emptyArray()
+                info.signatures?.toList().orEmpty()
             }
 
         return signatures.map { signature ->
