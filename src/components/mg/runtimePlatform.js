@@ -12,6 +12,36 @@ export const isKnownTvUserAgent = (value) =>
   FIRE_TV_RE.test(String(value || "")) ||
   ANDROID_TV_RE.test(String(value || ""));
 
+// Some generic Android TV box WebViews report keyboard keyCodes 37-40 for
+// physical D-pad input, not native Android keyCodes 19-22. They can also
+// falsely advertise touch points. When no explicit television UA is present,
+// use two consecutive remote-like arrow keys to activate TV navigation. A
+// single arrow key on an Android phone or tablet must never switch its layout.
+export const createAndroidTvDpadDetector = ({ now = () => Date.now() } = {}) => {
+  let lastAt = -Infinity;
+  let lastDirection = "";
+  return (event, { userAgent = "", mobileApp = false, editable = false } = {}) => {
+    if (mobileApp || editable || !/Android/i.test(String(userAgent))) {
+      lastAt = -Infinity;
+      lastDirection = "";
+      return false;
+    }
+    const key = String(event?.key || event?.code || "");
+    const code = Number(event?.keyCode || event?.which || 0);
+    const arrow =
+      /^(?:ArrowUp|ArrowDown|ArrowLeft|ArrowRight)$/.test(key) ||
+      [37, 38, 39, 40].includes(code);
+    if (!arrow) return false;
+    if (isKnownTvUserAgent(userAgent)) return true;
+    const at = now();
+    const confirmed = (at - lastAt < 1750) &&
+      (lastDirection !== "" || Boolean(event?.repeat));
+    lastAt = at;
+    lastDirection = key || String(code);
+    return confirmed;
+  };
+};
+
 const ANDROID_MOBILE_APP_RE =
   /(?:MediaGodMobile|AndroidMobile)/i;
 
