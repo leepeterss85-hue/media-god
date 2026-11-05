@@ -3,7 +3,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { isFireTvRuntime } from "./runtimePlatform";
+import { isFireTvRuntime } from "./runtimePlatform.js";
 
 const FOCUSABLE = [
   'button:not([disabled])',
