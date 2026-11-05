@@ -25,6 +25,7 @@ import MediaDownloadPicker from "@/components/mg/MediaDownloadPicker";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
 import { restoreResumeSource } from "./resumeSource";
+import { hasSeekableHistoryPosition } from "./resumeHistoryPolicy";
 import { isIpBoundHostedProvider, isElfHostedUrl } from "@/components/mg/ipBoundVodSafety";
 
 const PosterImage = /** @type {any} */ (Image);
@@ -408,8 +409,13 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
      * first. A saved mgsource descriptor carries the stable torrent/magnet and
      * file/provider identity, not just the short-lived resolved stream URL.
      */
+    const hasSavedSeekPosition = hasSeekableHistoryPosition(item);
     const bookmark = readEmbedBookmark(item);
-    if (bookmark && player.playSavedEmbed?.({
+    // Old OnlyFlix/embed bookmarks carry no dependable seek control.
+    // History merges may combine a measured native position with a newer
+    // embedded bookmark. If real progress exists, reopen a seekable source
+    // through Media God's normal player instead of returning to OnlyFlix.
+    if (!hasSavedSeekPosition && bookmark && player.playSavedEmbed?.({
       id: tmdbId || undefined, tmdbId: tmdbId || undefined,
       title: meta.title, year: meta.year, poster: item.poster_url || "",
       mediaType: meta.mediaType, type: isTv ? "series" : "movie",
@@ -521,7 +527,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     // silently replacing the viewer's last torrent with OnlyFlix.
     const explicitOnlyFlixResume =
       savedSourceType === "onlyflix" && /onlyflix/i.test(savedUrl);
-    if (!isTv && explicitOnlyFlixResume && !hasPreviouslySelectedAlternateSource && player.playOnlyFlix) {
+    if (!isTv && !hasSavedSeekPosition && explicitOnlyFlixResume && !hasPreviouslySelectedAlternateSource && player.playOnlyFlix) {
       if (player.playOnlyFlix({
         id: tmdbId || undefined,
         tmdbId: tmdbId || undefined,
