@@ -1,0 +1,31 @@
+name: Media God Mobile and Fire TV Edition Update Check
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'android-mobile/app/src/main/java/com/mediagod/mobile/AppUpdater.kt'
+      - 'src/components/mg/AndroidMobileAppUpdateNotice.jsx'
+      - 'src/components/mg/mobileUpdaterCompatibility.js'
+      - 'tests/mobile-update-signing-and-firetv-migration.test.mjs'
+      - '.github/workflows/mobile-firetv-edition-update-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  edition-and-updater:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Check mobile signing guards and TV APK migration
+        run: node --test tests/mobile-update-signing-and-firetv-migration.test.mjs tests/native-release-ready-gate.test.mjs
+      - name: Compile website with safe APK migration dialog
+        run: npm run build
