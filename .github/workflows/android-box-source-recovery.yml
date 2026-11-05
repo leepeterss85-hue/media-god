@@ -1,0 +1,34 @@
+name: Media God Android Box Source Recovery
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "deploy/media-god-api/server.mjs"
+      - "src/api/addonSourceRecovery.js"
+      - "src/api/base44Client.js"
+      - "src/components/mg/MediaStreamSourcesBox.jsx"
+      - "tests/android-box-source-recovery.test.mjs"
+      - ".github/workflows/android-box-source-recovery.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  sources-and-playback-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Validate Railway public metadata handler syntax
+        run: node --check deploy/media-god-api/server.mjs
+      - name: Test source recovery, native/scraper routing, TV remote and history
+        run: |
+          node --test tests/android-box-source-recovery.test.mjs tests/authenticated-addon-discovery.test.mjs tests/android-tv-box-compatibility.test.mjs tests/firetv-remote-responsiveness.test.mjs tests/resume-seek.test.mjs
+      - name: Production web build
+        run: npm run build
