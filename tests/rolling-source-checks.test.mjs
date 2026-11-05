@@ -26,3 +26,35 @@ test('rolling source checks cover entire list, pause in background, resume on fo
   stop();win.tick();
   assert.equal(win.timers.size,0);
 });
+
+test('slow TV-box checks never overlap and recover when a request finishes', async () => {
+  const win = new FakeEvents(), doc = new FakeEvents();
+  const started = [];
+  const pending = [];
+  const stop = createRollingSourceChecks(
+    () => [1, 2, 3, 4, 5],
+    item => {
+      started.push(item);
+      return new Promise(resolve => pending.push(resolve));
+    },
+    { windowObject: win, documentObject: doc, batchSize: 2 }
+  );
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(started, [1, 2]);
+  win.tick();
+  win.dispatchEvent(new Event('focus'));
+  win.dispatchEvent(new Event('online'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(started, [1, 2], 'requests must stay bounded while unresolved');
+  pending[0]();
+  await new Promise(resolve => setImmediate(resolve));
+  win.tick();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(started, [1, 2, 3]);
+  stop();
+  pending[1]();
+  pending[2]();
+  await new Promise(resolve => setImmediate(resolve));
+  win.tick();
+  assert.deepEqual(started, [1, 2, 3], 'cleanup prevents further requests');
+});
