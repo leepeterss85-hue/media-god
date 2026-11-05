@@ -20,7 +20,12 @@ export const isKnownTvUserAgent = (value) =>
 export const createAndroidTvDpadDetector = ({ now = () => Date.now() } = {}) => {
   let lastAt = -Infinity;
   let lastDirection = "";
+  let previousEvent = null;
   return (event, { userAgent = "", mobileApp = false, editable = false } = {}) => {
+    // The bootstrap listens at both window and document capture levels.
+    // Count each physical DOM event once, not twice in the same key press.
+    if (event && event === previousEvent) return false;
+    previousEvent = event;
     if (mobileApp || editable || !/Android/i.test(String(userAgent))) {
       lastAt = -Infinity;
       lastDirection = "";
