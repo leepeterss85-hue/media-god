@@ -1,0 +1,32 @@
+name: Media God Android TV Box Compatibility
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/components/mg/runtimePlatform.js"
+      - "src/components/mg/FireTvFocusMemory.jsx"
+      - "src/components/mg/mobileUpdaterCompatibility.js"
+      - "src/main.jsx"
+      - "tests/android-tv-box-compatibility.test.mjs"
+      - ".github/workflows/android-tv-box-compatibility.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  android-tv-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Android box, Google TV, phone and D-pad regression
+        run: |
+          node --test tests/android-tv-box-compatibility.test.mjs tests/firetv-remote-responsiveness.test.mjs tests/firetv-focus-performance.test.mjs tests/firetv-initial-focus.test.mjs tests/mobile-update-signing-and-firetv-migration.test.mjs
+      - name: Production website build
+        run: npm run build
