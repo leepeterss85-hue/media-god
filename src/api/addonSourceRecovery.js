@@ -1,3 +1,19 @@
+// Bound SDK authentication separately: a pending token promise must not prevent
+// the public source fallback from ever starting. Late settlement is ignored.
+const withDeadline = async (operation, timeoutMs) => {
+  let timer;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(operation),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Source lookup timed out")), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 /**
  * A signed-in source search may succeed at the transport layer yet contain
  * zero streams because an upstream provider has rate-limited the addon.
@@ -14,11 +30,12 @@ export async function searchAddonSourcesWithPublicFallback(
     searchPersonal,
     searchPublic,
     personalTimeoutMs = 22_000,
+    tokenTimeoutMs = 3_000,
   },
 ) {
   let sessionToken = "";
   try {
-    sessionToken = String(await readToken() || "").trim();
+    sessionToken = String(await withDeadline(readToken, tokenTimeoutMs) || "").trim();
   } catch {
     // Older Android boxes can have stale authentication SDK state. Public
     // source discovery remains available, without exposing account secrets.
@@ -27,10 +44,10 @@ export async function searchAddonSourcesWithPublicFallback(
 
   let personal;
   try {
-    personal = await searchPersonal(payload, {
+    personal = await withDeadline(() => searchPersonal(payload, {
       token: sessionToken,
       timeoutMs: personalTimeoutMs,
-    });
+    }), personalTimeoutMs);
   } catch {
     return searchPublic(payload);
   }

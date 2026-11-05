@@ -118,6 +118,12 @@ export async function invokeIndependentImdbResolver(name, payload = {}, {
     allowed.filter(key => input[key] !== undefined).map(key => [key, input[key]]),
   );
   const cacheRequest = { __resolver: name, ...request };
+  // Identity mappings are stable: avoid another network round trip (and quota
+  // charge) when this device already has a valid match. Never cache failures.
+  const cached = readCache(cacheRequest, storage);
+  if (/^tt\d+$/i.test(String(cached?.imdb_id || "")) && !cached.error) {
+    return { data: cached };
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
@@ -133,11 +139,15 @@ export async function invokeIndependentImdbResolver(name, payload = {}, {
     if (!response.ok) throw new Error(`Identity service returned ${response.status}`);
     const data = await response.json();
     if (!data || typeof data !== "object") throw new Error("Identity service response invalid");
-    saveCache(cacheRequest, data, storage);
+    if (/^tt\d+$/i.test(String(data.imdb_id || "")) && !data.error) {
+      saveCache(cacheRequest, data, storage);
+    }
     return { data };
   } catch (error) {
     const cached = readCache(cacheRequest, storage);
-    if (cached) return { data: cached, stale: true };
+    if (/^tt\d+$/i.test(String(cached?.imdb_id || "")) && !cached.error) {
+      return { data: cached, stale: true };
+    }
     throw new Error("Identity lookup temporarily unavailable", { cause: error });
   } finally {
     clearTimeout(timeout);
