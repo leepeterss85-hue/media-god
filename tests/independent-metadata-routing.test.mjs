@@ -130,7 +130,10 @@ test("credit-independent public source lookup strips secret-bearing fields", asy
   assert.equal(options.credentials, "omit");
   const client = read("src/api/base44Client.js");
   assert.match(client, /name === 'fetchAddonStreams' && !payload\?\.action/);
-  assert.match(client, /return invokeIndependentAddonSources\(payload\)/);
+  assert.match(client, /searchAddonSourcesWithPublicFallback\(payload/);
+  assert.match(client, /searchPublic: invokeIndependentAddonSources/);
+  const recovery = read("src/api/addonSourceRecovery.js");
+  assert.match(recovery, /return searchPublic\(payload\)/);
 });
 
 test("public source gateway never queries other viewers' configured addons", () => {
