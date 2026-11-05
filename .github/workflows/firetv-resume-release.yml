@@ -227,6 +227,7 @@ jobs:
             --title "Media God Fire TV 1.4.119 - Continue Watching Resume" \
             --notes "Signed Fire TV resume update built from commit $GITHUB_SHA." \
             Media-God-Fire-TV.apk
+          mkdir -p "$RUNNER_TEMP/verify-new/final"
           gh release download firetv-latest --repo "$repo" --pattern Media-God-Fire-TV.apk --dir "$RUNNER_TEMP/verify-new/final"
           cmp Media-God-Fire-TV.apk "$RUNNER_TEMP/verify-new/final/Media-God-Fire-TV.apk"
           gh api "repos/$repo/releases/tags/firetv-latest" | jq -e --arg sha "$GITHUB_SHA" '
