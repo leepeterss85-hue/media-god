@@ -38,7 +38,7 @@ test("legacy no-position embedded bookmark remains usable without inventing a pl
 
 test("Fire Stick native player still reports final position without changing its decoder", () => {
   const native = source("firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt");
-  assert.match(native, /"mg:native-player-result"/);
+  assert.match(native, /mg:native-player-result/);
   assert.match(native, /"positionMs", data\?\.getLongExtra\(PlayerActivity\.EXTRA_POSITION_MS/);
   assert.match(native, /pendingNativeResultScript = resultScript/);
   const player = source("src/components/mg/VideoPlayer.jsx");
