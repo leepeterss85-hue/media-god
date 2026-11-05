@@ -1,3 +1,4 @@
+import { tvScraperSandbox } from "@/components/mg/tvScraperSandbox";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink, ListVideo, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -401,6 +402,7 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
           ) : (
             <>
               <iframe
+                sandbox={tvScraperSandbox()}
                 key={selectedUrl}
                 src={selectedUrl}
                 title={providerLabel + ": " + title}
