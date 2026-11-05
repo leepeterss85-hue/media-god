@@ -8,17 +8,32 @@ export function createRollingSourceChecks(getItems, check, {
 } = {}) {
   let cursor = 0;
   let stopped = false;
+  const pending = new Set();
+  const limit = Math.max(1, Math.floor(Number(batchSize) || ROLLING_SOURCE_BATCH));
   const scan = () => {
     if (stopped || documentObject.visibilityState === 'hidden') return;
-    const items = getItems().filter(Boolean);
-    if (!items.length) return;
-    // Round-robin across all discoveries, not only the first eight posters.
-    const size = Math.min(batchSize, items.length);
-    for (let offset = 0; offset < size; offset++) {
-      const item = items[(cursor + offset) % items.length];
-      Promise.resolve().then(() => check(item)).catch(() => {});
+    let items;
+    try {
+      items = getItems().filter(Boolean);
+    } catch {
+      return; // A temporarily unavailable catalogue must not break the timer.
     }
-    cursor = (cursor + size) % items.length;
+    if (!items.length || pending.size >= limit) return;
+
+    // Do not pile up requests when a TV box has a slow network connection.
+    // Each title can have only one outstanding check; use free slots only.
+    let inspected = 0;
+    while (inspected < items.length && pending.size < limit) {
+      const item = items[cursor % items.length];
+      cursor = (cursor + 1) % items.length;
+      inspected += 1;
+      if (pending.has(item)) continue;
+      pending.add(item);
+      Promise.resolve()
+        .then(() => stopped ? undefined : check(item))
+        .catch(() => {})
+        .finally(() => pending.delete(item));
+    }
   };
   const timer = windowObject.setInterval(scan, intervalMs);
   const onReturn = () => scan();
