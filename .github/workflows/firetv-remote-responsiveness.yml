@@ -1,0 +1,31 @@
+name: Fire TV Remote Responsiveness and Focus Recovery
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/components/mg/FireTvRemote.jsx'
+      - 'src/components/mg/FireTvFocusMemory.jsx'
+      - 'src/components/mg/fireTvFocusWork.js'
+      - 'tests/firetv-focus-performance.test.mjs'
+      - '.github/workflows/firetv-remote-responsiveness.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  focus-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Performance, focus accuracy and remote regression tests
+        run: |
+          node --test tests/firetv-focus-performance.test.mjs tests/firetv-remote-responsiveness.test.mjs tests/firetv-initial-focus.test.mjs tests/firetv-top-sources-navigation.test.mjs tests/firetv-header-remote-actions.test.mjs tests/firetv-continue-watching-actions.test.mjs tests/onlyflix-remote.test.mjs
+      - name: Compile hosted web interface used by the Fire Stick
+        run: npm run build
