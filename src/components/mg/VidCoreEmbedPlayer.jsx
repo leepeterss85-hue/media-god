@@ -1,3 +1,4 @@
+import { tvScraperSandbox } from "@/components/mg/tvScraperSandbox";
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import OnlyFlixEmbedPlayer from "@/components/mg/OnlyFlixEmbedPlayer";
@@ -133,6 +134,7 @@ function VidCoreMoviePlayer({ url, title, onBack, backLabel }) {
 
         <SafeEmbedStage>
           <iframe
+                sandbox={tvScraperSandbox()}
             key={url}
             src={url}
             title={"VidCore: " + title}
