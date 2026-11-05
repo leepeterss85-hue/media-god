@@ -72,14 +72,29 @@ export function createCatalogueSourceChecker(invoke, { now = () => Date.now(), c
   const queue = [];
   const listeners = new Set();
   let active = 0;
-  const sourceRequest = (item, fastMode) => invoke('fetchAddonStreams', {
-    tmdb_id: item.tmdb_id ?? item.tmdbId ?? item.id,
-    imdb_id: item.imdb_id || item.imdbId || '',
-    title: item.title || '',
-    year: item.year || '',
-    media_type: 'movie',
-    fast_mode: fastMode,
-  });
+  // Browser SDK requests can remain pending when an Android TV WebView
+  // suspends a connection. Release the checker queue after a deadline;
+  // the detached request is never used to overwrite the eventual status.
+  const SOURCE_FAST_DEADLINE_MS = 9_000;
+  const SOURCE_FULL_DEADLINE_MS = 16_000;
+  const sourceRequest = (item, fastMode) => {
+    let timer;
+    const timeoutMs = fastMode ? SOURCE_FAST_DEADLINE_MS : SOURCE_FULL_DEADLINE_MS;
+    const request = Promise.resolve().then(() => invoke('fetchAddonStreams', {
+      tmdb_id: item.tmdb_id ?? item.tmdbId ?? item.id,
+      imdb_id: item.imdb_id || item.imdbId || '',
+      title: item.title || '',
+      year: item.year || '',
+      media_type: 'movie',
+      fast_mode: fastMode,
+    }));
+    return Promise.race([
+      request,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Source availability request timed out')), timeoutMs);
+      }),
+    ]).finally(() => clearTimeout(timer));
+  };
   const unwrap = (response) => response?.data?.data || response?.data || response;
   const getStatus = (item) => {
     const row = cache.get(catalogueSourceKey(item));
