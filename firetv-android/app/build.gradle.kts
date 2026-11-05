@@ -1,4 +1,4 @@
-// Fire TV 1.4.118: native voice-search keyboard fallback; known-good player unchanged.
+// Fire TV 1.4.119: Continue Watching seek routing parity; native video player unchanged.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 123
-        versionName = "1.4.118"
+        versionCode = 124
+        versionName = "1.4.119"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
