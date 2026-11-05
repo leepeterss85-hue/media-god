@@ -628,15 +628,6 @@ export default function StreamSourcesBox({
             server.reason ||
             "";
 
-          // A TV box must not wait for slower browser/optional embed probes
-          // before showing source rows that the secure server has found.
-          if (!cancelled && streams.length > 0) {
-            setAddonStreams(streams);
-            setAddonDiagnostics(diagnostics);
-            setAddonsChecked(checked);
-            setAddonReason(reason);
-          }
-
           if (
             shouldUseBrowserAddonFallback(
               server
@@ -739,15 +730,6 @@ export default function StreamSourcesBox({
               reason =
                 browser.error;
             }
-          }
-
-          // Browser recovery can add more choices. Publish them before
-          // the optional TMDb Embed search, which may be blocked by WebView.
-          if (!cancelled && streams.length > 0) {
-            setAddonStreams(streams);
-            setAddonDiagnostics(diagnostics);
-            setAddonsChecked(checked);
-            setAddonReason(reason);
           }
 
           try {
