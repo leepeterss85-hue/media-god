@@ -9,6 +9,8 @@ on:
       - "src/api/base44Client.js"
       - "src/components/mg/MediaStreamSourcesBox.jsx"
       - "tests/android-box-source-recovery.test.mjs"
+      - "tests/authenticated-addon-discovery.test.mjs"
+      - "tests/independent-metadata-routing.test.mjs"
       - ".github/workflows/android-box-source-recovery.yml"
 
 permissions:
@@ -29,6 +31,6 @@ jobs:
         run: node --check deploy/media-god-api/server.mjs
       - name: Test source recovery, native/scraper routing, TV remote and history
         run: |
-          node --test tests/android-box-source-recovery.test.mjs tests/authenticated-addon-discovery.test.mjs tests/android-tv-box-compatibility.test.mjs tests/firetv-remote-responsiveness.test.mjs tests/resume-seek.test.mjs
+          node --test tests/android-box-source-recovery.test.mjs tests/authenticated-addon-discovery.test.mjs tests/android-tv-box-compatibility.test.mjs tests/firetv-remote-responsiveness.test.mjs tests/resume-seek.test.mjs tests/independent-metadata-routing.test.mjs
       - name: Production web build
         run: npm run build
