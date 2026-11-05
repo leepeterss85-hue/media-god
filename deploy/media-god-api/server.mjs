@@ -41,7 +41,20 @@ void checkTmdb();
 setInterval(() => void checkTmdb(), 10 * 60_000).unref();
 const CACHE_MS = 300_000;
 const BODY_LIMIT_BYTES = 16 * 1024;
-const RATE_LIMIT = 150;
+// Apply quotas to uncached upstream work rather than every cached read.
+// Many households and Android TV boxes share an ISP/NAT IP. Previously
+// unrelated posters/news/IMDb requests exhausted one global 150/min bucket.
+const RATE_WINDOW_MS = 60_000;
+const ROUTE_LIMITS = {
+  "/functions/getTmdbMovies": 300,
+  "/functions/resolveImdb": 240,
+  "/functions/resolveTvImdb": 240,
+  "/functions/fetchAddonStreams": 100,
+  "/functions/getEntertainmentNews": 120,
+  "/functions/getSkipSegments": 150,
+  "/functions/getFireTvApkLink": 90,
+};
+const inflight = new Map();
 const okOrigin = (origin) => !origin || allowedOrigins.has(origin);
 const corsHeaders = (origin) => ({
   ...(origin && allowedOrigins.has(origin)
@@ -94,16 +107,6 @@ const serve = async (req, res) => {
   if (["/functions/getTmdbMovies", "/functions/resolveImdb", "/functions/resolveTvImdb"].includes(route) && !tmdbReady) {
     return sendJson(res, 503, { error: "Metadata service not configured" }, origin);
   }
-  const ip = ipFor(req);
-  const now = Date.now();
-  const entry = rateLimits.get(ip);
-  const quota = !entry || entry.resetAt < now
-    ? { count: 1, resetAt: now + 60_000 }
-    : { count: entry.count + 1, resetAt: entry.resetAt };
-  rateLimits.set(ip, quota);
-  if (rateLimits.size > 5000) rateLimits.clear();
-  if (quota.count > RATE_LIMIT) return sendJson(res, 429, { error: "Too many requests" }, origin);
-
   try {
     const chunks = [];
     let size = 0;
@@ -116,35 +119,84 @@ const serve = async (req, res) => {
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return sendJson(res, 400, { error: "Invalid request" }, origin);
     }
+
+    const now = Date.now();
     const key = createHash("sha256").update(route + ":" + JSON.stringify(body)).digest("hex");
     const cached = cache.get(key);
     if (cached && cached.expires > now && !body.forceRefresh) {
       return sendJson(res, cached.status, cached.data, origin);
     }
-    const request = new Request("http://127.0.0.1" + route, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const result = await handler(request);
-    const text = await result.text();
-    let data;
-    try { data = JSON.parse(text); }
-    catch { return sendJson(res, 502, { error: "Invalid metadata response" }, origin); }
-    // Never keep a provider failure disguised as an empty 200 result in the
-    // five-minute source cache. Torrentio can return HTTP 429 upstream while
-    // the discovery envelope itself is HTTP 200. Short-lived negative entries
-    // prevent bursts but allow recovery without forcing users to wait five
-    // minutes after their addon comes back.
-    const sourceLookup = route === "/functions/fetchAddonStreams";
-    const emptySourceLookup = sourceLookup &&
-      (!Array.isArray(data?.streams) || data.streams.length === 0);
-    const cacheTtl = emptySourceLookup ? 8_000 : CACHE_MS;
-    // APK links are signed and must never be served from a shared cache.
-    if (result.ok && route !== "/functions/getFireTvApkLink" && cache.size < 1500) {
-      cache.set(key, { status: result.status, data, expires: now + cacheTtl });
+    if (cached && cached.expires <= now) cache.delete(key);
+
+    // One upstream request per title+route, even when several TV boxes
+    // request the same episode simultaneously. A concurrent request reuses
+    // the result, but private credentials never enter this public backend.
+    const pending = inflight.get(key);
+    if (pending && !body.forceRefresh) {
+      const shared = await pending;
+      return sendJson(res, shared.status, shared.data, origin);
     }
-    sendJson(res, result.status, data, origin);
+
+    // Limit truly new upstream work, not cheap cache hits. Separate quotas
+    // ensure catalogue image traffic cannot block a film's IMDb resolver.
+    const rateKey = `${ipFor(req)}|${route}`;
+    const current = rateLimits.get(rateKey);
+    const window = !current || current.resetAt <= now
+      ? { count: 1, resetAt: now + RATE_WINDOW_MS }
+      : { count: current.count + 1, resetAt: current.resetAt };
+    rateLimits.set(rateKey, window);
+    if (rateLimits.size > 5000) {
+      for (const [id, entry] of rateLimits) {
+        if (entry.resetAt <= now) rateLimits.delete(id);
+      }
+      if (rateLimits.size > 5000) rateLimits.clear();
+    }
+    if (window.count > (ROUTE_LIMITS[route] || 120)) {
+      return sendJson(res, 429, {
+        error: "Source metadata service is busy; please retry shortly.",
+        retry_after_seconds: Math.max(1, Math.ceil((window.resetAt - now) / 1000)),
+      }, origin);
+    }
+
+    const task = (async () => {
+      const request = new Request("http://127.0.0.1" + route, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = await handler(request);
+      const raw = await result.text();
+      let data;
+      try { data = JSON.parse(raw); }
+      catch { return { status: 502, data: { error: "Invalid metadata response" } }; }
+
+      // A provider can reply 429 inside an HTTP 200 discovery envelope. Never
+      // cache that failure for five minutes; recover once the addon is ready.
+      const sourceLookup = route === "/functions/fetchAddonStreams";
+      const emptySourceLookup = sourceLookup &&
+        (!Array.isArray(data?.streams) || data.streams.length === 0);
+      const ttl = emptySourceLookup ? 8_000 : CACHE_MS;
+      if (result.ok && route !== "/functions/getFireTvApkLink") {
+        // Expire old entries before making room rather than clearing valid
+        // matches and making the backend stampede on every burst.
+        if (cache.size >= 1500) {
+          for (const [cacheKey, entry] of cache) {
+            if (entry.expires <= Date.now()) cache.delete(cacheKey);
+          }
+          if (cache.size >= 1500) cache.delete(cache.keys().next().value);
+        }
+        cache.set(key, { status: result.status, data, expires: Date.now() + ttl });
+      }
+      return { status: result.status, data };
+    })();
+
+    inflight.set(key, task);
+    try {
+      const result = await task;
+      return sendJson(res, result.status, result.data, origin);
+    } finally {
+      if (inflight.get(key) === task) inflight.delete(key);
+    }
   } catch {
     sendJson(res, 502, { error: "Metadata lookup unavailable" }, origin);
   }
