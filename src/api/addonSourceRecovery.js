@@ -35,7 +35,7 @@ export async function searchAddonSourcesWithPublicFallback(
     return searchPublic(payload);
   }
 
-  if (Array.isArray(personal?.data?.streams) && personal.data.streams.length) {
+  if (Array.isArray(personal?.data?.streams) && personal.data.streams.length > 0) {
     return personal;
   }
 
