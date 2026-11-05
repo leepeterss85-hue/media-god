@@ -1,4 +1,4 @@
-import { isKnownTvUserAgent } from "./runtimePlatform";
+import { isKnownTvUserAgent } from "./runtimePlatform.js";
 
 /**
  * Media God has two independently versioned Android package identities:
