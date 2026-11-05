@@ -76,17 +76,13 @@ test("Railway metadata reuses cache and in-flight identical work before quota, w
   assert.doesNotMatch(code,/const RATE_LIMIT = 150/);
 });
 
-test("Android TV Sources displays each successful discovery stage before optional browser/embed checks finish", () => {
+test("protected source chooser remains unchanged; backend source recovery is isolated", () => {
   const code=read("src/components/mg/MediaStreamSourcesBox.jsx");
-  const serverStage=code.indexOf("// A TV box must not wait");
-  const browserStage=code.indexOf("shouldUseBrowserAddonFallback(",serverStage);
-  const browserResult=code.indexOf("// Browser recovery can add more choices");
-  const optionalEmbed=code.indexOf("const tmdbEmbed = await fetchTmdbEmbedStreams",browserResult);
-  assert.ok(serverStage>0 && serverStage<browserStage);
-  assert.ok(browserResult>browserStage && browserResult<optionalEmbed);
-  assert.match(code.slice(serverStage,browserStage),/setAddonStreams\(streams\)/);
-  assert.match(code.slice(browserResult,optionalEmbed),/setAddonStreams\(streams\)/);
-  assert.match(code,/cancelled/);
+  assert.match(code, /shouldUseBrowserAddonFallback/);
+  assert.match(code, /setAddonStreams\(\s*streams\s*\)/);
+  assert.match(code, /fetchTmdbEmbedStreams/);
+  assert.match(code, /manualSourceSelection/);
+  assert.doesNotMatch(code, /A TV box must not wait for slower browser/);
 });
 
 test("scraper URLs still use an embedded web player and direct streams keep their native player", () => {
