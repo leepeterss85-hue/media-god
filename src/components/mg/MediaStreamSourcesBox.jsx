@@ -25,6 +25,7 @@ import {
 
 import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
 import { usePlayer } from "@/components/mg/PlayerProvider";
+import { isFireTvRuntime } from "@/components/mg/runtimePlatform";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
 import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders"; import { buildOnlyFlixEmbedUrl, buildOnlyFlixTitlePageUrl } from "@/components/mg/onlyFlixEmbed";
@@ -1035,6 +1036,30 @@ export default function StreamSourcesBox({
       if (hasDebrid && selectedUnreadyTorrent) {
         setMessage("Checking Combined Debrid for a playable copy of this episode…");
         await playCombinedDebrid({ readyOnly: true });
+        return;
+      }
+
+      // TV-box web-scraper pages are HTML, not video files. Never hand them
+      // to LibVLC or the direct-file pipeline. Keep phone and Live TV intact.
+      const selectedUrl = String(stream?.src || stream?.url || stream?.link || "").trim();
+      const pageType = String(stream?.type || "").toLowerCase();
+      const isTvBox = isFireTvRuntime();
+      let webHost = "";
+      try { webHost = new URL(selectedUrl).hostname.toLowerCase(); } catch {}
+      const onlyFlixPage = /^(?:share\.cdnm\.ink|onlyflix\.to)$/.test(webHost);
+      const vidCorePage = /^(?:www\.)?vidcore\.org$/.test(webHost);
+      const webScraperPage = onlyFlixPage || vidCorePage ||
+        ["embed", "iframe", "web", "webpage", "provider", "external"].includes(pageType);
+      if (isTvBox && mediaType !== "live" && webScraperPage) {
+        const embedMedia = {
+          id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId || "",
+          title, poster, mediaType, season, episode,
+        };
+        if (onlyFlixPage && player.playOnlyFlix?.(embedMedia)) return;
+        if (vidCorePage && player.playVidCore?.(embedMedia)) return;
+        // An unknown webpage cannot be decoded by a native media player.
+        // The Sources panel retains its existing provider tabs and backups.
+        setMessage("This scraper returned a webpage, not a playable video file. Choose OnlyFlix, VidCore or another web provider above.");
         return;
       }
 
