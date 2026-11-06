@@ -15,6 +15,7 @@ import {
   createAndroidTvDpadDetector,
   isAndroidMobileRuntime,
   isFireTvRuntime,
+  rememberTvRemote,
 } from '@/components/mg/runtimePlatform.js'
 import '@/index.css'
 import '@/fire-tv-stable.css'
@@ -39,6 +40,10 @@ const markTvRemoteDetected = () => {
 
   const firstDetection = !tvRemoteDetected
   tvRemoteDetected = true
+
+  // Keep generic Android TV boxes in TV mode after the first confirmed remote
+  // press, so they behave like a Fire Stick on the next launch.
+  rememberTvRemote()
 
   if (typeof document !== 'undefined') {
     document.documentElement.classList.add(

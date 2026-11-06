@@ -6,7 +6,7 @@ const FIRE_TV_RE =
 // that explicitly advertise TV hardware must receive D-pad focus handling.
 // Keep this separate from the phone app marker (which always wins below).
 const ANDROID_TV_RE =
-  /(?:Android[\s/._-]*TV|Google[\s/._-]*TV|NVIDIA[\s_-]*SHIELD(?:[\s_-]*Android[\s_-]*TV)?|\bMi[\s_-]*Box\b|\bMIBOX\b|\bMiTV\b|\bMecool\b|\bChromecast\s+with\s+Google\s+TV\b|\bONN[\s_-]*(?:4K|Streaming[\s_-]*Box)\b)/i;
+  /(?:Android[\s/._-]*TV|Google[\s/._-]*TV|AndroidTV|\bLeanback\b|NVIDIA[\s_-]*SHIELD(?:[\s_-]*Android[\s_-]*TV)?|\bMi[\s_-]*Box\b|\bMIBOX\b|\bMi\s*TV(?:\s*Stick)?\b|\bMiTV\b|\bMecool\b|\bChromecast\s+with\s+Google\s+TV\b|\bONN[\s_-]*(?:4K|Streaming[\s_-]*Box)\b|\bTV[\s_-]*Box\b|Formuler|BuzzTV|Dynalink|Amlogic|Rockchip|\bMINIX\b|\bUgoos\b|\bSkyworth\b|\bNokia\s+Streaming\s+Box\b|\bADT-\d|\bAQUOS\b|\bBRAVIA\b|\bT95\b|\bX96\b|\bH96\b|\bA95X\b|\bM8S\b)/i;
 
 export const isKnownTvUserAgent = (value) =>
   FIRE_TV_RE.test(String(value || "")) ||
@@ -75,6 +75,85 @@ export const isAndroidMobileRuntime = () => {
   );
 };
 
+const TV_REMOTE_MEMORY_KEY = "mg:tv-remote-confirmed:v1";
+
+const storage = () => {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+};
+
+// A mouse or trackpad means this is a computer, not a television, even if the
+// user agent mentions Android. Never trust remembered TV state on such a device.
+const hasFinePointer = () => {
+  try {
+    return (
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(any-pointer: fine) and (any-hover: hover)").matches
+    );
+  } catch {
+    return false;
+  }
+};
+
+/*
+ * A Fire Stick is recognised from its user agent on the first byte, so it
+ * boots straight into the TV layout. Many Android TV boxes only reveal
+ * themselves through a physical remote press. Remember that confirmed press
+ * so the same box starts in TV mode on every later launch instead of falling
+ * back to a tablet layout until two arrows are pressed again.
+ */
+// Phones and tablets (including ones with a keyboard cover) must never be
+// locked into the television layout by a couple of arrow presses.
+const tvMemoryAllowed = () => {
+  if (isAndroidMobileRuntime() || hasFinePointer()) {
+    return false;
+  }
+
+  const userAgent =
+    typeof navigator !== "undefined"
+      ? String(navigator.userAgent || "")
+      : "";
+
+  return !/\bMobile\b/i.test(userAgent);
+};
+
+export const rememberTvRemote = () => {
+  if (!tvMemoryAllowed()) {
+    return false;
+  }
+
+  try {
+    storage()?.setItem(TV_REMOTE_MEMORY_KEY, "1");
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const hasRememberedTvRemote = () => {
+  if (!tvMemoryAllowed()) {
+    return false;
+  }
+
+  try {
+    return storage()?.getItem(TV_REMOTE_MEMORY_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+export const forgetTvRemote = () => {
+  try {
+    storage()?.removeItem(TV_REMOTE_MEMORY_KEY);
+  } catch {
+    // Private browsing or a restricted WebView may refuse storage access.
+  }
+};
+
 export const isFireTvRuntime = () => {
   if (isAndroidMobileRuntime()) {
     return false;
@@ -100,7 +179,8 @@ export const isFireTvRuntime = () => {
   return (
     isKnownTvUserAgent(userAgent) ||
     classDetected ||
-    androidNoTouch
+    androidNoTouch ||
+    hasRememberedTvRemote()
   );
 };
 
@@ -108,6 +188,9 @@ export const clearFireTvStateFromAndroidMobile = () => {
   if (!isAndroidMobileRuntime() || typeof document === "undefined") {
     return false;
   }
+
+  // A phone or tablet must never inherit a remembered television session.
+  forgetTvRemote();
 
   const tvClasses = [
     "mg-fire-tv",
