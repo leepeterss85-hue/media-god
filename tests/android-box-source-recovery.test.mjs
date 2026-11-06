@@ -104,3 +104,18 @@ test("browse-time source discovery has separate fast and exhaustive deadlines", 
   assert.match(code, /active -= 1;/);
   assert.match(code, /pump\(\);/);
 });
+
+test("Android TV scraper webpages do not enter the native direct-video pipeline", () => {
+  const code = read("src/components/mg/MediaStreamSourcesBox.jsx");
+  assert.match(code, /isFireTvRuntime\(\)/);
+  assert.match(code, /webScraperPage/);
+  assert.match(code, /player\.playOnlyFlix\?\.\(embedMedia\)/);
+  assert.match(code, /player\.playVidCore\?\.\(embedMedia\)/);
+  assert.match(code, /This scraper returned a webpage, not a playable video file/);
+  assert.ok(code.indexOf("if (isTvBox && mediaType !==") < code.indexOf("await player.play({", code.indexOf("const playAddonStream")));
+});
+
+test("TV-box catalogue remains visible if an addon-only check says no sources", () => {
+  const client = read("src/components/mg/catalogueSourceCheckerClient.js");
+  assert.match(client, /isFireTvRuntime\(\) \|\| catalogueSourceChecker\.getStatus\(item\) !== 'no-sources'/);
+});
