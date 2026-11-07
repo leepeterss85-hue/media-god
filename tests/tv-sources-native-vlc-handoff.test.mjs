@@ -20,18 +20,26 @@ function selectedEpisodeSource({
   hasDebrid = true,
   src = "magnet:?xt=urn:btih:0123456789012345678901234567890123456789",
   properties = {},
+  tvBox = false,
 } = {}) {
   const start = sourceBox.indexOf("  const playCombinedDebrid =");
   const end = sourceBox.indexOf("  const pasteMagnet =", start);
   assert.ok(start >= 0 && end > start);
   const captured = [];
+  const webPlayers = [];
+  const messages = [];
   const visibleAddonStreams = [
     { type, src, label: "Viewer-selected source", ...properties },
     { type: "url", src: "https://example.test/episode-other.mp4", label: "Alternative" },
   ];
   const context = {
-    player: { play: async (payload) => { captured.push(payload); return true; } },
-    setMessage: () => {}, setRdSearching: () => {},
+    URL, isFireTvRuntime: () => tvBox,
+    player: {
+      play: async (payload) => { captured.push(payload); return true; },
+      playOnlyFlix: (media) => { webPlayers.push({provider: 'onlyflix', media}); return true; },
+      playVidCore: (media) => { webPlayers.push({provider: 'vidcore', media}); return true; },
+    },
+    setMessage: (message) => messages.push(message), setRdSearching: () => {},
     hasDebrid, rdSearching: false,
     sourceHasPendingCacheSignal, sourceIsConfirmedCachedForPlayback,
     tmdbId: 1234, resolvedImdb: "tt123456", imdbId: "",
@@ -43,7 +51,7 @@ function selectedEpisodeSource({
     sourceBox.slice(start, end) + "\nplayAddonStream;",
     context
   );
-  return { run: () => handler(visibleAddonStreams[0]), captured, visibleAddonStreams };
+  return { run: () => handler(visibleAddonStreams[0]), captured, visibleAddonStreams, webPlayers, messages };
 }
 
 test("uncached episode torrent automatically uses Combined Debrid ready-file lookup", async () => {
@@ -153,4 +161,24 @@ test("TV Sources retain episode identity and web backups", () => {
   assert.match(sourceBox, /mediaType === "tv"[\s\S]{0,320}?rows\.filter\(\(row\) => row\.kind === "rd" \|\| row\.kind === "addon-stream"\)/);
   assert.match(sourceBox, /Web-player links/);
   assert.match(sourceBox, /verifiedPlaybackPolicy: "manual",[\s\S]{0,150}?manualSourceSelection: true,[\s\S]{0,150}?preparedEpisodeHandoff: true/);
+});
+
+for (const [host, provider] of [['onlyflix.to', 'onlyflix'], ['vidcore.org', 'vidcore']]) {
+  test(`TV box routes ${host} to its web player with episode identity`, async () => {
+    const selection = selectedEpisodeSource({tvBox: true, type: 'url', src: `https://${host}/watch`});
+    await selection.run();
+    assert.equal(selection.captured.length, 0);
+    assert.equal(selection.webPlayers[0].provider, provider);
+    assert.equal(selection.webPlayers[0].media.season, 2);
+    assert.equal(selection.webPlayers[0].media.episode, 4);
+  });
+}
+test('TV box direct video still reaches native playback and unknown webpage gives recovery guidance', async () => {
+  const direct = selectedEpisodeSource({tvBox: true, type: 'url', src: 'https://example.test/movie.mp4'});
+  await direct.run();
+  assert.equal(direct.captured.length, 1);
+  const web = selectedEpisodeSource({tvBox: true, type: 'webpage', src: 'https://example.test/watch'});
+  await web.run();
+  assert.equal(web.captured.length, 0);
+  assert.match(web.messages.at(-1), /Choose OnlyFlix, VidCore/);
 });

@@ -2,21 +2,28 @@ package com.mediagod.firetv
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Intent
 import android.graphics.Color
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
+import android.os.Message
 import android.view.KeyEvent
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceError
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Button
 
 class ExternalWebActivity : Activity() {
     companion object {
@@ -27,6 +34,8 @@ class ExternalWebActivity : Activity() {
     private lateinit var webView: WebView
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
+    private var loadErrorPanel: LinearLayout? = null
+    private var retryButton: Button? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,14 +74,37 @@ class ExternalWebActivity : Activity() {
                 builtInZoomControls = false
                 displayZoomControls = false
                 setSupportZoom(false)
-                setSupportMultipleWindows(false)
-                javaScriptCanOpenWindowsAutomatically = true
+                // Dispatch new windows to onCreateWindow, where they are
+                // rejected instead of replacing the active player page.
+                setSupportMultipleWindows(true)
+                javaScriptCanOpenWindowsAutomatically = false
                 mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
                 userAgentString =
                     "${userAgentString} MediaGodFireTV/1.0 AmazonWebAppPlatform FireTV"
             }
 
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                    clearLoadError()
+                    super.onPageStarted(view, url, favicon)
+                }
+
+                override fun onReceivedError(
+                    view: WebView?, request: WebResourceRequest?, error: WebResourceError?
+                ) {
+                    // Failed ads/images/child frames must never cover working video.
+                    if (request?.isForMainFrame == true) {
+                        showLoadError(request.url.toString())
+                    }
+                }
+
+                @Suppress("DEPRECATION")
+                override fun onReceivedError(
+                    view: WebView?, errorCode: Int, description: String?, failingUrl: String?
+                ) {
+                    if (Build.VERSION.SDK_INT < 23) showLoadError(failingUrl.orEmpty())
+                }
+
                 override fun shouldOverrideUrlLoading(
                     view: WebView?,
                     request: WebResourceRequest?
@@ -97,11 +129,18 @@ class ExternalWebActivity : Activity() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     enterImmersiveMode()
-                    view?.requestFocus()
+                    if (retryButton != null) retryButton?.requestFocus() else view?.requestFocus()
                 }
             }
 
             webChromeClient = object : WebChromeClient() {
+                override fun onCreateWindow(
+                    view: WebView?,
+                    isDialog: Boolean,
+                    isUserGesture: Boolean,
+                    resultMsg: Message?
+                ): Boolean = false
+
                 override fun onShowCustomView(
                     view: View?,
                     callback: CustomViewCallback?
@@ -153,27 +192,33 @@ class ExternalWebActivity : Activity() {
         if (savedInstanceState == null) {
             webView.loadUrl(target)
         } else {
-            webView.restoreState(savedInstanceState)
+            if (webView.restoreState(savedInstanceState) == null) {
+                webView.loadUrl(target)
+            }
         }
 
         webView.requestFocus()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        webView.saveState(outState)
+        if (::webView.isInitialized) webView.saveState(outState)
         super.onSaveInstanceState(outState)
     }
 
     override fun onResume() {
         super.onResume()
         enterImmersiveMode()
-        webView.onResume()
-        webView.resumeTimers()
+        if (::webView.isInitialized) {
+            webView.onResume()
+            webView.resumeTimers()
+        }
     }
 
     override fun onPause() {
-        webView.onPause()
-        webView.pauseTimers()
+        if (::webView.isInitialized) {
+            webView.onPause()
+            webView.pauseTimers()
+        }
         super.onPause()
     }
 
@@ -205,6 +250,10 @@ class ExternalWebActivity : Activity() {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (loadErrorPanel != null || !::webView.isInitialized) {
+                finish()
+                return true
+            }
             if (customView != null) {
                 hideCustomView()
                 return true
@@ -227,12 +276,57 @@ class ExternalWebActivity : Activity() {
             return false
         }
 
-        return try {
-            startActivity(Intent(Intent.ACTION_VIEW, uri))
-            true
-        } catch (_: Throwable) {
-            true
+        // Blob playback and empty frames remain within WebView. Never let
+        // a scraper redirect launch a device's installed external player.
+        // Explicit native playback is handled by MainActivity's own bridge.
+        if (scheme == "blob" || uri.toString() == "about:blank") return false
+        return true
+    }
+
+    private fun clearLoadError() {
+        loadErrorPanel?.let { root.removeView(it) }
+        loadErrorPanel = null
+        retryButton = null
+    }
+
+    private fun showLoadError(failedUrl: String) {
+        if (isFinishing || isDestroyed || !::webView.isInitialized) return
+        val scheme = Uri.parse(failedUrl).scheme.orEmpty().lowercase()
+        if (scheme != "http" && scheme != "https") return
+        hideCustomView()
+        clearLoadError()
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(32, 32, 32, 32)
+            setBackgroundColor(Color.BLACK)
+            addView(TextView(this@ExternalWebActivity).apply {
+                text = "Web player couldn't load. Check your connection, then retry or go back to choose another source."
+                setTextColor(Color.WHITE)
+                textSize = 20f
+                gravity = Gravity.CENTER
+            })
         }
+        val retry = Button(this).apply {
+            text = "Retry"
+            isFocusableInTouchMode = true
+            setOnClickListener {
+                clearLoadError()
+                webView.loadUrl(failedUrl)
+                webView.requestFocus()
+            }
+        }
+        panel.addView(retry)
+        panel.addView(Button(this).apply {
+            text = "Back to sources"
+            setOnClickListener { finish() }
+        })
+        loadErrorPanel = panel
+        retryButton = retry
+        root.addView(panel, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+        retry.requestFocus()
     }
 
     private fun hideCustomView() {

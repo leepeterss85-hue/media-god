@@ -61,3 +61,32 @@ test('HTTP 200 lookup errors cannot poison the successful identity cache', async
   const result = await invokeIndependentImdbResolver('resolveImdb', {tmdb_id: 42}, options);
   assert.equal(result.data.imdb_id, 'tt7654321');
 });
+
+for (const mode of ['guest', 'private-error', 'private-empty']) {
+  test(`stalled public lookup settles after ${mode}`, async () => {
+    const personal = {data: {streams: [], diagnostics: [{status: 'provider_timeout'}]}};
+    const lookup = searchAddonSourcesWithPublicFallback({}, {
+      readToken: async () => mode === 'guest' ? '' : 'session',
+      searchPersonal: async () => {
+        if (mode === 'private-error') throw new Error('Offline');
+        return personal;
+      },
+      searchPublic: never,
+      publicTimeoutMs: 10,
+    });
+    if (mode === 'private-empty') assert.equal(await lookup, personal);
+    else await assert.rejects(lookup, /Source lookup timed out/);
+  });
+}
+
+test('late public failure is handled and a later source retry can succeed', async () => {
+  let fail;
+  const pending = new Promise((_, reject) => { fail = reject; });
+  const deps = {readToken: async () => '', searchPublic: () => pending, publicTimeoutMs: 10};
+  await assert.rejects(searchAddonSourcesWithPublicFallback({}, deps), /timed out/);
+  fail(new Error('Late network error'));
+  const result = await searchAddonSourcesWithPublicFallback({}, {
+    ...deps, searchPublic: async () => ({data: {streams: [{name: 'Recovered'}]}}),
+  });
+  assert.equal(result.data.streams[0].name, 'Recovered');
+});
