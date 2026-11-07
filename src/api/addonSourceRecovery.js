@@ -31,6 +31,7 @@ export async function searchAddonSourcesWithPublicFallback(
     searchPublic,
     personalTimeoutMs = 22_000,
     tokenTimeoutMs = 3_000,
+    publicTimeoutMs = 17_000,
   },
 ) {
   let sessionToken = "";
@@ -40,7 +41,8 @@ export async function searchAddonSourcesWithPublicFallback(
     // Older Android boxes can have stale authentication SDK state. Public
     // source discovery remains available, without exposing account secrets.
   }
-  if (!sessionToken) return searchPublic(payload);
+  const recoverPublic = () => withDeadline(() => searchPublic(payload), publicTimeoutMs);
+  if (!sessionToken) return recoverPublic();
 
   let personal;
   try {
@@ -49,7 +51,7 @@ export async function searchAddonSourcesWithPublicFallback(
       timeoutMs: personalTimeoutMs,
     }), personalTimeoutMs);
   } catch {
-    return searchPublic(payload);
+    return recoverPublic();
   }
 
   if (Array.isArray(personal?.data?.streams) && personal.data.streams.length > 0) {
@@ -60,7 +62,7 @@ export async function searchAddonSourcesWithPublicFallback(
   // nothing better. This also keeps addon errors visible for troubleshooting.
   let publicResult;
   try {
-    publicResult = await searchPublic(payload);
+    publicResult = await recoverPublic();
   } catch {
     return personal;
   }
