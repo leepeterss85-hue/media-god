@@ -31,8 +31,13 @@ export async function searchAddonSourcesWithPublicFallback(
     searchPublic,
     personalTimeoutMs = 22_000,
     tokenTimeoutMs = 3_000,
+    publicTimeoutMs = 15_000,
   },
 ) {
+  // Some older WebViews fail to settle fetch even after AbortController fires.
+  // Bound the complete fallback (including response-body parsing), as we do
+  // the personal request, so the source panel can leave its loading state.
+  const publicLookup = () => withDeadline(() => searchPublic(payload), publicTimeoutMs);
   let sessionToken = "";
   try {
     sessionToken = String(await withDeadline(readToken, tokenTimeoutMs) || "").trim();
@@ -40,7 +45,7 @@ export async function searchAddonSourcesWithPublicFallback(
     // Older Android boxes can have stale authentication SDK state. Public
     // source discovery remains available, without exposing account secrets.
   }
-  if (!sessionToken) return searchPublic(payload);
+  if (!sessionToken) return publicLookup();
 
   let personal;
   try {
@@ -49,7 +54,7 @@ export async function searchAddonSourcesWithPublicFallback(
       timeoutMs: personalTimeoutMs,
     }), personalTimeoutMs);
   } catch {
-    return searchPublic(payload);
+    return publicLookup();
   }
 
   if (Array.isArray(personal?.data?.streams) && personal.data.streams.length > 0) {
@@ -60,7 +65,7 @@ export async function searchAddonSourcesWithPublicFallback(
   // nothing better. This also keeps addon errors visible for troubleshooting.
   let publicResult;
   try {
-    publicResult = await searchPublic(payload);
+    publicResult = await publicLookup();
   } catch {
     return personal;
   }

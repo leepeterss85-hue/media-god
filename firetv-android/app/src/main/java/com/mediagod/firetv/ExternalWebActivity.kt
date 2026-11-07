@@ -2,10 +2,10 @@ package com.mediagod.firetv
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.Message
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -65,8 +65,10 @@ class ExternalWebActivity : Activity() {
                 builtInZoomControls = false
                 displayZoomControls = false
                 setSupportZoom(false)
-                setSupportMultipleWindows(false)
-                javaScriptCanOpenWindowsAutomatically = true
+                // Dispatch new windows to onCreateWindow, where they are
+                // rejected instead of replacing the active player page.
+                setSupportMultipleWindows(true)
+                javaScriptCanOpenWindowsAutomatically = false
                 mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
                 userAgentString =
                     "${userAgentString} MediaGodFireTV/1.0 AmazonWebAppPlatform FireTV"
@@ -102,6 +104,13 @@ class ExternalWebActivity : Activity() {
             }
 
             webChromeClient = object : WebChromeClient() {
+                override fun onCreateWindow(
+                    view: WebView?,
+                    isDialog: Boolean,
+                    isUserGesture: Boolean,
+                    resultMsg: Message?
+                ): Boolean = false
+
                 override fun onShowCustomView(
                     view: View?,
                     callback: CustomViewCallback?
@@ -153,7 +162,9 @@ class ExternalWebActivity : Activity() {
         if (savedInstanceState == null) {
             webView.loadUrl(target)
         } else {
-            webView.restoreState(savedInstanceState)
+            if (webView.restoreState(savedInstanceState) == null) {
+                webView.loadUrl(target)
+            }
         }
 
         webView.requestFocus()
@@ -167,13 +178,17 @@ class ExternalWebActivity : Activity() {
     override fun onResume() {
         super.onResume()
         enterImmersiveMode()
-        webView.onResume()
-        webView.resumeTimers()
+        if (::webView.isInitialized) {
+            webView.onResume()
+            webView.resumeTimers()
+        }
     }
 
     override fun onPause() {
-        webView.onPause()
-        webView.pauseTimers()
+        if (::webView.isInitialized) {
+            webView.onPause()
+            webView.pauseTimers()
+        }
         super.onPause()
     }
 
@@ -227,12 +242,11 @@ class ExternalWebActivity : Activity() {
             return false
         }
 
-        return try {
-            startActivity(Intent(Intent.ACTION_VIEW, uri))
-            true
-        } catch (_: Throwable) {
-            true
-        }
+        // Blob playback and empty frames remain within WebView. Never let
+        // a scraper redirect launch a device's installed external player.
+        // Explicit native playback is handled by MainActivity's own bridge.
+        if (scheme == "blob" || uri.toString() == "about:blank") return false
+        return true
     }
 
     private fun hideCustomView() {
