@@ -26,6 +26,7 @@ import {
 import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { isFireTvRuntime } from "@/components/mg/runtimePlatform";
+import { classifyTvBoxSource } from "@/components/mg/tvBoxSourceGate";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
 import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders"; import { buildOnlyFlixEmbedUrl, buildOnlyFlixTitlePageUrl } from "@/components/mg/onlyFlixEmbed";
@@ -1044,12 +1045,10 @@ export default function StreamSourcesBox({
       const selectedUrl = String(stream?.src || stream?.url || stream?.link || "").trim();
       const pageType = String(stream?.type || "").toLowerCase();
       const isTvBox = isFireTvRuntime();
-      let webHost = "";
-      try { webHost = new URL(selectedUrl).hostname.toLowerCase(); } catch {}
-      const onlyFlixPage = /^(?:share\.cdnm\.ink|onlyflix\.to)$/.test(webHost);
-      const vidCorePage = /^(?:www\.)?vidcore\.org$/.test(webHost);
-      const webScraperPage = onlyFlixPage || vidCorePage ||
-        ["embed", "iframe", "web", "webpage", "provider", "external"].includes(pageType);
+      const sourceKind = classifyTvBoxSource(stream);
+      const onlyFlixPage = sourceKind.provider === "onlyflix";
+      const vidCorePage = sourceKind.provider === "vidcore";
+      const webScraperPage = sourceKind.kind === "webpage";
       if (isTvBox && mediaType !== "live" && webScraperPage) {
         const embedMedia = {
           id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId || "",
