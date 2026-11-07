@@ -14,7 +14,10 @@ test('rolling source checks cover entire list, pause in background, resume on fo
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(ROLLING_SOURCE_CHECK_MS,45000);
   assert.deepEqual(checked,[1,2,3]);
-  win.tick();win.tick();win.tick();
+  for (let i = 0; i < 3; i++) {
+    win.tick();
+    await new Promise(resolve => setImmediate(resolve));
+  }
   await new Promise(resolve=>setImmediate(resolve));
   assert.deepEqual(checked,[1,2,3,4,5,6,7,8,9,10,1,2]);
   doc.visibilityState='hidden';win.tick();
@@ -57,4 +60,48 @@ test('slow TV-box checks never overlap and recover when a request finishes', asy
   await new Promise(resolve => setImmediate(resolve));
   win.tick();
   assert.deepEqual(started, [1, 2, 3], 'cleanup prevents further requests');
+});
+
+const flush = () => new Promise(resolve => setImmediate(resolve));
+test('offline and hidden transitions cancel queued scans, online resumes discovery', async () => {
+  const win = new FakeEvents(), doc = new FakeEvents();
+  win.navigator = {onLine: false};
+  const checked = [];
+  const stop = createRollingSourceChecks(() => [1,2,3], item => checked.push(item),
+    {windowObject: win, documentObject: doc, batchSize: 1});
+  win.tick(); await flush();
+  assert.deepEqual(checked, []);
+  win.navigator.onLine = true;
+  win.dispatchEvent(new Event('online'));
+  doc.visibilityState = 'hidden';
+  await flush();
+  assert.deepEqual(checked, [], 'queued work must recheck visibility');
+  doc.visibilityState = 'visible';
+  doc.dispatchEvent(new Event('visibilitychange'));
+  win.navigator.onLine = false;
+  await flush();
+  assert.deepEqual(checked, [], 'queued work must recheck connectivity');
+  win.navigator.onLine = true;
+  win.dispatchEvent(new Event('online'));
+  await flush();
+  assert.equal(checked.length, 1);
+  stop();
+  win.dispatchEvent(new Event('online')); await flush();
+  assert.equal(checked.length, 1);
+});
+
+test('fresh objects for the same film share a pending slot, without starving other films', async () => {
+  const win = new FakeEvents(), doc = new FakeEvents();
+  const checked = [], complete = [];
+  const stop = createRollingSourceChecks(
+    () => [{id: 1}, {tmdbId: '1'}, {id: 2}, {id: 3}],
+    item => { checked.push(item.id ?? item.tmdbId); return new Promise(resolve => complete.push(resolve)); },
+    {windowObject: win, documentObject: doc, batchSize: 2});
+  await flush();
+  assert.deepEqual(checked, [1, 2]);
+  win.tick(); await flush();
+  assert.deepEqual(checked, [1, 2]);
+  complete.shift()(); await flush(); win.tick(); await flush();
+  assert.deepEqual(checked, [1, 2, 3]);
+  stop(); complete.forEach(resolve => resolve()); await flush();
 });

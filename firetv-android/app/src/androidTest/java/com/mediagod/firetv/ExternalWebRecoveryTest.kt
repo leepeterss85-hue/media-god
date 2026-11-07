@@ -2,12 +2,17 @@ package com.mediagod.firetv
 
 import android.content.Intent
 import android.net.Uri
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceError
+import android.widget.Button
 import android.webkit.WebView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -48,4 +53,47 @@ class ExternalWebRecoveryTest {
             scenario.onActivity { activity -> assertFalse(activity.isFinishing) }
         }
     }
+    @Test
+    fun onlyMainPageFailureShowsRemoteRetryAndBack() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val intent = Intent(context, ExternalWebActivity::class.java)
+            .putExtra(ExternalWebActivity.EXTRA_URL, "https://example.test/player")
+        ActivityScenario.launch<ExternalWebActivity>(intent).use { scenario ->
+            scenario.onActivity { activity ->
+                fun field(name: String) = ExternalWebActivity::class.java.getDeclaredField(name)
+                    .apply { isAccessible = true }.get(activity)
+                val webView = field("webView") as WebView
+                webView.stopLoading()
+                val client = webView.webViewClient
+                client.onPageStarted(webView, "https://example.test/player", null)
+                val error = object : WebResourceError() {
+                    override fun getErrorCode() = -2
+                    override fun getDescription(): CharSequence = "Host unavailable"
+                }
+                fun request(main: Boolean) = object : WebResourceRequest {
+                    override fun getUrl() = Uri.parse("https://example.test/player")
+                    override fun isForMainFrame() = main
+                    override fun isRedirect() = false
+                    override fun hasGesture() = false
+                    override fun getMethod() = "GET"
+                    override fun getRequestHeaders(): MutableMap<String, String> = mutableMapOf()
+                }
+                client.onReceivedError(webView, request(false), error)
+                assertNull(field("loadErrorPanel"))
+                client.onReceivedError(webView, request(true), error)
+                assertNotNull(field("loadErrorPanel"))
+                val retry = field("retryButton") as Button
+                assertTrue(retry.hasFocus())
+                client.onPageFinished(webView, "https://example.test/player")
+                assertTrue("Page-finished must not steal remote focus", retry.hasFocus())
+                retry.performClick()
+                assertNull(field("loadErrorPanel"))
+                client.onReceivedError(webView, request(true), error)
+                activity.onKeyDown(android.view.KeyEvent.KEYCODE_BACK,
+                    android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BACK))
+                assertTrue(activity.isFinishing)
+            }
+        }
+    }
+
 }
