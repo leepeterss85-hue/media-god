@@ -137,7 +137,15 @@ class PlayerActivity : Activity() {
             activePlayer.isPlaying &&
             audioOutputConfirmed &&
             activePlayer.currentPosition > 0L
-        if (audioOnlyRender && currentSourceDrm() == null &&
+        // Generic Android boxes sometimes report READY/BUFFERING while the
+        // vendor video decoder never produces a frame (or any audio). Give
+        // the same source one LibVLC software-decoder attempt before failing.
+        // Preserve the proven Amazon Fire TV path unchanged.
+        val genericAndroidBox = !android.os.Build.MANUFACTURER.equals("Amazon", ignoreCase = true)
+        val nativeStartupStalled = activePlayer.playbackState == Player.STATE_READY ||
+            activePlayer.playbackState == Player.STATE_BUFFERING
+        if ((audioOnlyRender || (genericAndroidBox && nativeStartupStalled)) &&
+            currentSourceDrm() == null &&
             launchCompatibilityPlayer(activePlayer, null, "video-no-first-frame")
         ) return@Runnable
 
