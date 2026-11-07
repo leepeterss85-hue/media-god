@@ -61,3 +61,41 @@ test('HTTP 200 lookup errors cannot poison the successful identity cache', async
   const result = await invokeIndependentImdbResolver('resolveImdb', {tmdb_id: 42}, options);
   assert.equal(result.data.imdb_id, 'tt7654321');
 });
+
+test('a hung public addon provider fails within its own deadline instead of leaving source discovery spinning', async () => {
+  await assert.rejects(
+    searchAddonSourcesWithPublicFallback({title:'Example'}, {
+      readToken: async () => '',
+      searchPersonal: () => { throw Error('Must not reach personal provider'); },
+      searchPublic: never,
+      publicTimeoutMs: 10,
+    }),
+    /Source lookup timed out/,
+  );
+});
+
+test('personal diagnostics survive a public fallback that hangs on Android TV', async () => {
+  const personal = {data:{streams:[],reason:'Provider returned no streams',diagnostics:[{status:'http_429'}]}};
+  const result = await searchAddonSourcesWithPublicFallback({title:'Example'}, {
+    readToken: async () => 'session',
+    searchPersonal: async () => personal,
+    searchPublic: never,
+    publicTimeoutMs: 10,
+  });
+  assert.equal(result,personal);
+});
+
+test('a late public reply is ignored after timeout and cannot replace the personal result', async () => {
+  let finish;
+  const pending = new Promise(resolve => { finish = resolve; });
+  const personal = {data:{streams:[],reason:'Private provider error'}};
+  const result = await searchAddonSourcesWithPublicFallback({}, {
+    readToken: async () => 'session',
+    searchPersonal: async () => personal,
+    searchPublic: () => pending,
+    publicTimeoutMs: 10,
+  });
+  finish({data:{streams:[{name:'Late source'}]}});
+  await Promise.resolve();
+  assert.equal(result,personal);
+});
