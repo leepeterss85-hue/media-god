@@ -33,6 +33,7 @@ import SocialLoginSection from "@/components/mg/SocialLoginSection";
 import MultiDebridSettings from "@/components/mg/MultiDebridSettings";
 import PlaybackAdvancedSettings from "@/components/mg/PlaybackAdvancedSettings";
 import { nativeFireTvAppInfo } from "@/components/mg/nativeFireTvBridge";
+import { getAndroidBoxSupportLines } from "@/components/mg/androidBoxDiagnostics.js";
 import { COUNTRY_OPTIONS, countryLabel } from "@/components/mg/countryOptions";
 import { getStreamingRegionDetails, getStreamingRegionOverride, setStreamingRegionOverride } from "@/components/mg/streamingRegion";
 import { fetchLatestNativeRelease } from "@/components/mg/nativeReleaseInfo";
@@ -1270,7 +1271,7 @@ export default function SettingsView() {
       `Platform: ${info?.platform || "web"}`,
       `Version: ${info?.versionName || "hosted"}`,
       `Version code: ${info?.versionCode || "n/a"}`,
-      `Browser: ${typeof navigator !== "undefined" ? navigator.userAgent : "unknown"}`,
+      ...getAndroidBoxSupportLines(),
       `Viewport: ${typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : "unknown"}`,
       `Text scale: ${uxPreferences.textScale}`,
       `High contrast: ${uxPreferences.highContrast ? "on" : "off"}`,
@@ -1793,8 +1794,9 @@ export default function SettingsView() {
             </h2>
             <p className="mt-1 text-xs 3xl:text-sm leading-5 text-white/40">
               Copy a privacy-safe report containing the app version, device/browser
-              information and display preferences. It does not include passwords,
-              Real-Debrid tokens or private source URLs.
+              information, Android/WebView version, memory estimate and anonymous
+              playback-error counts. It does not include passwords, account IDs,
+              error messages, Real-Debrid tokens or private source URLs.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
