@@ -226,6 +226,7 @@ export default function StreamingServiceRows({
           onOpen={onOpen}
           onWatchlist={onWatchlist}
           watched={watched}
+          showReleaseDate
           actionLabel={onBrowseAll ? "See all TV" : ""}
           onAction={onBrowseAll ? () => onBrowseAll(service) : undefined}
         />
