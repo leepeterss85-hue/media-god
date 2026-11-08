@@ -1,4 +1,6 @@
 import { redactSupportErrorMessage } from "./supportErrorRedaction.js";
+import { createTvRemoteFocusTiming } from "./tvRemoteFocusTiming.js";
+import { isFireTvRuntime } from "./runtimePlatform.js";
 
 /**
  * Device-local, bounded diagnostics. Preserve short redacted error messages
@@ -24,6 +26,7 @@ const counts = {
   offlineTransitions: 0,
 };
 const installed = new WeakMap();
+let tvFocusTiming = null;
 const cappedIncrement = name => {
   counts[name] = Math.min(9999, counts[name] + 1);
 };
@@ -31,6 +34,7 @@ const cappedIncrement = name => {
 export const snapshotAndroidBoxDiagnostics = () => ({
   ...counts,
   recentErrors: recentErrors.map(entry => ({ ...entry })),
+  tvRemoteFocus: tvFocusTiming?.snapshot() || null,
 });
 
 export function installAndroidBoxDiagnostics(win = typeof window !== "undefined" ? window : null) {
@@ -70,16 +74,38 @@ export function installAndroidBoxDiagnostics(win = typeof window !== "undefined"
   };
   const onOffline = () => cappedIncrement("offlineTransitions");
 
+  // Android TV diagnostics are passive. The original remote event is never
+  // blocked, delayed, modified or stored; player screens remain untouched.
+  const remoteTiming = isFireTvRuntime() ? createTvRemoteFocusTiming() : null;
+  if (remoteTiming) tvFocusTiming = remoteTiming;
+  const onRemoteKey = event => {
+    if (win.document?.querySelector?.('[data-mg-player-root="true"]')) return;
+    remoteTiming?.onKeyDown(event);
+  };
+  const onRemoteFocus = () => remoteTiming?.onFocusIn();
+  const clearRemoteFocus = () => remoteTiming?.clearPending();
+
   win.addEventListener("mg:player-status", onPlayerStatus);
   win.addEventListener("error", onError, true);
   win.addEventListener("unhandledrejection", onRejection);
   win.addEventListener("offline", onOffline);
+  if (remoteTiming) {
+    win.addEventListener("keydown", onRemoteKey, true);
+    win.document?.addEventListener?.("focusin", onRemoteFocus, true);
+    win.document?.addEventListener?.("visibilitychange", clearRemoteFocus);
+  }
 
   const stop = () => {
     win.removeEventListener("mg:player-status", onPlayerStatus);
     win.removeEventListener("error", onError, true);
     win.removeEventListener("unhandledrejection", onRejection);
     win.removeEventListener("offline", onOffline);
+    if (remoteTiming) {
+      win.removeEventListener("keydown", onRemoteKey, true);
+      win.document?.removeEventListener?.("focusin", onRemoteFocus, true);
+      win.document?.removeEventListener?.("visibilitychange", clearRemoteFocus);
+      if (tvFocusTiming === remoteTiming) tvFocusTiming = null;
+    }
     installed.delete(win);
   };
   installed.set(win, stop);
@@ -131,6 +157,15 @@ export function getAndroidBoxSupportLines({
     `Unhandled rejections (count only): ${Number(counters.unhandledRejections) || 0}`,
     `Offline transitions: ${Number(counters.offlineTransitions) || 0}`,
   ];
+  const remote = counters?.tvRemoteFocus;
+  if (remote) {
+    lines.push(`Remote arrow presses received: ${Number(remote.arrowKeys) || 0}`);
+    lines.push(`Remote focus changes: ${Number(remote.focusMoves) || 0}`);
+    lines.push(`Slow focus changes (250ms+): ${Number(remote.slowFocusMoves) || 0}`);
+    lines.push(`WebView focus delay: ${remote.averageFocusMs == null ? 'not measured' :
+      String(remote.averageFocusMs) + 'ms average; ' + String(remote.longestFocusMs) + 'ms longest'}`);
+    lines.push('Remote timing starts when WebView receives a key; wireless/CEC delay is not measured.');
+  }
   const entries = Array.isArray(counters.recentErrors) ? counters.recentErrors.slice(-MAX_RECENT_SUPPORT_ERRORS) : [];
   lines.push("Recent errors (redacted; newest last):");
   if (!entries.length) lines.push("  None recorded this session");
