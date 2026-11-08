@@ -35,7 +35,11 @@ export function isComprehensiveAddonNoSourceResult(data) {
 }
 
 export function catalogueSourceKey(item) {
-  if (item?.media_type !== 'movie') return '';
+  // Home, Search and imported lists may describe the same film with
+  // media_type, mediaType or type. Keep those aliases in the same check
+  // slot, but never check a series without an exact episode.
+  const mediaType = String(item?.media_type ?? item?.mediaType ?? item?.type ?? '').toLowerCase();
+  if (mediaType !== 'movie') return '';
   const id = String(item?.tmdb_id ?? item?.tmdbId ?? item?.id ?? '').trim();
   const year = String(item?.year ?? '').slice(0, 4);
   if (!/^\d{1,10}$/.test(id)) return '';
