@@ -1,10 +1,14 @@
 /* Continuous, small foreground discovery batches. Do not run an unlimited
  * scraper loop or a timer while the application is backgrounded. */
+import { isLowCapacityTvDevice } from "./deviceCapacity.js";
+
 export const ROLLING_SOURCE_CHECK_MS = 45_000;
 export const ROLLING_SOURCE_BATCH = 4;
 export function createRollingSourceChecks(getItems, check, {
-  windowObject = window, documentObject = document, intervalMs = ROLLING_SOURCE_CHECK_MS,
-  batchSize = ROLLING_SOURCE_BATCH,
+  windowObject = window, documentObject = document,
+  // A low-capacity Android box cannot afford a full batch every 45 seconds.
+  intervalMs = isLowCapacityTvDevice() ? ROLLING_SOURCE_CHECK_MS * 2 : ROLLING_SOURCE_CHECK_MS,
+  batchSize = isLowCapacityTvDevice() ? 2 : ROLLING_SOURCE_BATCH,
 } = {}) {
   let cursor = 0;
   let stopped = false;

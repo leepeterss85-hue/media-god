@@ -1,4 +1,5 @@
 import * as React from "react"
+import { isLowCapacityTvDevice } from "@/components/mg/deviceCapacity"
 import { useSize } from "@/hooks/use-size"
 import { cn } from "@/lib/utils"
 import {
@@ -201,8 +202,13 @@ const Image = React.forwardRef(
     ref
   ) {
     const fireTv = isFireTvRuntime()
-    const effectiveQuality = fireTv ? Math.min(Number(quality || 90), 72) : quality
-    const maxDpr = fireTv ? 2 : 3
+    // Cheap Android boxes decode every mounted poster in memory: fewer pixels
+    // and a lower DPR keep a long catalogue from exhausting them.
+    const lowCapacity = fireTv && isLowCapacityTvDevice()
+    const effectiveQuality = fireTv
+      ? Math.min(Number(quality || 90), lowCapacity ? 60 : 72)
+      : quality
+    const maxDpr = lowCapacity ? 1.5 : fireTv ? 2 : 3
 
     const parsedSource = src && src !== FALLBACK_IMAGE_URL ? parseWixMediaUrl(src) : null
     const initialMode = parsedSource ? IMAGE_LOAD_MODE.OPTIMIZED : IMAGE_LOAD_MODE.ORIGINAL

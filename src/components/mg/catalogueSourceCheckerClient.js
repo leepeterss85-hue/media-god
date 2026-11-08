@@ -3,14 +3,14 @@
  */
 import { base44 } from '@/api/base44Client';
 import { createCatalogueSourceChecker } from './catalogueSourceAvailability.js';
+import { isLowCapacityTvDevice } from './deviceCapacity.js';
 import { isFireTvRuntime } from './runtimePlatform.js';
 
 export const catalogueSourceChecker = createCatalogueSourceChecker(
   (name, payload) => base44.functions.invoke(name, payload),
   // A low-RAM Android TV WebView may have hundreds of poster cards mounted.
   // These are optional *browse hints*, never active playback sources.
-  isFireTvRuntime() && Number(navigator?.deviceMemory || 0) > 0 &&
-    Number(navigator.deviceMemory) <= 2
+  isLowCapacityTvDevice()
     ? { maxStatusEntries: 48, maxWaitingChecks: 24 }
     : {}
 );
