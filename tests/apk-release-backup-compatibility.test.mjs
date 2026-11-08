@@ -35,7 +35,7 @@ test("old mobile and TV archives reject incomplete and misattributed downloads",
 
 test("matching prior APK SHAs still use paired immutable rollback archive", () => {
   assert.match(code, /archive_tag="stable-/);
-  assert.match(code, /same immutable/i);
+  assert.match(code, /Known-good rollback archive already exists/);
   assert.match(code, /Media-God-Android-Mobile\.apk/);
   assert.match(code, /Media-God-Fire-TV\.apk/);
 });
