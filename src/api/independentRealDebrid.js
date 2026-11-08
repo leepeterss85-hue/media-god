@@ -50,6 +50,12 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
   fetchImpl = globalThis.fetch,
   token,
   timeoutMs = 120_000,
+  // A 401 can mean the native WebView's bootstrap session expired while the
+  // Base44 SDK refreshed its account token. Retry only if a NEW token exists.
+  refreshToken = () => resolveAccountToken({
+    getToken: getAccessToken,
+    timeoutMs: 1_200,
+  }),
 } = {}) {
   if (!INDEPENDENT_RD_FUNCTIONS.has(name)) {
     throw new Error("Unsupported independent Real-Debrid function");
@@ -57,7 +63,7 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
   if (typeof fetchImpl !== "function") {
     throw new Error("Real-Debrid network unavailable");
   }
-  const session = token || await readAccountSessionToken();
+  let session = token || await readAccountSessionToken();
   if (!session) {
     const error = new Error("A Media God account session is required for Railway Real-Debrid");
     error.code = "NO_ACCOUNT_SESSION";
@@ -66,7 +72,8 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetchImpl(
+    const body = JSON.stringify(independentRdPayload(payload));
+    const request = () => fetchImpl(
       `${INDEPENDENT_RD_ENDPOINT}/functions/${name}`,
       {
         method: "POST",
@@ -74,12 +81,28 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session}`,
         },
-        body: JSON.stringify(independentRdPayload(payload)),
+        body,
         credentials: "omit",
         cache: "no-store",
         signal: controller.signal,
       },
     );
+    let response = await request();
+    // Railway verifies every request with Base44 auth.me. A rejected session
+    // can be retried safely ONLY when the SDK actually obtained a different
+    // Media God session. A 403 (origin/permission denial) is never retried.
+    if (response.status === 401 && typeof refreshToken === "function") {
+      let fresh = "";
+      try {
+        fresh = String(await refreshToken() || "").trim();
+      } catch {
+        // Retain the original signed-in failure and reconnect guidance.
+      }
+      if (fresh && fresh !== session) {
+        session = fresh;
+        response = await request();
+      }
+    }
     let data = {};
     try { data = await response.json(); } catch {}
     if (!response.ok) {
