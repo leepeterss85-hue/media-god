@@ -34,6 +34,7 @@ import MultiDebridSettings from "@/components/mg/MultiDebridSettings";
 import PlaybackAdvancedSettings from "@/components/mg/PlaybackAdvancedSettings";
 import { nativeFireTvAppInfo } from "@/components/mg/nativeFireTvBridge";
 import { getAndroidBoxSupportLines } from "@/components/mg/androidBoxDiagnostics.js";
+import { copySupportReportText } from "@/components/mg/supportReportCopy.js";
 import { COUNTRY_OPTIONS, countryLabel } from "@/components/mg/countryOptions";
 import { getStreamingRegionDetails, getStreamingRegionOverride, setStreamingRegionOverride } from "@/components/mg/streamingRegion";
 import { fetchLatestNativeRelease } from "@/components/mg/nativeReleaseInfo";
@@ -1280,7 +1281,8 @@ export default function SettingsView() {
     ].join("\n");
 
     try {
-      await navigator.clipboard.writeText(lines);
+      const copied = await copySupportReportText(lines);
+      if (!copied) throw new Error("Clipboard unavailable on this Android WebView");
       setSupportCopied(true);
       window.setTimeout(() => setSupportCopied(false), 1600);
       toast({
