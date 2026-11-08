@@ -2,7 +2,7 @@ import CatalogueRetryNotice from "@/components/mg/CatalogueRetryNotice";
 import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Plus, Check, Play, Globe } from "lucide-react";
+import { Search, Plus, Check, Play, Globe, Info } from "lucide-react";
 import VoiceSearchButton from "@/components/mg/VoiceSearchButton";
 import { base44 } from "@/api/base44Client";
 import { catalogueSourceChecker, showBrowseTitleWithSourceEvidence } from "@/components/mg/catalogueSourceCheckerClient";
@@ -21,6 +21,7 @@ import {
   detectStreamingRegion,
   getStreamingRegionOverride,
   setStreamingRegionOverride,
+  streamingRegionName,
 } from "@/components/mg/streamingRegion";
 import { COUNTRY_OPTIONS } from "@/components/mg/countryOptions";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
@@ -29,7 +30,8 @@ import { addToWatchlistItem } from "@/components/mg/watchlistActions";
 const PosterImage = /** @type {any} */ (Image);
 
 const CATEGORIES = [
-  { id: "now_playing", label: "In Cinemas" },
+  { id: "cinema_latest", label: "Latest in Cinemas" },
+  { id: "now_playing", label: "Wider Releases" },
   { id: "popular", label: "Popular" },
   { id: "top_rated", label: "Top Rated" },
   { id: "upcoming", label: "Upcoming" },
@@ -49,7 +51,9 @@ export default function MoviesView() {
   const [retry, setRetry] = useState(0);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState(() => getStreamingRegionOverride());
-  const [category, setCategory] = useState("now_playing");
+  const [category, setCategory] = useState("cinema_latest");
+  const [cinemaRefresh, setCinemaRefresh] = useState(0);
+  const lastCinemaRefreshRef = useRef({ at: Date.now(), day: new Date().toISOString().slice(0, 10) });
   const [genre, setGenre] = useState("");
   const [year, setYear] = useState("");
   const [language, setLanguage] = useState("");
@@ -60,6 +64,31 @@ export default function MoviesView() {
   const debouncedQuery = useDebouncedValue(query, 180);
   const streamingRegion = country || detectStreamingRegion();
 
+  // Recheck current cinema listings when the calendar day changes or a
+  // backgrounded Fire Stick/mobile browser returns after several hours.
+  // No high-frequency TMDB polling or new requests during playback.
+  useEffect(() => {
+    if (category !== "cinema_latest") return undefined;
+    const checkFreshness = () => {
+      if (document.visibilityState === "hidden") return;
+      const day = new Date().toISOString().slice(0, 10);
+      const current = Date.now();
+      if (day !== lastCinemaRefreshRef.current.day ||
+          current - lastCinemaRefreshRef.current.at >= 6 * 60 * 60 * 1000) {
+        lastCinemaRefreshRef.current = { at: current, day };
+        setCinemaRefresh((value) => value + 1);
+      }
+    };
+    const timer = window.setInterval(checkFreshness, 30 * 60 * 1000);
+    window.addEventListener("focus", checkFreshness);
+    document.addEventListener("visibilitychange", checkFreshness);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", checkFreshness);
+      document.removeEventListener("visibilitychange", checkFreshness);
+    };
+  }, [category]);
+
   useEffect(() => {
     const unsub = catalogueSourceChecker.subscribe(() =>
       setSourceAvailabilityEpoch((value) => value + 1)
@@ -68,16 +97,21 @@ export default function MoviesView() {
   }, []);
 
   useEffect(() => {
-    if (loading || !movies.length) return undefined;
+    // Cinema listings are release metadata, not a promise of an available
+    // stream. Do not spend bandwidth checking every newly released title.
+    if (loading || !movies.length || category === "cinema_latest") return undefined;
     return createRollingSourceChecks(
       () => movies,
       (movie) => catalogueSourceChecker.check({ ...movie, media_type: 'movie' })
     );
-  }, [movies, loading]);
+  }, [movies, loading, category]);
 
   const displayedMovies = useMemo(() => movies.filter((movie) =>
+    // New cinema releases must remain visible even when no digital stream
+    // exists yet. A cinema listing is not a playback-availability claim.
+    (category === "cinema_latest" && !debouncedQuery.trim()) ||
     showBrowseTitleWithSourceEvidence({ ...movie, media_type: 'movie' })
-  ), [movies, sourceAvailabilityEpoch]);
+  ), [movies, sourceAvailabilityEpoch, category, debouncedQuery]);
 
   useEffect(() => {
     const requestId = ++requestRef.current;
@@ -109,7 +143,7 @@ export default function MoviesView() {
           setLoading(false);
         }
       });
-  }, [country, category, genre, year, language, debouncedQuery, streamingRegion, retry]);
+  }, [country, category, genre, year, language, debouncedQuery, streamingRegion, retry, cinemaRefresh]);
 
   const addToWatchlist = async (movie) => {
     try {
@@ -161,6 +195,13 @@ export default function MoviesView() {
             </button>
           ))}
         </div>
+
+        {category === "cinema_latest" && !debouncedQuery.trim() && (
+          <p className="text-xs sm:text-sm text-white/50" data-mg-cinema-region="true">
+            Newest theatrical releases in {streamingRegionName(streamingRegion)} (last eight weeks).
+            Cinema listings do not guarantee a playable streaming source.
+          </p>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center gap-2.5 3xl:gap-4">
           <div className="relative sm:col-span-2 lg:flex-1 lg:min-w-[260px] lg:max-w-2xl 3xl:max-w-3xl">
@@ -280,7 +321,10 @@ export default function MoviesView() {
                   aria-label={`Open ${movie.title}`}
                 >
                   <span className="w-11 h-11 sm:w-12 sm:h-12 3xl:w-14 3xl:h-14 4xl:w-16 4xl:h-16 rounded-full bg-mg-green text-black flex items-center justify-center">
-                    <Play className="w-5 h-5 sm:w-6 sm:h-6 3xl:w-7 3xl:h-7 4xl:w-8 4xl:h-8 fill-black" />
+                    {category === "cinema_latest" && !debouncedQuery.trim()
+                      ? <Info className="w-5 h-5 sm:w-6 sm:h-6 3xl:w-7 3xl:h-7 4xl:w-8 4xl:h-8" />
+                      : <Play className="w-5 h-5 sm:w-6 sm:h-6 3xl:w-7 3xl:h-7 4xl:w-8 4xl:h-8 fill-black" />}
+
                   </span>
                 </button>
 
@@ -303,7 +347,9 @@ export default function MoviesView() {
                 {movie.title}
               </p>
               <p className="text-[10px] sm:text-xs 3xl:text-sm text-white/40">
-                {movie.year}
+                {category === "cinema_latest" && !debouncedQuery.trim() && /^\d{4}-\d{2}-\d{2}$/.test(String(movie.release_date || ""))
+                  ? `Cinema: ${movie.release_date.slice(8, 10)}/${movie.release_date.slice(5, 7)}/${movie.release_date.slice(0, 4)}`
+                  : movie.year}
               </p>
 
             </article>

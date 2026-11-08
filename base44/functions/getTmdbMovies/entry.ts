@@ -1941,6 +1941,19 @@ export default async function(req) {
       language ||
       providerIds.length > 0;
 
+    // A dedicated *regional theatrical* feed keeps the Movies landing tab
+    // genuinely current. TMDB's standard now_playing feed sorts by popularity
+    // and the optional worldwide overlay includes films outside local cinemas.
+    // Explicit genre, year and language filters must retain the release window.
+    const cinemaLatest =
+      mediaType === 'movie' &&
+      category === 'cinema_latest' &&
+      !query &&
+      providerIds.length === 0;
+    const cinemaSince =
+      new Date(Date.parse(requestedDate + 'T12:00:00Z') - 56 * 86400000)
+        .toISOString().slice(0, 10);
+
     const includeGlobalReleases =
       mediaType === 'movie' &&
       Boolean(body.include_global_releases) &&
@@ -2037,6 +2050,31 @@ export default async function(req) {
             });
 
           return `${TMDB_BASE}/search/${mediaType}?${params.toString()}`;
+        }
+
+        /*
+         * LATEST IN CINEMAS: region-specific theatrical releases in the last
+         * eight weeks. TMDB's with_release_type=3|2 selects the standard
+         * theatrical date before a limited release. Never include a future
+         * release or a digital/TV-only debut. Preserve selected filters.
+         */
+        if (cinemaLatest) {
+          const params = new URLSearchParams({
+            api_key: apiKey,
+            language: 'en-GB',
+            region,
+            page: String(page),
+            include_adult: 'false',
+            sort_by: 'release_date.desc',
+            with_release_type: '3|2',
+            'release_date.gte': cinemaSince,
+            'release_date.lte': requestedDate,
+          });
+          if (country) params.set('with_origin_country', String(country));
+          if (genre) params.set('with_genres', String(genre));
+          if (year) params.set('primary_release_year', String(year));
+          if (language) params.set('with_original_language', String(language));
+          return `${TMDB_BASE}/discover/movie?${params.toString()}`;
         }
 
         /*
@@ -2215,7 +2253,7 @@ export default async function(req) {
     const pages =
       providerIds.length > 0
         ? providerPageCount
-        : category === 'movie_released_today'
+        : category === 'cinema_latest' || category === 'movie_released_today'
           ? 5
           : category === 'upcoming' || category === 'tv_upcoming'
             ? 5
@@ -2409,6 +2447,16 @@ export default async function(req) {
             globalReleasedDates.get(String(m?.id || '')) || '',
         })
       );
+
+    if (cinemaLatest) {
+      // Ranking by the region-specific theatrical date means a brand-new
+      // cinema release appears ahead of an older blockbuster. Popularity
+      // breaks ties without concealing fresh smaller theatrical releases.
+      mappedItems.sort((a, b) =>
+        String(b.release_date || '').localeCompare(String(a.release_date || '')) ||
+        Number(b.popularity || 0) - Number(a.popularity || 0)
+      );
+    }
 
     const corrected =
       query
