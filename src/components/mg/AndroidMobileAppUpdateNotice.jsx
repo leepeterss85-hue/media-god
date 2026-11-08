@@ -262,7 +262,7 @@ export default function AndroidMobileAppUpdateNotice({ enabled = true }) {
             </h2>
             <p className="mt-2 text-sm leading-6 text-white/70">
               {installedOnFireTv
-                ? "This television appears to be running the Android phone APK. Mobile 1.0.94 and Fire TV 1.4.119 are separate apps, not old and new versions of the same app. Install the dedicated Fire TV APK alongside Mobile, sign in and test before removing anything."
+                ? "This television appears to be running the Android phone APK. Mobile 1.0.95 and Fire TV 1.4.120 are separate apps, not old and new versions of the same app. Install the dedicated Fire TV APK alongside Mobile, sign in and test before removing anything."
                 : canSelfUpdate
                   ? "Media God Mobile can download this update itself. Android will ask you to approve installation before anything is replaced."
                   : "Open the Android Mobile APK from GitHub to update this installation."}
@@ -284,10 +284,10 @@ export default function AndroidMobileAppUpdateNotice({ enabled = true }) {
         {installedOnFireTv && (
           <div className="mt-5 rounded-2xl border border-cyan-400/30 bg-black/25 p-4">
             <p className="text-sm leading-6 text-white/80">
-              Install <strong>Media God Fire TV 1.4.119</strong>. It has a different Android package name, so it installs beside the Mobile edition and does not delete its data. Account-backed history is available when you sign into the same account.
+              Install <strong>Media God Fire TV 1.4.120</strong>. It has a different Android package name, so it installs beside the Mobile edition and does not delete its data. Account-backed history is available when you sign into the same account.
             </p>
             <p className="mt-2 text-xs text-white/65">
-              Keep the old Mobile app until you have tested the TV version. Do not press Update Mobile 1.0.94 here.
+              Keep the old Mobile app until you have tested the TV version. Do not press Update Mobile 1.0.95 here.
             </p>
             <button
               type="button"

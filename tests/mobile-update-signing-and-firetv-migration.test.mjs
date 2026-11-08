@@ -9,9 +9,9 @@ test("the two Android apps are independently versioned packages", () => {
   const tv = read("firetv-android/app/build.gradle.kts");
   const mobile = read("android-mobile/app/build.gradle.kts");
   assert.match(tv, /applicationId = "com\.mediagod\.firetv"/);
-  assert.match(tv, /versionName = "1\.4\.119"/);
+  assert.match(tv, /versionName = "1\.4\.120"/);
   assert.match(mobile, /applicationId = "com\.mediagod\.mobile"/);
-  assert.match(mobile, /versionName = "1\.0\.94"/);
+  assert.match(mobile, /versionName = "1\.0\.95"/);
 });
 
 test("Fire TV phone-edition installations get the dedicated TV APK, not the Mobile updater", () => {
