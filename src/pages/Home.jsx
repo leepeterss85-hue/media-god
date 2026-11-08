@@ -14,6 +14,7 @@ import HomeDashboard from "@/components/mg/HomeDashboard";
 import MoviesView from "@/components/mg/MoviesView";
 import TvShowsView from "@/components/mg/TvShowsView";
 import LiveTVView from "@/components/mg/LiveTVView";
+import LiveTvVoiceSearchAccessory from "@/components/mg/LiveTvVoiceSearchAccessory";
 import SearchDialog from "@/components/mg/SearchDialog";
 import { searchTmdbId } from "@/components/mg/searchMediaIdentity";
 import DetailModal from "@/components/mg/DetailModal";
@@ -818,6 +819,18 @@ function MediaGodApp() {
    * rail. The dialog owns listening (native bridge first, then the browser
    * recogniser) so the transcript lands straight in the search box.
    */
+  // The verified LiveTVView already accepts a searchRequestKey. Deliver
+  // microphone transcripts through that existing public prop contract,
+  // without changing channel state or protected Live TV source code.
+  const onLiveTvVoiceResult = useCallback((spoken) => {
+    const query = String(spoken || "").trim();
+    if (!query) return;
+    setLiveSearchRequest((current) => ({
+      query,
+      key: Number(current?.key || 0) + 1,
+    }));
+  }, []);
+
   const openVoiceSearch =
     useCallback(
       () => {
@@ -1197,19 +1210,22 @@ function MediaGodApp() {
 
           {view ===
             "live" && (
-            <LiveTVView
-              initialQuery={
-                liveSearchRequest.query
-              }
-              initialQuickFilter={
-                liveSearchRequest.query
-                  ? ""
-                  : "All"
-              }
-              searchRequestKey={
-                liveSearchRequest.key
-              }
-            />
+            <>
+              <LiveTVView
+                initialQuery={
+                  liveSearchRequest.query
+                }
+                initialQuickFilter={
+                  liveSearchRequest.query
+                    ? ""
+                    : "All"
+                }
+                searchRequestKey={
+                  liveSearchRequest.key
+                }
+              />
+              <LiveTvVoiceSearchAccessory onResult={onLiveTvVoiceResult} />
+            </>
           )}
 
           {view === "catchup" && (
