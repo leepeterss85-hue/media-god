@@ -217,8 +217,15 @@ export const smartSourceEvidence = (item, languageHint = "unknown") => {
 export const sourceReleaseTier = (item) => {
   const text = sourceText(item);
 
-  if (/\b(?:camrip|cam|hdcam|telesync|telecine|hdts)\b/i.test(text)) {
-    return { rank: 9, label: "CAM/TS" };
+  // Cinema-recorded releases remain selectable. Recognise both full
+  // release names and the abbreviated scene tags used by scraper filenames.
+  // Do not interpret a lower-case .ts MPEG transport-stream extension as a
+  // telesync release, or a substring of an unrelated word as TC/TS.
+  const cinemaRip = /\b(?:camrip|cam|hdcam|hqcam|telesync|telecine|hdts|hcts|hdtc|tsrip|tcrip)\b/i.test(text);
+  const shortCinemaRip = /(?:^|[\s._-])(?:TS|TC)(?=$|[\s._-])/.test(text) &&
+    !/\.TS$/.test(text);
+  if (cinemaRip || shortCinemaRip) {
+    return { rank: 9, label: "CAM/TS/TC" };
   }
   if (/\b(?:remux)\b/i.test(text)) {
     return { rank: 0, label: "Remux" };
