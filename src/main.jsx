@@ -10,6 +10,8 @@ import ContinueWatchingAssist from '@/components/mg/ContinueWatchingAssist.jsx'
 import { syncHouseholdProfilesFromAccount } from '@/components/mg/householdProfiles.js'
 import { installFireTvStableMode } from '@/components/mg/fireTvStableMode.js'
 import { createFireTvRepeatLimiter } from '@/components/mg/fireTvRepeatLimiter.js'
+import { installAndroidBoxDiagnostics } from '@/components/mg/androidBoxDiagnostics.js'
+import { isAndroidCecBackKey, isAndroidCecConfirmKey, createTvBackEventDeduper } from '@/components/mg/tvCecRemoteCompatibility.js'
 import {
   clearFireTvStateFromAndroidMobile,
   createAndroidTvDpadDetector,
@@ -77,6 +79,9 @@ const detectGenericAndroidTvDpad = createAndroidTvDpadDetector()
 const isStrongTvRemoteEvent = (event) => {
   const code = keyCode(event)
   const key = keyName(event)
+  // CEC adapters may emit OK/NumPad Enter after TV mode is already known.
+  // Do not classify generic Android keyboards as TV remotes from Enter.
+  if (isAndroidCecConfirmKey(event, { tvMode: tvRemoteDetected || isFireTvRuntime() })) return true
 
   if (
     code === 4 ||
@@ -265,6 +270,8 @@ const findBackTarget = (scope) => {
 }
 
 const isBackEvent = (event) => {
+  // Android KEYCODE_ESCAPE (111) and CEC "Back" names are TV-only aliases.
+  if (isAndroidCecBackKey(event, { tvMode: tvRemoteDetected || isFireTvRuntime() })) return true
   const key = keyName(event)
   const code = keyCode(event)
   const tag = String(event?.target?.tagName || '').toLowerCase()
@@ -374,6 +381,7 @@ const installFireTvBackHandler = () => {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     return
   }
+  const alreadyHandled = createTvBackEventDeduper()
 
   const onBackEvent = (event) => {
     if (!isBackEvent(event)) {
@@ -391,7 +399,7 @@ const installFireTvBackHandler = () => {
 
     markTvRemoteDetected()
 
-    if (event.__mgBackHandled) {
+    if (event.__mgBackHandled || alreadyHandled(event)) {
       return
     }
 
@@ -650,6 +658,7 @@ window.addEventListener('keydown', (event) => {
 
 installFireTvStableMode()
 installTvRemoteDetection()
+installAndroidBoxDiagnostics()
 window.addEventListener('mg:tv-remote-detected', installFireTvStableMode)
 installFireTvBackHandler()
 installFireTvMediaLifecycle()
