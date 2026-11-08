@@ -6,7 +6,7 @@ const FIRE_TV_RE =
 // that explicitly advertise TV hardware must receive D-pad focus handling.
 // Keep this separate from the phone app marker (which always wins below).
 const ANDROID_TV_RE =
-  /(?:Android[\s/._-]*TV|Google[\s/._-]*TV|AndroidTV|\bLeanback\b|NVIDIA[\s_-]*SHIELD(?:[\s_-]*Android[\s_-]*TV)?|\bMi[\s_-]*Box\b|\bMIBOX\b|\bMi\s*TV(?:\s*Stick)?\b|\bMiTV\b|\bMecool\b|\bChromecast\s+with\s+Google\s+TV\b|\bONN[\s_-]*(?:4K|Streaming[\s_-]*Box)\b|\bTV[\s_-]*Box\b|Formuler|BuzzTV|Dynalink|Amlogic|Rockchip|\bMINIX\b|\bUgoos\b|\bSkyworth\b|\bNokia\s+Streaming\s+Box\b|\bADT-\d|\bAQUOS\b|\bBRAVIA\b|\bT95\b|\bX96\b|\bH96\b|\bA95X\b|\bM8S\b)/i;
+  /(?:Android[\s/._-]*TV|Google[\s/._-]*TV|AndroidTV|\bLeanback\b|NVIDIA[\s_-]*SHIELD(?:[\s_-]*Android[\s_-]*TV)?|\bMi[\s_-]*Box\b|\bMIBOX\b|\bMi\s*TV(?:\s*Stick)?\b|\bMiTV\b|\bMecool\b|\bChromecast\s+with\s+Google\s+TV\b|\bONN[\s_-]*(?:4K|Streaming[\s_-]*Box)\b|\bTV[\s_-]*Box\b|Formuler|BuzzTV|Dynalink|Amlogic|Rockchip|\bMINIX\b|\bUgoos\b|\bSkyworth\b|\bNokia\s+Streaming\s+Box\b|\bADT-\d|\bAQUOS\b|\bBRAVIA\b|\bT95\b|\bX96\b|\bH96\b|\bA95X\b|\bM8S\b|\bHOMATICS\b|\bDune[\s_-]*HD\b|\bZIDOO\b|\bTANIX\b|\bVONTAR\b|\bSTRONG[\s_-]*LEAP[\s_-]*[A-Z0-9]*\b)/i;
 
 export const isKnownTvUserAgent = (value) =>
   FIRE_TV_RE.test(String(value || "")) ||
@@ -36,7 +36,14 @@ export const createAndroidTvDpadDetector = ({ now = () => Date.now() } = {}) => 
     const arrow =
       /^(?:ArrowUp|ArrowDown|ArrowLeft|ArrowRight)$/.test(key) ||
       [37, 38, 39, 40].includes(code);
-    if (!arrow) return false;
+    if (!arrow) {
+      // A keyboard action between arrows breaks the remote-gesture
+      // sequence. Do not classify generic Android phones or tablets as
+      // televisions after unrelated navigation or typing.
+      lastAt = -Infinity;
+      lastDirection = "";
+      return false;
+    }
     if (isKnownTvUserAgent(userAgent)) return true;
     const at = now();
     const confirmed = (at - lastAt < 1750) &&

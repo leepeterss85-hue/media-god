@@ -14,7 +14,13 @@ export function createRollingSourceChecks(getItems, check, {
     windowObject.navigator?.onLine !== false;
   const identity = item => {
     const id = item?.tmdb_id ?? item?.tmdbId ?? item?.id;
-    return id == null ? item : JSON.stringify([item.media_type || 'movie', String(id), String(item.year || '')]);
+    // Browse rows may use media_type, mediaType or type depending on their
+    // source. Without this normalisation, a TV series and a film with the
+    // same numeric TMDB ID can share a pending slot on generic TV boxes,
+    // while the same film can be checked twice under its object aliases.
+    const rawType = String(item?.media_type || item?.mediaType || item?.type || 'movie').toLowerCase();
+    const type = ['tv', 'series', 'show', 'episode'].includes(rawType) ? 'tv' : 'movie';
+    return id == null ? item : JSON.stringify([type, String(id), String(item.year || '')]);
   };
   const scan = () => {
     if (!canScan()) return;
