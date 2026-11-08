@@ -538,7 +538,13 @@ const snapshotFocus =
     const rowContext = focusKey
       ? { rowLabel: "", rowCardIndex: -1 }
       : rowContextFor(element);
-    const fallbackIndex = focusKey ? -1 : focusables(scope).indexOf(element);
+    // A full-body focusables() scan measures every poster/row on each
+    // unkeyed focus change and can block the Fire Stick remote for seconds.
+    // A live element reference, label, title, text and row fallback already
+    // restore main-page focus; keep positional fallback only inside small
+    // modal scopes, where it is reliable and inexpensive.
+    const fallbackIndex = focusKey || scope === document.body
+      ? -1 : focusables(scope).indexOf(element);
 
     return {
       element,

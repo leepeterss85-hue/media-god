@@ -52,7 +52,8 @@ test("Fire TV remote keeps key presses synchronous and coalesces only overlay ch
 
 test("keyed controls do not scan every poster during each focus change", () => {
   const memory = read("src/components/mg/FireTvFocusMemory.jsx");
-  assert.match(memory, /const fallbackIndex = focusKey \? -1 : focusables\(scope\)\.indexOf\(element\)/);
+  assert.match(memory, /const fallbackIndex = focusKey \|\| scope === document\.body/);
+  assert.match(memory, /\? -1 : focusables\(scope\)\.indexOf\(element\)/);
   assert.match(memory, /const rowContext = focusKey\s*\? \{ rowLabel: "", rowCardIndex: -1 \}/);
   assert.match(memory, /index: fallbackIndex/);
   assert.match(memory, /if \(snapshot\.focusKey\)/);
