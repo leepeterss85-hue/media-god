@@ -1014,6 +1014,30 @@ export default function StreamSourcesBox({
         return;
       }
 
+      // Android TV-box scraper webpages are not RD downloads or video files.
+      // Route their known providers to the app's existing embedded players
+      // BEFORE interpreting an addon's cache flags as an unready torrent.
+      const isTvBox = isFireTvRuntime();
+      const sourceKind = classifyTvBoxSource(stream);
+      const onlyFlixPage = sourceKind.provider === "onlyflix";
+      const vidCorePage = sourceKind.provider === "vidcore";
+      const webScraperPage = sourceKind.kind === "webpage";
+      if (isTvBox && mediaType !== "live" && webScraperPage) {
+        const embedMedia = {
+          id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId || "",
+          title, poster, mediaType, season, episode,
+        };
+        if (onlyFlixPage && player.playOnlyFlix?.(embedMedia)) return;
+        if (vidCorePage && player.playVidCore?.(embedMedia)) return;
+        if (sourceKind.provider === "vidsrc" && player.playVidSrc?.(embedMedia)) return;
+        if (["twoembed", "cinesrc", "multiembed"].includes(sourceKind.provider) &&
+            player.playExtraEmbed?.(sourceKind.provider, embedMedia)) return;
+        // An unknown or unsupported webpage cannot be decoded by VLC.
+        // Keep the original manual source list and other web tabs available.
+        setMessage("This scraper returned a webpage, not a playable video file. Choose OnlyFlix, VidCore or another web provider above.");
+        return;
+      }
+
       // The screenshot's 38 pending torrents are discovery results, not
       // playable files. Sending one straight to RD's add-torrent endpoint
       // can return HTTP 429 before the VLC activity can start. Automatically
@@ -1037,28 +1061,6 @@ export default function StreamSourcesBox({
       if (hasDebrid && selectedUnreadyTorrent) {
         setMessage("Checking Combined Debrid for a playable copy of this episode…");
         await playCombinedDebrid({ readyOnly: true });
-        return;
-      }
-
-      // TV-box web-scraper pages are HTML, not video files. Never hand them
-      // to LibVLC or the direct-file pipeline. Keep phone and Live TV intact.
-      const selectedUrl = String(stream?.src || stream?.url || stream?.link || "").trim();
-      const pageType = String(stream?.type || "").toLowerCase();
-      const isTvBox = isFireTvRuntime();
-      const sourceKind = classifyTvBoxSource(stream);
-      const onlyFlixPage = sourceKind.provider === "onlyflix";
-      const vidCorePage = sourceKind.provider === "vidcore";
-      const webScraperPage = sourceKind.kind === "webpage";
-      if (isTvBox && mediaType !== "live" && webScraperPage) {
-        const embedMedia = {
-          id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId || "",
-          title, poster, mediaType, season, episode,
-        };
-        if (onlyFlixPage && player.playOnlyFlix?.(embedMedia)) return;
-        if (vidCorePage && player.playVidCore?.(embedMedia)) return;
-        // An unknown webpage cannot be decoded by a native media player.
-        // The Sources panel retains its existing provider tabs and backups.
-        setMessage("This scraper returned a webpage, not a playable video file. Choose OnlyFlix, VidCore or another web provider above.");
         return;
       }
 
