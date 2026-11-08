@@ -64,6 +64,7 @@ export const fetchEpisodeScraperJson = async (url, {
         method: "GET", headers: { Accept: "application/json" },
         signal: controller.signal,
       });
+      if (controller.signal.aborted) return null;
       if (!response.ok) {
         return response.status === 404 ? { __missingRoute: true } : null;
       }
