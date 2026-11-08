@@ -26,6 +26,8 @@ import MediaReviews from "@/components/mg/MediaReviews";
 import MediaRow from "@/components/mg/MediaRow";
 import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
 import { detectStreamingRegion } from "@/components/mg/streamingRegion";
+import { openNativeFireTvExternalUrl } from "@/components/mg/nativeFireTvBridge";
+import { watchmodeSourceLinks } from "@/components/mg/officialWatchLinks";
 import {
   usePlayer,
   buildMediaSources,
@@ -1523,6 +1525,11 @@ export default function DetailModal({
         group.items.length > 0
     );
 
+  const officialLinks = watchmodeSourceLinks(watchmodeData?.sources, {
+    region: streamingRegion,
+    preferTv: typeof navigator !== "undefined" && /AFT|Fire TV|Android TV/i.test(navigator.userAgent || ""),
+  });
+
   const detailTabs = [
     { id: "overview", label: "Overview" },
     ...(resolvedMediaType === "tv" ? [{ id: "episodes", label: "Episodes" }] : []),
@@ -2120,10 +2127,37 @@ export default function DetailModal({
                   )
                 )}
               </div>
-            ) : (
+            ) : officialLinks.length === 0 ? (
               <p className="text-white/40 text-xs 3xl:text-base">
                 No provider information is available for this title in your region.
               </p>
+            )}
+            {!loading && officialLinks.length > 0 && (
+              <section className="mt-5 border-t border-white/10 pt-4" data-mg-official-watch-links="true">
+                <h4 className="text-sm font-semibold text-white">Open in a streaming service</h4>
+                <p className="mt-1 text-xs text-white/50">
+                  Verified provider destinations for {streamingRegion}. These are official service links, not Media God video streams. You may need the provider's app or a subscription.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {officialLinks.slice(0, 16).map((link) => (
+                    <a
+                      key={link.key}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(event) => {
+                        if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && openNativeFireTvExternalUrl(link.url)) {
+                          event.preventDefault();
+                        }
+                      }}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-mg-green/25 bg-mg-card px-3 py-2 text-xs font-semibold text-white hover:border-mg-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green"
+                    >
+                      {link.name} <span className="font-normal text-white/45">{link.tier}</span>
+                      <ExternalLink className="h-3.5 w-3.5 text-mg-green" />
+                    </a>
+                  ))}
+                </div>
+              </section>
             )}
           </div>}
 
