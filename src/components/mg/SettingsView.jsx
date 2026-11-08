@@ -1796,9 +1796,9 @@ export default function SettingsView() {
             </h2>
             <p className="mt-1 text-xs 3xl:text-sm leading-5 text-white/40">
               Copy a privacy-safe report containing the app version, device/browser
-              information, Android/WebView version, memory estimate and anonymous
-              playback-error counts. It does not include passwords, account IDs,
-              error messages, Real-Debrid tokens or private source URLs.
+              information, Android/WebView version, memory estimate, error counts
+              and the last six redacted error messages. Links, passwords, account
+              credentials and stream URLs are hidden. Review before sharing.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button

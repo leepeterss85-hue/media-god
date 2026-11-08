@@ -1,9 +1,20 @@
+import { redactSupportErrorMessage } from "./supportErrorRedaction.js";
+
 /**
- * Privacy-safe, device-local support counters. No tokens, private URLs,
- * titles, error messages, user IDs or stack traces are collected or stored.
- * Nothing is uploaded: counters exist only in the current page memory and
- * appear only when the viewer chooses "Copy support report".
+ * Device-local, bounded diagnostics. Preserve short redacted error messages
+ * because they distinguish decoder failures, rate limits and unavailable
+ * providers; never retain raw errors, source URLs, stacks or account details.
+ * Nothing is uploaded or saved: the user opts in by copying a report.
  */
+export const MAX_RECENT_SUPPORT_ERRORS = 6;
+const recentErrors = [];
+const recordError = (category, rawMessage) => {
+  const message = redactSupportErrorMessage(rawMessage);
+  if (!message) return;
+  // Only a few recent errors, no accumulation while browsing for hours.
+  recentErrors.push({ category, message });
+  if (recentErrors.length > MAX_RECENT_SUPPORT_ERRORS) recentErrors.shift();
+};
 const counts = {
   playerStatusEvents: 0,
   playbackErrorNotices: 0,
@@ -17,7 +28,10 @@ const cappedIncrement = name => {
   counts[name] = Math.min(9999, counts[name] + 1);
 };
 
-export const snapshotAndroidBoxDiagnostics = () => ({ ...counts });
+export const snapshotAndroidBoxDiagnostics = () => ({
+  ...counts,
+  recentErrors: recentErrors.map(entry => ({ ...entry })),
+});
 
 export function installAndroidBoxDiagnostics(win = typeof window !== "undefined" ? window : null) {
   if (!win || typeof win.addEventListener !== "function") return () => {};
@@ -25,16 +39,35 @@ export function installAndroidBoxDiagnostics(win = typeof window !== "undefined"
 
   const onPlayerStatus = event => {
     cappedIncrement("playerStatusEvents");
-    // Classify only; never retain the message, source, title or stream URL.
-    if (/\b(?:error|fail(?:ed|ure)?|timed? out|cannot play|could not play|unavailable)\b/i.test(
-      String(event?.detail?.message || "").slice(0, 500),
-    )) cappedIncrement("playbackErrorNotices");
+    const message = typeof event?.detail?.message === "string" ? event.detail.message : "";
+    const errorLevel = /^(?:error|failed)$/i.test(String(event?.detail?.level || event?.detail?.status || ""));
+    if (errorLevel ||
+        /\b(?:error|fail(?:ed|ure)?|timed?\s*out|cannot|could not|unavailable|denied|not playable|decoder|unsupported|stalled|http\s*[45]\d\d)\b/i.test(message)) {
+      cappedIncrement("playbackErrorNotices");
+      recordError("playback", message || "Playback error (no message provided)");
+    }
   };
   const onError = event => {
-    if (event?.error || event?.message) cappedIncrement("scriptErrors");
-    else cappedIncrement("resourceErrors");
+    if (event?.error || event?.message) {
+      cappedIncrement("scriptErrors");
+      const message = typeof event?.message === "string" ? event.message :
+        typeof event?.error?.message === "string" ? event.error.message : "Script error (no message provided)";
+      recordError("script", message);
+    } else {
+      cappedIncrement("resourceErrors");
+      // Keep a safe element category, never the failing resource URL.
+      const tag = String(event?.target?.tagName || "").toLowerCase();
+      const kind = ["script", "link", "img", "video", "audio", "iframe"].includes(tag) ? tag : "resource";
+      recordError("resource", kind + " failed to load");
+    }
   };
-  const onRejection = () => cappedIncrement("unhandledRejections");
+  const onRejection = event => {
+    cappedIncrement("unhandledRejections");
+    const reason = event?.reason;
+    const message = typeof reason === "string" ? reason :
+      typeof reason?.message === "string" ? reason.message : "Unhandled promise rejection";
+    recordError("promise", message);
+  };
   const onOffline = () => cappedIncrement("offlineTransitions");
 
   win.addEventListener("mg:player-status", onPlayerStatus);
@@ -98,5 +131,14 @@ export function getAndroidBoxSupportLines({
     `Unhandled rejections (count only): ${Number(counters.unhandledRejections) || 0}`,
     `Offline transitions: ${Number(counters.offlineTransitions) || 0}`,
   ];
+  const entries = Array.isArray(counters.recentErrors) ? counters.recentErrors.slice(-MAX_RECENT_SUPPORT_ERRORS) : [];
+  lines.push("Recent errors (redacted; newest last):");
+  if (!entries.length) lines.push("  None recorded this session");
+  for (const item of entries) {
+    const category = ["playback", "script", "resource", "promise"].includes(item?.category)
+      ? item.category : "error";
+    const message = redactSupportErrorMessage(item?.message);
+    if (message) lines.push(`  [${category}] ${message}`);
+  }
   return lines;
 }
