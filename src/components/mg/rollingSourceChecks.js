@@ -10,8 +10,14 @@ export function createRollingSourceChecks(getItems, check, {
   let stopped = false;
   const pending = new Set();
   const limit = Math.max(1, Math.floor(Number(batchSize) || ROLLING_SOURCE_BATCH));
+  const canScan = () => !stopped && documentObject.visibilityState !== 'hidden' &&
+    windowObject.navigator?.onLine !== false;
+  const identity = item => {
+    const id = item?.tmdb_id ?? item?.tmdbId ?? item?.id;
+    return id == null ? item : JSON.stringify([item.media_type || 'movie', String(id), String(item.year || '')]);
+  };
   const scan = () => {
-    if (stopped || documentObject.visibilityState === 'hidden') return;
+    if (!canScan()) return;
     let items;
     try {
       items = getItems().filter(Boolean);
@@ -27,12 +33,14 @@ export function createRollingSourceChecks(getItems, check, {
       const item = items[cursor % items.length];
       cursor = (cursor + 1) % items.length;
       inspected += 1;
-      if (pending.has(item)) continue;
-      pending.add(item);
+      const key = identity(item);
+      if (pending.has(key)) continue;
+      pending.add(key);
       Promise.resolve()
-        .then(() => stopped ? undefined : check(item))
+        // Visibility/connectivity may change after scheduling this microtask.
+        .then(() => canScan() ? check(item) : undefined)
         .catch(() => {})
-        .finally(() => pending.delete(item));
+        .finally(() => pending.delete(key));
     }
   };
   const timer = windowObject.setInterval(scan, intervalMs);
