@@ -22,6 +22,8 @@ The owner reported that Media God scrapers and audio/video are now working on th
 
 ## Enforced regression gates
 
+On 8 November 2026 the owner requested review and repair of existing blockers before merging catch-up. `PLAYBACK_SOURCE_REVIEW_20261108.md` records three already-committed source changes accepted for integration. Two current web-source locks are tracked separately from the original observed hashes; the native guard has a documented reviewed hash. This is not a new device-verified baseline. The physical-device checklist below remains required for a new playback release.
+
 npm run test:regression runs the existing audio/source/native tests, scripts/protected-media-guard.mjs for the pre-existing protected player and Live TV core, and tests/known-good-playback-lock.test.mjs for the additional **18** verified web-scraper, Fire TV control, video-pixel, audio diagnostic and native bridge files.
 
 The new SHA-256 checks are intentionally strict: they reject *any* byte change in those files, including harmless refactors. A failed hash is a review hold, **not proof of a playback defect**. Do not automatically rebaseline hashes. To approve a necessary change, back up this commit, inspect the diff, pass CI and manually test playback, then explicitly accept and document each updated hash.

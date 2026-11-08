@@ -14,7 +14,11 @@ test('rolling source checks cover entire list, pause in background, resume on fo
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(ROLLING_SOURCE_CHECK_MS,45000);
   assert.deepEqual(checked,[1,2,3]);
-  win.tick();win.tick();win.tick();
+  for (let tick = 0; tick < 3; tick++) {
+    win.tick();
+    // Each real interval allows the previous async batch to settle.
+    await new Promise(resolve=>setImmediate(resolve));
+  }
   await new Promise(resolve=>setImmediate(resolve));
   assert.deepEqual(checked,[1,2,3,4,5,6,7,8,9,10,1,2]);
   doc.visibilityState='hidden';win.tick();

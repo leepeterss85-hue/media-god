@@ -41,6 +41,14 @@ const protectedFiles = {
   "android-mobile/app/src/main/java/com/mediagod/mobile/MainActivity.kt": "91c6bd430febb68b7631370aa5b34b28fd5613e4e16edb1305a9e72fa40f3f3d"
 };
 
+// Source-reviewed updates already on main; these are NOT new physical-device
+// acceptance claims. Preserve the original observed hashes above for recovery.
+// See docs/PLAYBACK_SOURCE_REVIEW_20261108.md. Exact hashes still reject drift.
+const sourceReviewedFiles = {
+  "src/components/mg/MediaStreamSourcesBox.jsx": "70a666f14ce3223ff11d7de510e9efb40eaf13c793abd07d4ad48558d1cd1ed7",
+  "src/components/mg/FireTvRemote.jsx": "46c4b7c4693d3d0da3e73db5829e3f1d359612a45f83cb15918cc22e0f0aa1cb",
+};
+
 test("the approved playback baseline is identifiable and recoverable", () => {
   assert.equal(verifiedPlaybackCommit.length, 40);
   assert.ok(Object.keys(protectedFiles).length >= 18);
@@ -51,8 +59,8 @@ test("the approved playback baseline is identifiable and recoverable", () => {
   assert.ok(documented.includes("stable/playback-known-good-20261024-firetv-1.4.116"));
 });
 
-for (const [file, expected] of Object.entries(protectedFiles)) {
-  test("locked working playback: " + file, () => {
+for (const [file, expected] of Object.entries({ ...protectedFiles, ...sourceReviewedFiles })) {
+  test((sourceReviewedFiles[file] ? "locked source-reviewed playback: " : "locked working playback: ") + file, () => {
     const actual = createHash("sha256")
       .update(readFileSync(new URL("../" + file, import.meta.url)))
       .digest("hex");

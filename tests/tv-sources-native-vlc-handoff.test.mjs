@@ -7,6 +7,8 @@ import {
   sourceIsConfirmedCachedForPlayback,
 } from "../src/components/mg/sourceCacheVisibility.js";
 
+import { classifyTvBoxSource } from "../src/components/mg/tvBoxSourceGate.js";
+
 const read = (file) => readFileSync(new URL("../" + file, import.meta.url), "utf8");
 const sourceBox = read("src/components/mg/MediaStreamSourcesBox.jsx");
 const provider = read("src/components/mg/MediaPlayerProvider.jsx");
@@ -20,6 +22,7 @@ function selectedEpisodeSource({
   hasDebrid = true,
   src = "magnet:?xt=urn:btih:0123456789012345678901234567890123456789",
   properties = {},
+  tvBox = false,
 } = {}) {
   const start = sourceBox.indexOf("  const playCombinedDebrid =");
   const end = sourceBox.indexOf("  const pasteMagnet =", start);
@@ -33,6 +36,7 @@ function selectedEpisodeSource({
     player: { play: async (payload) => { captured.push(payload); return true; } },
     setMessage: () => {}, setRdSearching: () => {},
     hasDebrid, rdSearching: false,
+    isFireTvRuntime: () => tvBox, classifyTvBoxSource,
     sourceHasPendingCacheSignal, sourceIsConfirmedCachedForPlayback,
     tmdbId: 1234, resolvedImdb: "tt123456", imdbId: "",
     title: "Example Show", poster: "poster", rdYear: 2026,
@@ -115,6 +119,22 @@ test("direct HTTP TV stream uses VLC route; provider webpages keep web players",
   assert.equal(webpage.captured[0].allowNonPlaybackFallback, true);
   for (const router of [phone, fire]) {
     assert.match(router, /!payload\.optBoolean\("live", false\)[\s\S]{0,430}?return Decision\(true, "default-libvlc-vod"\)/);
+  }
+});
+
+test("TV-box handler preserves direct media and rejects HTML before native handoff", async () => {
+  const direct = selectedEpisodeSource({ tvBox: true, type: "url", src: "https://example.test/episode.mp4" });
+  await direct.run();
+  assert.equal(direct.captured.length, 1);
+  assert.equal(direct.captured[0].manualSourceSelection, true);
+  assert.equal(direct.captured[0].startTime, 1800);
+  for (const source of [
+    { type: "provider", src: "https://example.test/watch" },
+    { type: "url", src: "https://example.test/player/episode" },
+  ]) {
+    const page = selectedEpisodeSource({ tvBox: true, ...source });
+    await page.run();
+    assert.equal(page.captured.length, 0, "HTML must never reach the native player");
   }
 });
 
