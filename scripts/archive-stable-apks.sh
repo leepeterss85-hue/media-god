@@ -53,6 +53,15 @@ archive_independent_previous() {
   mkdir -p "$dir"
   gh release download "$source_tag" --repo "$repo" --pattern "$asset" --dir "$dir"
   test -s "$dir/$asset"
+  # A successful download command alone does not prove the original APK is
+  # complete; compare its byte length with GitHub's published asset metadata.
+  local expected_bytes actual_bytes
+  expected_bytes="$(jq -r --arg asset "$asset" '.assets[] | select(.name == $asset) | .size' <<< "$data")"
+  actual_bytes="$(wc -c < "$dir/$asset" | tr -d '[:space:]')"
+  if [[ "$expected_bytes" != "$actual_bytes" ]]; then
+    echo "Previous $label APK download was incomplete; refusing replacement" >&2
+    return 1
+  fi
   (cd "$dir" && sha256sum "$asset" > SHA256SUMS.txt)
   cat > "$dir/NOTES.md" <<EOF
 Unmodified previously published Media God $label APK from $source_tag.
