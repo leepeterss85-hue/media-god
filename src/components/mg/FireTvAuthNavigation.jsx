@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { isAndroidCecConfirmKey } from "./tvCecRemoteCompatibility.js";
 import {
   isAndroidMobileRuntime,
   isFireTvRuntime,
@@ -55,7 +56,8 @@ const isSelectKey = (event) => {
     key === "Accept" ||
     code === 13 ||
     code === 23 ||
-    code === 66
+    code === 66 ||
+    isAndroidCecConfirmKey(event, { tvMode: isFireTv() })
   );
 };
 

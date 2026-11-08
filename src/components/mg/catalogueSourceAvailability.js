@@ -9,6 +9,10 @@ import { isVerificationChallengeStream } from './verificationChallengeGuard.js';
 
 export const SOURCE_CHECK_BATCH = 8;
 export const SOURCE_CHECK_CONCURRENCY = 2;
+// Optional catalogue availability must not grow unbounded on low-memory TV boxes.
+// Active player/source choices, watch history and account state are not cached here.
+export const MAX_SOURCE_STATUS_ENTRIES = 128;
+export const MAX_SOURCE_WAITING_CHECKS = 64;
 const POSITIVE_TTL_MS = 20 * 60 * 1000;
 const INCONCLUSIVE_TTL_MS = 2 * 60 * 1000;
 const VERIFIED_EMPTY_TTL_MS = 5 * 60 * 1000;
@@ -70,12 +74,30 @@ export function classifyCatalogueSourceResult(data) {
 }
 
 /** Keep both source checks bounded; cache status only, never returned URLs. */
-export function createCatalogueSourceChecker(invoke, { now = () => Date.now(), concurrency = SOURCE_CHECK_CONCURRENCY } = {}) {
+export function createCatalogueSourceChecker(invoke, {
+  now = () => Date.now(),
+  concurrency = SOURCE_CHECK_CONCURRENCY,
+  maxStatusEntries = MAX_SOURCE_STATUS_ENTRIES,
+  maxWaitingChecks = MAX_SOURCE_WAITING_CHECKS,
+} = {}) {
   const cache = new Map();
   const pending = new Map();
   const queue = [];
   const listeners = new Set();
   let active = 0;
+  const statusLimit = Math.max(1, Math.floor(Number(maxStatusEntries) || MAX_SOURCE_STATUS_ENTRIES));
+  const waitingLimit = Math.max(1, Math.floor(Number(maxWaitingChecks) || MAX_SOURCE_WAITING_CHECKS));
+  const recordStatus = (key, status) => {
+    // Evict the oldest *completed status only*. Never evict or cancel an
+    // active source check, and never save playable/signed source URLs.
+    cache.delete(key);
+    cache.set(key, {
+      status,
+      expires: now() + (status === 'found' ? POSITIVE_TTL_MS :
+        status === 'no-sources' ? VERIFIED_EMPTY_TTL_MS : INCONCLUSIVE_TTL_MS),
+    });
+    while (cache.size > statusLimit) cache.delete(cache.keys().next().value);
+  };
   // Browser SDK requests can remain pending when an Android TV WebView
   // suspends a connection. Release the checker queue after a deadline;
   // the detached request is never used to overwrite the eventual status.
@@ -123,11 +145,7 @@ export function createCatalogueSourceChecker(invoke, { now = () => Date.now(), c
         }
         return second;
       })().catch(() => 'unknown').then(status => {
-        cache.set(job.key, {
-          status,
-          expires: now() + (status === 'found' ? POSITIVE_TTL_MS :
-            status === 'no-sources' ? VERIFIED_EMPTY_TTL_MS : INCONCLUSIVE_TTL_MS),
-        });
+        recordStatus(job.key, status);
         job.resolve(status);
         for (const listener of listeners) {
           try { listener(job.key, status); } catch { /* UI listeners may unmount */ }
@@ -145,6 +163,10 @@ export function createCatalogueSourceChecker(invoke, { now = () => Date.now(), c
     const old = cache.get(key);
     if (old && old.expires > now()) return Promise.resolve(old.status);
     if (pending.has(key)) return pending.get(key);
+    // A catalogue with hundreds of cards must never fill a low-RAM Android
+    // WebView with queued requests. Drop only the optional *waiting* hint;
+    // it can be rechecked when the catalogue cycles back around.
+    if (queue.length >= waitingLimit) return Promise.resolve('unknown');
     const promise = new Promise(resolve => queue.push({ key, item, resolve }));
     pending.set(key, promise);
     pump();

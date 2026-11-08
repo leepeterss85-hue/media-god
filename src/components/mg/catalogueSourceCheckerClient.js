@@ -6,7 +6,13 @@ import { createCatalogueSourceChecker } from './catalogueSourceAvailability.js';
 import { isFireTvRuntime } from './runtimePlatform.js';
 
 export const catalogueSourceChecker = createCatalogueSourceChecker(
-  (name, payload) => base44.functions.invoke(name, payload)
+  (name, payload) => base44.functions.invoke(name, payload),
+  // A low-RAM Android TV WebView may have hundreds of poster cards mounted.
+  // These are optional *browse hints*, never active playback sources.
+  isFireTvRuntime() && Number(navigator?.deviceMemory || 0) > 0 &&
+    Number(navigator.deviceMemory) <= 2
+    ? { maxStatusEntries: 48, maxWaitingChecks: 24 }
+    : {}
 );
 
 export const showBrowseTitleWithSourceEvidence = item =>
