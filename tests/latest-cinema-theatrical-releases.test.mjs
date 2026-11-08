@@ -22,6 +22,7 @@ function buildCinemaQuery(source, opts = {}) {
     providerIds: opts.providerIds ?? [],
     country: opts.country ?? '',
     genre: opts.genre ?? '',
+    hasFilters: Boolean(opts.country || opts.genre || opts.year || opts.language || (opts.providerIds ?? []).length),
     year: opts.year ?? '',
     language: opts.language ?? '',
     body: { include_global_releases: opts.global ?? true },
