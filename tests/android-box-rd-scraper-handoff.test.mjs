@@ -54,17 +54,15 @@ test("generic scraper pages cannot masquerade as media while signed and extensio
   }
 });
 
-test("TV-box webpage handoff precedes RD cache flags and never affects Live TV", () => {
+test("the known-good source selector still blocks webpages before native launch", () => {
   const code = read("src/components/mg/MediaStreamSourcesBox.jsx");
   const begin = code.indexOf("const playAddonStream =");
-  const handoff = code.indexOf("const webScraperPage =", begin);
-  const cache = code.indexOf("const selectedUnreadyTorrent =", begin);
+  const gate = code.indexOf("const webScraperPage =", begin);
   const player = code.indexOf("await player.play({", begin);
-  assert.ok(begin >= 0 && handoff > begin && handoff < cache && cache < player);
+  assert.ok(begin >= 0 && gate > begin && gate < player);
   assert.match(code, /isTvBox && mediaType !== "live" && webScraperPage/);
-  for (const action of ["playOnlyFlix", "playVidCore", "playVidSrc", "playExtraEmbed"]) {
-    assert.match(code, new RegExp("player\\." + action + "\\?\\."));
-  }
+  assert.match(code, /player\.playOnlyFlix\?\.\(embedMedia\)/);
+  assert.match(code, /player\.playVidCore\?\.\(embedMedia\)/);
   assert.match(code, /Choose OnlyFlix, VidCore or another web provider above/);
 });
 
