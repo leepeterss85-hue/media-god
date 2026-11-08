@@ -8,6 +8,7 @@ import {
 } from "@/components/mg/streamingRegion";
 
 const providerCatalogCache = new Map();
+const serviceItemsCache = new Map();
 
 const unwrapMovies = (response) => {
   const first = response?.data ?? response ?? {};
@@ -125,6 +126,12 @@ const fetchItems = async ({ service, mediaType, region, rowLimit }) => {
   return dedupe(await request("tv")).slice(0, rowLimit);
 };
 
+const fetchItemsCached = (options) => {
+  const key = [options.region, options.mediaType, options.rowLimit, options.service.key].join(":");
+  if (!serviceItemsCache.has(key)) serviceItemsCache.set(key, fetchItems(options));
+  return serviceItemsCache.get(key);
+};
+
 export default function StreamingServiceRows({
   mediaType = "tv",
   region = "",
@@ -138,6 +145,10 @@ export default function StreamingServiceRows({
 }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalServices, setTotalServices] = useState(0);
+  const [visibleLimit, setVisibleLimit] = useState(
+    Number(maxServices || (mediaType === "mixed" ? 12 : 20))
+  );
   const activeRegion = String(region || detectStreamingRegion()).toUpperCase();
   const activeRegionName = streamingRegionName(activeRegion);
 
@@ -147,14 +158,14 @@ export default function StreamingServiceRows({
     const run = async () => {
       setRows([]);
       setLoading(true);
+      setTotalServices(0);
 
       const catalog = await getProviderCatalog(activeRegion);
       if (cancelled) return;
 
-      const services = resolveStreamingServices(catalog).slice(
-        0,
-        Number(maxServices || (mediaType === "mixed" ? 12 : 20))
-      );
+      const availableServices = resolveStreamingServices(catalog);
+      setTotalServices(availableServices.length);
+      const services = availableServices.slice(0, visibleLimit);
 
       const loaded = [];
       const batchSize = mediaType === "mixed" ? 3 : 4;
@@ -164,7 +175,7 @@ export default function StreamingServiceRows({
         const results = await Promise.all(
           batch.map(async (service) => ({
             service,
-            items: await fetchItems({
+            items: await fetchItemsCached({
               service,
               mediaType,
               region: activeRegion,
@@ -187,9 +198,9 @@ export default function StreamingServiceRows({
     return () => {
       cancelled = true;
     };
-  }, [mediaType, activeRegion, rowLimit, maxServices]);
+  }, [mediaType, activeRegion, rowLimit, visibleLimit]);
 
-  if (!loading && rows.length === 0) return null;
+  if (!loading && rows.length === 0 && totalServices <= visibleLimit) return null;
 
   return (
     <section data-mg-streaming-service-rows="true" className="flex flex-col gap-6 3xl:gap-8">
@@ -216,6 +227,19 @@ export default function StreamingServiceRows({
           onAction={onBrowseAll ? () => onBrowseAll(service) : undefined}
         />
       ))}
+
+      {!loading && totalServices > visibleLimit && (
+        <div className="px-3 min-[420px]:px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14">
+          <button
+            type="button"
+            onClick={() => setVisibleLimit((count) => Math.min(totalServices, count + 12))}
+            className="min-h-11 rounded-xl border border-mg-green/30 bg-mg-card px-5 py-3 text-sm font-semibold text-mg-green hover:border-mg-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green"
+            data-mg-focus-key="streaming:load-more"
+          >
+            Browse more streaming services
+          </button>
+        </div>
+      )}
 
       {loading && rows.length === 0 && (
         <div className="px-3 min-[420px]:px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14 text-sm text-white/40">
