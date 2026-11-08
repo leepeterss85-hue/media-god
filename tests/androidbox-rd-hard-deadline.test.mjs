@@ -110,3 +110,57 @@ test("one refreshed session still retries on 401 without bypassing authenticatio
   assert.deepEqual(headers, ["Bearer expired", "Bearer new-session"]);
   assert.equal(result.data.connected, true);
 });
+
+const deferred = () => {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+};
+const drain = () => new Promise(resolve => setImmediate(resolve));
+
+test("a late 401 after timeout never starts account refresh or body decoding", async () => {
+  const pending = deferred();
+  let refreshes = 0;
+  let bodies = 0;
+  const task = invoke("realDebrid", {}, {
+    token: "expired", timeoutMs: 15,
+    fetchImpl: () => pending.promise,
+    refreshToken: async () => { refreshes++; return "fresh"; },
+  });
+  await assert.rejects(task, error => error.code === "RD_REQUEST_TIMEOUT");
+  pending.resolve({ status: 401, ok: false, json: async () => { bodies++; return {}; } });
+  await drain();
+  assert.equal(refreshes, 0);
+  assert.equal(bodies, 0);
+});
+
+test("a late account refresh after timeout never submits another RD request", async () => {
+  const pending = deferred();
+  let calls = 0;
+  const task = invoke("realDebrid", { action: "status" }, {
+    token: "expired", timeoutMs: 15,
+    fetchImpl: async () => { calls++; return response(401); },
+    refreshToken: () => pending.promise,
+  });
+  await assert.rejects(task, error => error.code === "RD_REQUEST_TIMEOUT");
+  pending.resolve("fresh");
+  await drain();
+  assert.equal(calls, 1);
+  const retry = await invoke("realDebrid", {}, {
+    token: "fresh", timeoutMs: 100,
+    fetchImpl: async () => response(200, { connected: true }),
+  });
+  assert.equal(retry.data.connected, true, "A separate user retry still works");
+});
+
+test("a late successful response after timeout is not decoded", async () => {
+  const pending = deferred();
+  let bodies = 0;
+  const task = invoke("realDebrid", {}, {
+    token: "valid", timeoutMs: 15, fetchImpl: () => pending.promise,
+  });
+  await assert.rejects(task, error => error.code === "RD_REQUEST_TIMEOUT");
+  pending.resolve({ status: 200, ok: true, json: async () => { bodies++; return {}; } });
+  await drain();
+  assert.equal(bodies, 0);
+});
