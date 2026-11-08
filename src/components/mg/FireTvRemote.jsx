@@ -146,30 +146,28 @@ const visible = (element) => {
 };
 
 const topOverlay = () => {
-  const player = Array.from(
-    document.querySelectorAll(".fixed.inset-0")
-  )
-    .filter(
-      (element) =>
-        visible(element) &&
-        (
-          element.classList.contains("bg-black/95") ||
-          element.querySelector(
-            'button[aria-label="Back to main menu"]'
-          )
-        )
+  // A single DOM query avoids rescanning the whole poster catalogue twice
+  // for each D-pad press. Preserve the existing fullscreen-player priority.
+  const candidates = Array.from(
+    document.querySelectorAll(
+      '[role="dialog"], [aria-modal="true"], .fixed.inset-0'
     )
-    .pop();
+  );
+  let player = null;
+  for (const element of candidates) {
+    if (!element.matches(".fixed.inset-0")) continue;
+    if (!visible(element)) continue;
+    if (
+      element.classList.contains("bg-black/95") ||
+      element.querySelector('button[aria-label="Back to main menu"]')
+    ) player = element;
+  }
 
   if (player instanceof HTMLElement) {
     return player;
   }
 
-  const overlays = Array.from(
-    document.querySelectorAll(
-      '[role="dialog"], [aria-modal="true"], .fixed.inset-0'
-    )
-  ).filter(visible);
+  const overlays = candidates.filter(visible);
 
   if (!overlays.length) {
     return null;
@@ -208,16 +206,10 @@ const focusElement = (element) => {
     element.focus();
   }
 
-  try {
-    element.scrollIntoView({
-      block: "nearest",
-      inline: "nearest",
-      behavior: "auto",
-    });
-  } catch {
-    // Focus still succeeded.
-  }
-
+  // No unconditional scrollIntoView here: calling it on *every* remote
+  // press can force synchronous layout on a Fire Stick with many poster
+  // cards. The existing focusin listener only scrolls when the control is
+  // genuinely offscreen, preserving remote navigation without layout stalls.
   return true;
 };
 
@@ -309,9 +301,10 @@ const rowAwareTarget = (current, candidates, direction) => {
     return candidates[0] || null;
   }
 
-  const usable = candidates.filter(
-    (candidate) => candidate !== current && visible(candidate)
-  );
+  // All callers pass focusables(scope), already filtered by visible().
+  // Repeating the full ancestor-style and layout walk for every candidate
+  // doubles the work on long settings/catalogue pages.
+  const usable = candidates.filter((candidate) => candidate !== current);
 
   if (!usable.length) {
     return null;
@@ -939,9 +932,14 @@ export default function FireTvRemote() {
 
       const direction = directionFromEvent(event);
       const selectKey = isSelectKey(event);
-      const currentFocus = document.activeElement;
       const menuKey = keyName(event) === "ContextMenu" ||
         keyName(event) === "Menu" || keyCode(event) === 82;
+      const mediaAction = mediaActionFromEvent(event);
+      // Ignore unrelated keyboard/CEC events before expensive player,
+      // overlay and poster queries. The dedicated Back handler runs first;
+      // only actual navigation, Select, Menu or media keys need this path.
+      if (!direction && !selectKey && !menuKey && !mediaAction) return;
+      const currentFocus = document.activeElement;
       const consume = () => {
         event.preventDefault();
         event.stopPropagation();
@@ -1075,8 +1073,6 @@ export default function FireTvRemote() {
 
       // Back from the dedicated fullscreen button and Source chrome stays
       // accessible; otherwise the iframe cursor still owns playback keys.
-      const mediaAction = mediaActionFromEvent(event);
-
       if (!updateIsOpen &&
           tapOnlyFlixForRemote({ mediaAction, selectKey, direction, repeat: event.repeat })) {
         event.preventDefault();
