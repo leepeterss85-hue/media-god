@@ -136,22 +136,37 @@ export async function invokeIndependentImdbResolver(name, payload = {}, {
   if (/^tt\d+$/i.test(String(cached?.imdb_id || "")) && !cached.error) {
     return { data: cached };
   }
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const endpoint = INDEPENDENT_METADATA_API_URL.replace(
-      "/functions/getTmdbMovies", `/functions/${name}`);
-    const response = await fetchImpl(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-      credentials: "omit",
-      signal: controller.signal,
-    });
-    if (!response.ok) throw new Error(`Identity service returned ${response.status}`);
-    const data = await response.json();
-    if (!data || typeof data !== "object") throw new Error("Identity service response invalid");
-    if (/^tt\d+$/i.test(String(data.imdb_id || "")) && !data.error) {
+    // Android TV-box views often ask for the same title/episode identity
+    // simultaneously. Share only the pending credential-free IMDb request,
+    // not a stored source result or a user's Real-Debrid session.
+    // Keep each caller's own safe cache and stale-identity fallback.
+    const data = await sharePendingPublicLookup(
+      fetchImpl, "imdb:" + name, request, async () => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        try {
+          const endpoint = INDEPENDENT_METADATA_API_URL.replace(
+            "/functions/getTmdbMovies", `/functions/${name}`);
+          const response = await fetchImpl(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(request),
+            credentials: "omit",
+            signal: controller.signal,
+          });
+          if (!response.ok) throw new Error(`Identity service returned ${response.status}`);
+          const parsed = await response.json();
+          if (!parsed || typeof parsed !== "object") {
+            throw new Error("Identity service response invalid");
+          }
+          return parsed;
+        } finally {
+          clearTimeout(timeout);
+        }
+      },
+    );
+    if (/^tt\\d+$/i.test(String(data.imdb_id || "")) && !data.error) {
       saveCache(cacheRequest, data, storage);
     }
     return { data };
