@@ -72,6 +72,12 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
   const controller = new AbortController();
   const hardTimeoutMs = Math.max(1, Number(timeoutMs) || 120_000);
   let timer;
+  let timeoutError;
+  // Promise.race settles the caller but does not stop an ignored abort.
+  // Prevent late responses or token refreshes from starting more work.
+  const assertActive = () => {
+    if (timeoutError) throw timeoutError;
+  };
   // Some Android TV WebViews ignore AbortController, including while reading
   // JSON after a response has already arrived. Bound the *whole* RD operation
   // (including a refreshed-session retry) and never leave playback spinning.
@@ -79,6 +85,7 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
     timer = setTimeout(() => {
       const error = new Error("Real-Debrid request timed out. Try the source again.");
       error.code = "RD_REQUEST_TIMEOUT";
+      timeoutError = error;
       reject(error);
       controller.abort();
     }, hardTimeoutMs);
@@ -101,6 +108,7 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
       },
     );
     let response = await request();
+    assertActive();
     // Railway verifies every request with Base44 auth.me. A rejected session
     // can be retried safely ONLY when the SDK actually obtained a different
     // Media God session. A 403 (origin/permission denial) is never retried.
@@ -111,13 +119,16 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
       } catch {
         // Retain the original signed-in failure and reconnect guidance.
       }
+      assertActive();
       if (fresh && fresh !== session) {
         session = fresh;
         response = await request();
+        assertActive();
       }
     }
     let data = {};
     try { data = await response.json(); } catch {}
+    assertActive();
     if (!response.ok) {
       const message = typeof data?.error === "string"
         ? data.error
