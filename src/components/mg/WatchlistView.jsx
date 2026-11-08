@@ -4,6 +4,7 @@ import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import SavedLibraryResults from "@/components/mg/SavedLibraryResults";
 import { matchesLibraryQuery } from "@/components/mg/savedLibraryTools";
+import VoiceSearchButton from "@/components/mg/VoiceSearchButton";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -320,7 +321,12 @@ export default function WatchlistView() {
             type="search"
             aria-label="Search Watchlist"
             placeholder="Search Watchlist…"
-            className="min-h-11 w-full rounded-lg border border-white/10 bg-black/25 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mg-green/50"
+            className="min-h-11 w-full rounded-lg border border-white/10 bg-black/25 pl-9 pr-12 text-sm text-white outline-none placeholder:text-white/30 focus:border-mg-green/50"
+          />
+          <VoiceSearchButton
+            className="absolute right-1 top-1/2 -translate-y-1/2"
+            label="Search Watchlist by voice"
+            onResult={(spoken) => setQuery(spoken)}
           />
         </label>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import Hls from "hls.js";
+import Hls from "hls.js"; import LiveTvSearchField from "@/components/mg/LiveTvSearchField";
 import {
   Activity,
   AlertTriangle,
@@ -16,7 +16,6 @@ import {
   Play,
   Radio,
   RefreshCw,
-  Search,
   Square,
   Trophy,
   Tv,
@@ -3263,21 +3262,7 @@ export default function LiveTVView({
         data-mg-live-tv-controls="true"
         className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_200px_220px_auto_auto_auto]"
       >
-        <label data-mg-live-tv-search="true" className="relative block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-
-          <input
-            value={query}
-            onChange={(event) =>
-              setQuery(
-                event.target.value
-              )
-            }
-            placeholder="Search channel, country, source or category…"
-            aria-label="Search Live TV channels"
-            className="h-11 w-full rounded-lg border border-white/10 bg-mg-card pl-10 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mg-green focus:ring-2 focus:ring-mg-green/30"
-          />
-        </label>
+        <LiveTvSearchField value={query} onChange={setQuery} />
 
         <select
           value={group}
