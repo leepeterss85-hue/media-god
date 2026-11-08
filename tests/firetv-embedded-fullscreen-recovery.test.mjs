@@ -45,11 +45,11 @@ test("Fire TV update is newer but phone and platform assets remain separate", ()
   const fireManifest = JSON.parse(read("public/firetv-update.json"));
   const phoneManifest = JSON.parse(read("public/android-mobile-update.json"));
   assert.match(fire, /versionCode = 125/);
-  assert.match(fire, /versionName = "1\.4\.119"/);
-  assert.equal(fireManifest.versionCode, 124);
+  assert.match(fire, /versionName = "1\.4\.120"/);
+  assert.equal(fireManifest.versionCode, 125);
   assert.equal(fireManifest.versionName, "1.4.120");
-  assert.equal(phoneManifest.versionCode, 95);
+  assert.equal(phoneManifest.versionCode, 96);
   assert.equal(phoneManifest.versionName, "1.0.95");
   assert.match(phone, /versionCode = 96/);
-  assert.match(phone, /versionName = "1\.0\.94"/);
+  assert.match(phone, /versionName = "1\.0\.95"/);
 });
