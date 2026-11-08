@@ -10,8 +10,16 @@ export function createRollingSourceChecks(getItems, check, {
   let stopped = false;
   const pending = new Set();
   const limit = Math.max(1, Math.floor(Number(batchSize) || ROLLING_SOURCE_BATCH));
+  // Catalogue evidence checks are opportunistic, never a playback dependency.
+  // The native/web player stays mounted inside the same document on Android
+  // boxes, so visibilityState alone does not stop these background requests.
+  // Avoid competing with an active video for bandwidth/CPU and let the next
+  // normal foreground scan resume after the player closes.
+  const playerActive = () => Boolean(
+    documentObject.querySelector?.('[data-mg-player-root="true"]')
+  );
   const canScan = () => !stopped && documentObject.visibilityState !== 'hidden' &&
-    windowObject.navigator?.onLine !== false;
+    windowObject.navigator?.onLine !== false && !playerActive();
   const identity = item => {
     const id = item?.tmdb_id ?? item?.tmdbId ?? item?.id;
     // Browse rows may use media_type, mediaType or type depending on their
