@@ -8,7 +8,9 @@
  */
 const pendingByFetch = new WeakMap();
 
-export function sharePendingPublicLookup(fetchImpl, scope, payload, run) {
+export function sharePendingPublicLookup(fetchImpl, scope, payload, run, {
+  timeoutMs = 0,
+} = {}) {
   if (typeof fetchImpl !== "function" || typeof run !== "function") {
     throw new TypeError("A public lookup requires a network transport and callback");
   }
@@ -20,13 +22,31 @@ export function sharePendingPublicLookup(fetchImpl, scope, payload, run) {
   }
   if (pending.has(key)) return pending.get(key);
 
-  const task = Promise.resolve().then(run);
+  // Older Android WebViews can ignore AbortController, leaving an unresolved
+  // fetch trapped in the shared-pending map. A bounded public-only deadline
+  // forgets that stalled operation and lets the next source search retry.
+  // No account credentials or user-specific streams are stored here.
+  let timer;
+  const operation = Promise.resolve().then(run);
+  const deadline = Number(timeoutMs);
+  const task = Number.isFinite(deadline) && deadline > 0
+    ? Promise.race([
+        operation,
+        new Promise((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error("Public lookup timed out")),
+            Math.min(120_000, Math.max(1, deadline)),
+          );
+        }),
+      ])
+    : operation;
   pending.set(key, task);
   const release = () => {
+    clearTimeout(timer);
     if (pending.get(key) === task) pending.delete(key);
   };
-  // Attach both outcomes so a caller can observe a failure without an
-  // orphaned rejected promise or a permanently blocked retry.
+  // Both outcomes clear the slot; late network completions cannot replace
+  // a newer request or cause an unhandled rejected promise.
   void task.then(release, release);
   return task;
 }
