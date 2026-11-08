@@ -1,7 +1,7 @@
 {
   "channel": "android-mobile",
-  "versionCode": 95,
-  "versionName": "1.0.94",
+  "versionCode": 96,
+  "versionName": "1.0.95",
   "title": "Media God Mobile",
   "message": "Media God 1.0.94: fixed recognised voice-search transcription from the Android phone and better filtering of provider QR/human-verification results. Existing VLC playback, Live TV and in-app updates are unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
