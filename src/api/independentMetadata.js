@@ -90,6 +90,7 @@ export async function invokeIndependentMetadata(payload = {}, {
             signal: controller.signal,
             credentials: "omit",
           });
+          if (controller.signal.aborted) throw new Error("Public lookup timed out");
           if (!response.ok) throw new Error(`Independent metadata returned ${response.status}`);
           const parsed = await response.json();
           if (!parsed || typeof parsed !== "object" || parsed.error) {
@@ -156,6 +157,7 @@ export async function invokeIndependentImdbResolver(name, payload = {}, {
             credentials: "omit",
             signal: controller.signal,
           });
+          if (controller.signal.aborted) throw new Error("Public lookup timed out");
           if (!response.ok) throw new Error(`Identity service returned ${response.status}`);
           const parsed = await response.json();
           if (!parsed || typeof parsed !== "object") {
@@ -218,6 +220,7 @@ export async function invokeIndependentAddonSources(payload = {}, {
           signal: controller.signal,
         },
       );
+      if (controller.signal.aborted) throw new Error("Public lookup timed out");
       if (!response.ok) throw new Error(`Public source lookup HTTP ${response.status}`);
       const data = await response.json();
       if (!data || typeof data !== "object" || !Array.isArray(data.streams)) {
