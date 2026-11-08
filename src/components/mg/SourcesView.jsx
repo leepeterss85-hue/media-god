@@ -24,6 +24,7 @@ import {
   getFreeTvChannels,
   parseFreeTvPlaylist,
 } from "@/components/mg/freeTvPlaylist";
+import { PUBLIC_PLAYLIST_PRESETS, hasPlaylistUrl } from "@/components/mg/publicPlaylistPresets";
 import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import {
@@ -369,6 +370,8 @@ export default function SourcesView() {
     priority: 85,
   });
 
+  const [presetId, setPresetId] = useState(PUBLIC_PLAYLIST_PRESETS[0]?.id || "");
+
   const [serverForm, setServerForm] = useState({
     type: "jellyfin",
     name: "",
@@ -530,6 +533,26 @@ export default function SourcesView() {
     () => servers.filter((server) => server.active !== false),
     [servers]
   );
+
+  const selectedPreset = PUBLIC_PLAYLIST_PRESETS.find((preset) => preset.id === presetId);
+  const presetAlreadyPresent = selectedPreset
+    ? hasPlaylistUrl([...LIVE_TV_SOURCES, ...liveSources], selectedPreset.url)
+    : false;
+
+  const addPublicPlaylistPreset = () => {
+    if (!selectedPreset || presetAlreadyPresent) return;
+    addCustomLiveSource({
+      kind: "playlist",
+      name: selectedPreset.name,
+      url: selectedPreset.url,
+      category: selectedPreset.category,
+      priority: 65,
+    });
+    clearFreeTvCache();
+    syncRegistry();
+    setError("");
+    setMessage(`${selectedPreset.name} added. It will join your existing Live TV lists without replacing them.`);
+  };
 
   const addLive = async (event) => {
     event.preventDefault();
@@ -1115,6 +1138,40 @@ export default function SourcesView() {
               </button>
             </div>
           </form>
+
+          <div className="mt-4 rounded-xl border border-white/10 bg-black/15 p-3" data-mg-public-playlist-presets="true">
+            <h3 className="text-sm font-semibold text-white">Explore more country playlists</h3>
+            <p className="mt-1 text-xs leading-relaxed text-white/50">
+              Worldwide IPTV-org and Free-TV are already included. Add a country-specific public M3U only if you want it; no current channel or subscription is removed. Streams can be unavailable or region-restricted and must be used within their viewing rights.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <select
+                value={presetId}
+                onChange={(event) => setPresetId(event.target.value)}
+                aria-label="Choose public country playlist"
+                data-mg-focus-key="sources:playlist-presets"
+                className="min-h-11 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white"
+              >
+                {PUBLIC_PLAYLIST_PRESETS.map((preset) => (
+                  <option key={preset.id} value={preset.id}>{preset.country} · {preset.region}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={addPublicPlaylistPreset}
+                disabled={!selectedPreset || presetAlreadyPresent}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-mg-green/40 bg-mg-green/10 px-4 text-sm font-semibold text-mg-green disabled:cursor-default disabled:border-white/10 disabled:text-white/40"
+                data-mg-focus-key="sources:add-country-playlist"
+              >
+                <Plus className="h-4 w-4" />
+                {presetAlreadyPresent ? "Already included" : "Add country playlist"}
+              </button>
+            </div>
+            <a href="https://github.com/iptv-org/epg" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-8 items-center gap-1 text-xs text-white/55 underline decoration-white/25 hover:text-mg-green">
+              IPTV-org EPG guide tools <ExternalLink className="h-3 w-3" />
+            </a>
+            <p className="mt-1 text-[10px] text-white/35">The TV guide already has country XMLTV support. This link is for generating additional guide data; it does not automatically install an EPG feed.</p>
+          </div>
 
           <div className="mt-4 grid gap-2">
             {liveSources.length === 0 ? (
