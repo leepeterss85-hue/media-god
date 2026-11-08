@@ -70,8 +70,21 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
     throw error;
   }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const hardTimeoutMs = Math.max(1, Number(timeoutMs) || 120_000);
+  let timer;
+  // Some Android TV WebViews ignore AbortController, including while reading
+  // JSON after a response has already arrived. Bound the *whole* RD operation
+  // (including a refreshed-session retry) and never leave playback spinning.
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error("Real-Debrid request timed out. Try the source again.");
+      error.code = "RD_REQUEST_TIMEOUT";
+      reject(error);
+      controller.abort();
+    }, hardTimeoutMs);
+  });
   try {
+    const operation = (async () => {
     const body = JSON.stringify(independentRdPayload(payload));
     const request = () => fetchImpl(
       `${INDEPENDENT_RD_ENDPOINT}/functions/${name}`,
@@ -115,6 +128,8 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
       throw error;
     }
     return { data, status: response.status };
+    })();
+    return await Promise.race([operation, deadline]);
   } finally {
     clearTimeout(timer);
   }
