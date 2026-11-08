@@ -245,6 +245,7 @@ const PUBLIC_FEATURE_FIELDS = {
 };
 export async function invokeIndependentPublicFeature(name, payload = {}, {
   fetchImpl = globalThis.fetch,
+  timeoutMs = name === "getEntertainmentNews" ? 60_000 : 20_000,
 } = {}) {
   if (!Object.prototype.hasOwnProperty.call(PUBLIC_FEATURE_FIELDS, name)) {
     throw new Error("Unsupported public feature");
@@ -259,8 +260,25 @@ export async function invokeIndependentPublicFeature(name, payload = {}, {
     fields.filter(key => input[key] !== undefined).map(key => [key, input[key]]),
   );
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), name === "getEntertainmentNews" ? 60_000 : 20_000);
-  try {
+  const duration = Number(timeoutMs);
+  const hardTimeoutMs = Number.isFinite(duration) && duration > 0
+    ? duration : (name === "getEntertainmentNews" ? 60_000 : 20_000);
+  let timer;
+  let timeoutError;
+  const assertActive = () => {
+    if (timeoutError) throw timeoutError;
+  };
+  // Cancellation alone cannot settle fetch/JSON on some Android TV WebViews.
+  // Bound the whole request and stop late responses before body decoding.
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      timeoutError = new Error(`Independent ${name} request timed out. Please retry.`);
+      timeoutError.code = "PUBLIC_FEATURE_TIMEOUT";
+      reject(timeoutError);
+      controller.abort();
+    }, hardTimeoutMs);
+  });
+  const operation = (async () => {
     const endpoint = INDEPENDENT_METADATA_API_URL.replace(
       "/functions/getTmdbMovies",
       `/functions/${name}`,
@@ -273,16 +291,21 @@ export async function invokeIndependentPublicFeature(name, payload = {}, {
       credentials: "omit",
       cache: "no-store",
     });
+    assertActive();
     if (!response.ok) {
       throw new Error(`Independent ${name} returned ${response.status}`);
     }
     const data = await response.json();
+    assertActive();
     if (!data || typeof data !== "object" || data.error) {
       throw new Error(`Invalid ${name} response`);
     }
     // Never cache signed APK links or user-specific information.
     return { data };
+  })();
+  try {
+    return await Promise.race([operation, deadline]);
   } finally {
-    clearTimeout(timeout);
+    clearTimeout(timer);
   }
 }
