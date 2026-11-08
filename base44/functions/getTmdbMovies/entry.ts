@@ -1954,6 +1954,19 @@ export default async function(req) {
       new Date(Date.parse(requestedDate + 'T12:00:00Z') - 56 * 86400000)
         .toISOString().slice(0, 10);
 
+    // Provider availability is current metadata, NOT a timestamp recording
+    // the date a service first added a film. These feeds therefore use real
+    // digital release and series premiere dates, labelled accordingly.
+    const recentStreamingMovies =
+      mediaType === 'movie' && category === 'streaming_recent_movies' &&
+      !query && providerIds.length === 0;
+    const recentTvPremieres =
+      mediaType === 'tv' && category === 'tv_recent_premieres' &&
+      !query && providerIds.length === 0;
+    const recentReleaseSince =
+      new Date(Date.parse(requestedDate + 'T12:00:00Z') - 120 * 86400000)
+        .toISOString().slice(0, 10);
+
     const includeGlobalReleases =
       mediaType === 'movie' &&
       Boolean(body.include_global_releases) &&
@@ -2078,6 +2091,49 @@ export default async function(req) {
         }
 
         /*
+         * RECENT DIGITAL FILMS CURRENTLY LISTED ON STREAMING SERVICES
+         * Type 4 is the actual regional digital release date, not the day
+         * a particular provider added the title. Show this difference in UI.
+         * Watch availability is restricted to subscriptions/free/ads in region.
+         */
+        if (recentStreamingMovies) {
+          const params = new URLSearchParams({
+            api_key: apiKey, language: 'en-GB', region,
+            watch_region: region,
+            with_watch_monetization_types: 'flatrate|free|ads',
+            with_release_type: '4',
+            sort_by: 'release_date.desc',
+            include_adult: 'false', page: String(page),
+            'release_date.gte': recentReleaseSince,
+            'release_date.lte': requestedDate,
+          });
+          if (country) params.set('with_origin_country', String(country));
+          if (genre) params.set('with_genres', String(genre));
+          if (year) params.set('primary_release_year', String(year));
+          if (language) params.set('with_original_language', String(language));
+          return `${TMDB_BASE}/discover/movie?${params.toString()}`;
+        }
+
+        /*
+         * RECENT TV SERIES PREMIERES (NOT THE MOST RECENT EPISODE OR DATE
+         * A SUBSCRIPTION SERVICE FIRST OFFERED AN OLDER SHOW).
+         */
+        if (recentTvPremieres) {
+          const params = new URLSearchParams({
+            api_key: apiKey, language: 'en-GB',
+            sort_by: 'first_air_date.desc',
+            include_adult: 'false', page: String(page),
+            'first_air_date.gte': recentReleaseSince,
+            'first_air_date.lte': requestedDate,
+          });
+          if (country) params.set('with_origin_country', String(country));
+          if (genre) params.set('with_genres', String(genre));
+          if (year) params.set('first_air_date_year', String(year));
+          if (language) params.set('with_original_language', String(language));
+          return `${TMDB_BASE}/discover/tv?${params.toString()}`;
+        }
+
+        /*
          * DISCOVER FILTERS
          */
         if (
@@ -2091,8 +2147,13 @@ export default async function(req) {
               language:
                 'en-GB',
 
+              // A selected streaming service should browse newest
+              // film releases or series premieres first, not popularity.
+              // No provider onboarding timestamp is supplied by TMDB.
               sort_by:
-                'popularity.desc',
+                providerIds.length > 0
+                  ? (mediaType === 'tv' ? 'first_air_date.desc' : 'primary_release_date.desc')
+                  : 'popularity.desc',
 
               page:
                 String(
@@ -2152,6 +2213,9 @@ export default async function(req) {
           if (
             providerIds.length > 0
           ) {
+            // Do not put future premieres ahead of currently available
+            // shows. The provider filter itself still restricts availability.
+            params.set(mediaType === 'tv' ? 'first_air_date.lte' : 'primary_release_date.lte', requestedDate);
             params.set(
               'watch_region',
               region
@@ -2253,7 +2317,7 @@ export default async function(req) {
     const pages =
       providerIds.length > 0
         ? providerPageCount
-        : category === 'cinema_latest' || category === 'movie_released_today'
+        : ['cinema_latest', 'movie_released_today', 'streaming_recent_movies', 'tv_recent_premieres'].includes(category)
           ? 5
           : category === 'upcoming' || category === 'tv_upcoming'
             ? 5
@@ -2448,8 +2512,8 @@ export default async function(req) {
         })
       );
 
-    if (cinemaLatest) {
-      // Ranking by the region-specific theatrical date means a brand-new
+    if (cinemaLatest || recentStreamingMovies || recentTvPremieres) {
+      // Ranking by the reported release/premiere date keeps fresh titles
       // cinema release appears ahead of an older blockbuster. Popularity
       // breaks ties without concealing fresh smaller theatrical releases.
       mappedItems.sort((a, b) =>

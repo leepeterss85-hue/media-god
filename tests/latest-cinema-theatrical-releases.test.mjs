@@ -63,9 +63,9 @@ for (const path of backendPaths) {
     assert.equal(q.get('include_adult'),'false');
     assert.equal(q.get('page'),'1');
     assert.equal(q.get('api_key'),'TEST_ONLY');
-    assert.match(source,/if \(cinemaLatest\) \{\s*\/\/ Ranking by the region-specific theatrical date/);
+    assert.match(source,/if \(cinemaLatest \|\| recentStreamingMovies \|\| recentTvPremieres\) \{/);
     assert.match(source,/mappedItems\.sort\(\(a, b\) =>/);
-    assert.match(source,/category === 'cinema_latest' \|\| category === 'movie_released_today'/);
+    assert.match(source,/\['cinema_latest', 'movie_released_today', 'streaming_recent_movies', 'tv_recent_premieres'\]/);
   });
 
   test(path + ': genre, year, original language and country filters cannot escape the cinema window', () => {
@@ -104,11 +104,11 @@ test('Movies opens latest local cinema listings and keeps wider releases separat
   assert.match(ui,/include_global_releases: true/);
   assert.match(ui,/Cinema listings do not guarantee a playable streaming source/);
   assert.match(ui,/category === "cinema_latest" && !debouncedQuery\.trim\(\)/);
-  assert.match(ui,/category === "cinema_latest"\) return undefined/);
+  assert.match(ui,/\["cinema_latest", "streaming_recent_movies"\]\.includes\(category\)\) return undefined/);
   assert.match(ui,/cinemaRefresh/);
   assert.match(ui,/window\.addEventListener\("focus", checkFreshness\)/);
   assert.match(ui,/document\.addEventListener\("visibilitychange", checkFreshness\)/);
-  assert.match(ui,/Cinema: /);
+  assert.match(ui,/category === "cinema_latest" \? "Cinema" : "Digital"/);
   assert.match(ui,/<Info className=/);
   // No changes to playback, Live TV, remote or Continue Watching required.
   assert.match(ui,/<DetailModal/);

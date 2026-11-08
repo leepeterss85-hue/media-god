@@ -5,6 +5,7 @@ import { Image } from "@/components/ui/image";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import ReeznCardAction from "@/components/mg/ReeznCardAction";
 import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
+import { formatCatalogueDate } from "@/components/mg/catalogueDateOrder";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -16,6 +17,7 @@ export default function MediaCard({
   onWatchlist,
   watched,
   detailsOnly = false,
+  showReleaseDate = false,
 }) {
   const player = usePlayer();
 
@@ -156,7 +158,9 @@ export default function MediaCard({
       </p>
 
       <p className="text-[10px] sm:text-xs 3xl:text-sm text-white/40">
-        {item.year}
+        {showReleaseDate && formatCatalogueDate(item)
+          ? `${getMediaType(item) === "tv" ? "Premiered" : "Released"}: ${formatCatalogueDate(item)}`
+          : item.year}
       </p>
     </article>
   );

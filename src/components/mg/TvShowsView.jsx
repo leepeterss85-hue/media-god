@@ -1,7 +1,7 @@
 import CatalogueRetryNotice from "@/components/mg/CatalogueRetryNotice";
 import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Search, Play, Globe } from "lucide-react";
 import VoiceSearchButton from "@/components/mg/VoiceSearchButton";
 import { base44 } from "@/api/base44Client";
@@ -33,6 +33,7 @@ const PosterImage = /** @type {any} */ (Image);
 const FEATURED_SHOWS = [{ tmdb_id: "106159", title: "Debris" }];
 
 const CATEGORIES = [
+  { id: "tv_recent_premieres", label: "Latest TV Premieres" },
   { id: "tv_airing_today", label: "Airing Today" },
   { id: "tv_on_the_air", label: "On The Air" },
   { id: "tv_popular", label: "Popular" },
@@ -97,7 +98,9 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
   const [retry, setRetry] = useState(0);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState(() => getStreamingRegionOverride());
-  const [category, setCategory] = useState("tv_airing_today");
+  const [category, setCategory] = useState("tv_recent_premieres");
+  const [premiereRefresh, setPremiereRefresh] = useState(0);
+  const lastPremiereRefresh = useRef({ at: Date.now(), day: new Date().toISOString().slice(0, 10) });
   const [genre, setGenre] = useState("");
   const [year, setYear] = useState("");
   const [language, setLanguage] = useState("");
@@ -112,11 +115,35 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
     : [];
   const activeProviderIdsKey = activeProviderIds.join("|");
 
+  // Refresh new-premiere listings after a date change or six hours of use,
+  // without polling the streaming provider service continuously.
+  useEffect(() => {
+    if (category !== "tv_recent_premieres") return undefined;
+    const checkDate = () => {
+      if (document.visibilityState === "hidden") return;
+      const at = Date.now();
+      const day = new Date().toISOString().slice(0, 10);
+      if (day !== lastPremiereRefresh.current.day ||
+          at - lastPremiereRefresh.current.at >= 6 * 60 * 60 * 1000) {
+        lastPremiereRefresh.current = { at, day };
+        setPremiereRefresh((count) => count + 1);
+      }
+    };
+    const timer = window.setInterval(checkDate, 30 * 60 * 1000);
+    window.addEventListener("focus", checkDate);
+    document.addEventListener("visibilitychange", checkDate);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", checkDate);
+      document.removeEventListener("visibilitychange", checkDate);
+    };
+  }, [category]);
+
   const chooseProvider = (service) => {
     if (!service?.providerIds?.length) return;
     setActiveProvider(service);
     setQuery("");
-    setCategory("tv_popular");
+    setCategory("tv_recent_premieres");
     setGenre("");
     setYear("");
     setLanguage("");
@@ -134,7 +161,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
     if (initialProvider?.providerIds?.length) {
       setActiveProvider(initialProvider);
       setQuery("");
-      setCategory("tv_popular");
+      setCategory("tv_recent_premieres");
       setGenre("");
       setYear("");
       setLanguage("");
@@ -202,7 +229,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
     return () => {
       cancelled = true;
     };
-  }, [country, category, genre, year, language, debouncedQuery, activeProviderIdsKey, streamingRegion, streamingTimezone, retry]);
+  }, [country, category, genre, year, language, debouncedQuery, activeProviderIdsKey, streamingRegion, streamingTimezone, retry, premiereRefresh]);
 
   const featured = FEATURED_SHOWS.find((item) => item.title === "Debris");
 
@@ -268,7 +295,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
                 Browsing all TV on {activeProvider.label}
               </p>
               <p className="text-xs text-white/45 3xl:text-sm">
-                Subscription, free and ad-supported availability in {streamingRegionLabel}. Your normal genre, year and language filters still work.
+                Current streaming availability in {streamingRegionLabel}, sorted by each show's original premiere date, not the date this service added it. Your filters still work.
               </p>
             </div>
             <button
@@ -303,6 +330,12 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
             </button>
           ))}
         </div>
+
+        {category === "tv_recent_premieres" && !debouncedQuery.trim() && !activeProvider && (
+          <p className="text-xs sm:text-sm text-white/50" data-mg-recent-tv-premieres="true">
+            Series premiered in the last 120 days, newest first. These are first-air dates, not dates when a streaming service added a show. For individual episode dates, use Airing Today.
+          </p>
+        )}
 
         <div
           data-mg-tv-filter-row="true"
@@ -467,7 +500,10 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
                 {show.title}
               </p>
               <p className="text-[10px] sm:text-xs 3xl:text-sm text-white/40">
-                {show.year}
+                {(category === "tv_recent_premieres" || activeProvider) &&
+                 /^\d{4}-\d{2}-\d{2}$/.test(String(show.release_date || show.first_air_date || ""))
+                  ? `Premiered: ${String(show.release_date || show.first_air_date).slice(8, 10)}/${String(show.release_date || show.first_air_date).slice(5, 7)}/${String(show.release_date || show.first_air_date).slice(0, 4)}`
+                  : show.year}
               </p>
 
               <div data-mg-tv-show-genres="true">

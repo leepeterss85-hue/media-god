@@ -31,6 +31,7 @@ const PosterImage = /** @type {any} */ (Image);
 
 const CATEGORIES = [
   { id: "cinema_latest", label: "Latest in Cinemas" },
+  { id: "streaming_recent_movies", label: "Recent Digital / Streaming" },
   { id: "now_playing", label: "Wider Releases" },
   { id: "popular", label: "Popular" },
   { id: "top_rated", label: "Top Rated" },
@@ -68,7 +69,7 @@ export default function MoviesView() {
   // backgrounded Fire Stick/mobile browser returns after several hours.
   // No high-frequency TMDB polling or new requests during playback.
   useEffect(() => {
-    if (category !== "cinema_latest") return undefined;
+    if (!["cinema_latest", "streaming_recent_movies"].includes(category)) return undefined;
     const checkFreshness = () => {
       if (document.visibilityState === "hidden") return;
       const day = new Date().toISOString().slice(0, 10);
@@ -99,7 +100,7 @@ export default function MoviesView() {
   useEffect(() => {
     // Cinema listings are release metadata, not a promise of an available
     // stream. Do not spend bandwidth checking every newly released title.
-    if (loading || !movies.length || category === "cinema_latest") return undefined;
+    if (loading || !movies.length || ["cinema_latest", "streaming_recent_movies"].includes(category)) return undefined;
     return createRollingSourceChecks(
       () => movies,
       (movie) => catalogueSourceChecker.check({ ...movie, media_type: 'movie' })
@@ -109,7 +110,7 @@ export default function MoviesView() {
   const displayedMovies = useMemo(() => movies.filter((movie) =>
     // New cinema releases must remain visible even when no digital stream
     // exists yet. A cinema listing is not a playback-availability claim.
-    (category === "cinema_latest" && !debouncedQuery.trim()) ||
+    (["cinema_latest", "streaming_recent_movies"].includes(category) && !debouncedQuery.trim()) ||
     showBrowseTitleWithSourceEvidence({ ...movie, media_type: 'movie' })
   ), [movies, sourceAvailabilityEpoch, category, debouncedQuery]);
 
@@ -200,6 +201,12 @@ export default function MoviesView() {
           <p className="text-xs sm:text-sm text-white/50" data-mg-cinema-region="true">
             Newest theatrical releases in {streamingRegionName(streamingRegion)} (last eight weeks).
             Cinema listings do not guarantee a playable streaming source.
+          </p>
+        )}
+        {category === "streaming_recent_movies" && !debouncedQuery.trim() && (
+          <p className="text-xs sm:text-sm text-white/50" data-mg-digital-release-region="true">
+            Recent digital film releases listed on streaming services in {streamingRegionName(streamingRegion)} (last 120 days).
+            These are digital release dates, not necessarily the day Netflix, Prime or another service added the film.
           </p>
         )}
 
@@ -321,7 +328,7 @@ export default function MoviesView() {
                   aria-label={`Open ${movie.title}`}
                 >
                   <span className="w-11 h-11 sm:w-12 sm:h-12 3xl:w-14 3xl:h-14 4xl:w-16 4xl:h-16 rounded-full bg-mg-green text-black flex items-center justify-center">
-                    {category === "cinema_latest" && !debouncedQuery.trim()
+                    {["cinema_latest", "streaming_recent_movies"].includes(category) && !debouncedQuery.trim()
                       ? <Info className="w-5 h-5 sm:w-6 sm:h-6 3xl:w-7 3xl:h-7 4xl:w-8 4xl:h-8" />
                       : <Play className="w-5 h-5 sm:w-6 sm:h-6 3xl:w-7 3xl:h-7 4xl:w-8 4xl:h-8 fill-black" />}
 
@@ -347,8 +354,9 @@ export default function MoviesView() {
                 {movie.title}
               </p>
               <p className="text-[10px] sm:text-xs 3xl:text-sm text-white/40">
-                {category === "cinema_latest" && !debouncedQuery.trim() && /^\d{4}-\d{2}-\d{2}$/.test(String(movie.release_date || ""))
-                  ? `Cinema: ${movie.release_date.slice(8, 10)}/${movie.release_date.slice(5, 7)}/${movie.release_date.slice(0, 4)}`
+                {["cinema_latest", "streaming_recent_movies"].includes(category) &&
+                 !debouncedQuery.trim() && /^\d{4}-\d{2}-\d{2}$/.test(String(movie.release_date || ""))
+                  ? `${category === "cinema_latest" ? "Cinema" : "Digital"}: ${movie.release_date.slice(8, 10)}/${movie.release_date.slice(5, 7)}/${movie.release_date.slice(0, 4)}`
                   : movie.year}
               </p>
 
