@@ -48,24 +48,45 @@ const unwrapLinks = payload => {
     .find(Array.isArray) || [];
 };
 
-const withTimeout = async (url, timeoutMs = 3200) => {
+// Some Android-box WebViews ignore AbortController and can even leave the
+// response body / JSON reader pending after headers arrive. Bound the *entire*
+// provider operation, not just fetch(), so Promise.any and the per-episode
+// in-flight map can always settle and a later search can retry.
+export const fetchEpisodeScraperJson = async (url, {
+  timeoutMs = 3200,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let timeout;
   try {
-    const response = await fetch(url, {
-      method: "GET", headers: { Accept: "application/json" }, signal: controller.signal,
+    const request = Promise.resolve().then(async () => {
+      const response = await fetchImpl(url, {
+        method: "GET", headers: { Accept: "application/json" },
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        return response.status === 404 ? { __missingRoute: true } : null;
+      }
+      return response.json();
     });
-    if (!response.ok) {
-      if (response.status === 404) return { __missingRoute: true };
-      return null;
-    }
-    return await response.json();
+    return await Promise.race([
+      request,
+      new Promise(resolve => {
+        timeout = setTimeout(() => {
+          controller.abort();
+          resolve(null);
+        }, Math.max(1, Number(timeoutMs) || 3200));
+      }),
+    ]);
   } catch {
     return null;
   } finally {
     clearTimeout(timeout);
   }
 };
+
+const withTimeout = (url, timeoutMs = 3200) =>
+  fetchEpisodeScraperJson(url, { timeoutMs });
 
 const v2Providers = async base => {
   const cached = providerCache.get(base);

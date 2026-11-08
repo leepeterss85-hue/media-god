@@ -15,8 +15,19 @@ export const createFireTvRepeatLimiter = (minimumSpacingMs = 72) => {
   let lastAllowedAt = -Infinity;
 
   return (event, now) => {
-    const key = String(event?.key || event?.code || "");
-    if (!/^Arrow(?:Up|Down|Left|Right)$/.test(key)) return false;
+    // Generic Android TV WebViews sometimes expose the native DPAD keyCode
+    // (19-22) or browser keyCode (37-40) with key="Unidentified".
+    // Normalise only those four arrows; never throttle OK, Back, Menu, or
+    // media keys, and keep the first press unthrottled.
+    const keyName = String(event?.key || event?.code || "");
+    const nativeCode = Number(event?.keyCode || event?.which || 0);
+    const codeDirection = {
+      19: "ArrowUp", 20: "ArrowDown", 21: "ArrowLeft", 22: "ArrowRight",
+      38: "ArrowUp", 40: "ArrowDown", 37: "ArrowLeft", 39: "ArrowRight",
+    }[nativeCode] || "";
+    const key = /^Arrow(?:Up|Down|Left|Right)$/.test(keyName)
+      ? keyName : codeDirection;
+    if (!key) return false;
     if (!event.repeat) {
       lastDirection = key;
       lastAllowedAt = now;
