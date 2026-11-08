@@ -1,5 +1,6 @@
 import { getAccessToken } from "@base44/sdk";
 import { appParams } from "@/lib/app-params";
+import { resolveAccountToken } from "./accountSessionToken.js";
 
 /**
  * Real-Debrid requests are resolved on Railway using the authenticated Media
@@ -25,19 +26,15 @@ const PRIVATE_FIELDS = new Set([
   "user_id", "guest_device_key", "authorization", "access_token",
 ]);
 
-export async function readAccountSessionToken({ getToken = getAccessToken } = {}) {
-  let token = "";
-  try {
-    const received = await getToken();
-    if (typeof received === "string") token = received.trim();
-  } catch {
-    // Storage-disabled or cookie-only sessions fall back to the old guest /
-    // Base44 route rather than constructing a forged account session.
-  }
-  if (!token && typeof appParams.token === "string") {
-    token = appParams.token.trim();
-  }
-  return token || "";
+export async function readAccountSessionToken({
+  getToken = getAccessToken,
+  timeoutMs = 1_800,
+} = {}) {
+  return resolveAccountToken({
+    getToken,
+    fallbackToken: typeof appParams.token === "string" ? appParams.token : "",
+    timeoutMs,
+  });
 }
 
 export function independentRdPayload(payload = {}) {
