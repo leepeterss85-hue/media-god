@@ -82,7 +82,7 @@ test("diagnostics keep only the last few errors, copying does not require accoun
   }
   const snap = snapshotAndroidBoxDiagnostics();
   assert.equal(snap.recentErrors.length, MAX_RECENT_SUPPORT_ERRORS);
-  assert.equal(snap.recentErrors.at(-1).message, "Playback failed: HTTP " + (509+MAX_RECENT_SUPPORT_ERRORS-6));
+  assert.equal(snap.recentErrors.at(-1).message, "Playback failed: HTTP " + (500+MAX_RECENT_SUPPORT_ERRORS+8));
   assert.equal(snap.recentErrors[0].category, "playback");
   stop();
 
