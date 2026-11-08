@@ -100,6 +100,7 @@ export async function invokeIndependentMetadata(payload = {}, {
           clearTimeout(timeout);
         }
       },
+      { timeoutMs: timeoutMs + 1_000 },
     );
     saveCache(request, data, storage);
     return { data };
@@ -165,6 +166,7 @@ export async function invokeIndependentImdbResolver(name, payload = {}, {
           clearTimeout(timeout);
         }
       },
+      { timeoutMs: 16_000 },
     );
     if (/^tt\d+$/i.test(String(data.imdb_id || "")) && !data.error) {
       saveCache(cacheRequest, data, storage);
@@ -225,7 +227,7 @@ export async function invokeIndependentAddonSources(payload = {}, {
     } finally {
       clearTimeout(timeout);
     }
-  });
+  }, { timeoutMs: 16_000 });
 }
 
 /**
