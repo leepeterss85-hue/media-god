@@ -1,5 +1,6 @@
 import { episodeAudioRank, hasUnusableEpisodeAudio } from "./episodeAudio.js";
 import { isVerificationChallengeStream } from "./verificationChallengeGuard.js";
+import { classifyTvBoxSource } from "./tvBoxSourceGate.js";
 
 const API_BASE = "https://flixquest-api.vercel.app";
 const PROVIDERS = ["showbox", "vidsrc", "vidsrcto"];
@@ -118,6 +119,10 @@ const validEpisodeLink = (item, payload, id, seasonNumber, episodeNumber) => {
       /\.(?:jpg|jpeg|png|webp|vtt|srt|mp3|aac|m4a|html?)(?:$|[?#])/i.test(url) ||
       /^(?:external|iframe|embed|provider)$/i.test(text(item.type)) ||
       hasUnusableEpisodeAudio(item)) return false;
+  // Some scraper APIs incorrectly label an embedded HTML player as a direct
+  // file. Reject it *before* the fastest-provider race chooses its winner.
+  // The same TV-box gate still permits signed extensionless CDN downloads.
+  if (classifyTvBoxSource({ url, type: item.type }).kind !== "media") return false;
   const returnedTmdbId = Number(item.tmdbId ?? item.tmdb_id ?? payload.tmdbId ?? payload.tmdb_id);
   const returnedSeason = Number(item.season ?? item.season_number ?? payload.season ?? payload.season_number);
   const returnedEpisode = Number(item.episode ?? item.episode_number ?? payload.episode ?? payload.episode_number);
