@@ -166,7 +166,7 @@ export async function invokeIndependentImdbResolver(name, payload = {}, {
         }
       },
     );
-    if (/^tt\\d+$/i.test(String(data.imdb_id || "")) && !data.error) {
+    if (/^tt\d+$/i.test(String(data.imdb_id || "")) && !data.error) {
       saveCache(cacheRequest, data, storage);
     }
     return { data };
@@ -176,8 +176,6 @@ export async function invokeIndependentImdbResolver(name, payload = {}, {
       return { data: cached, stale: true };
     }
     throw new Error("Identity lookup temporarily unavailable", { cause: error });
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
