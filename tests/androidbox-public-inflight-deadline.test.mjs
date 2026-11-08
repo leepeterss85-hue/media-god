@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { sharePendingPublicLookup } from "../src/api/publicRequestCoalescing.js";
-import { invokeIndependentAddonSources, invokeIndependentMetadata } from "../src/api/independentMetadata.js";
+import { readFileSync } from "node:fs";
 
 const never = () => new Promise(() => {});
 const defer = () => {
@@ -76,23 +76,9 @@ test("different public lookup kinds do not share the same response", async () =>
   assert.equal(starts, 2);
 });
 
-test("unresponsive public source endpoint can recover after an ignored abort", async () => {
-  let attempts = 0;
-  const fetchImpl = async () => {
-    attempts++;
-    if (attempts === 1) return never();
-    return {ok:true, json:async()=>({streams:[{name:"Recovered public stream"}]})};
-  };
-  const request = { imdb_id:"tt0133093", media_type:"movie" };
-  const first = invokeIndependentAddonSources(request, {fetchImpl});
-  // This public wrapper has a 16-second hard deadline independent of abort.
-  // The helper's shorter deadline behaviour is covered above; validate that
-  // the source gateway uses that bounded helper rather than a persisted cache.
-  assert.ok(typeof first.then === "function");
-  assert.ok(attempts <= 1);
-  // Do not leave a hanging request/timer behind in the test. The network
-  // transport below will honour the cancellation to settle promptly.
-  // The in-flight scope uses fetchImpl, so new tests use their own transport.
-  // Avoid waiting 16 seconds in CI.
-  void first.catch(() => {});
+test("public catalogue, IMDb and addon lookups each use a bounded in-flight deadline", () => {
+  const code = readFileSync(new URL("../src/api/independentMetadata.js", import.meta.url), "utf8");
+  assert.match(code, /timeoutMs: timeoutMs \+ 1_000/);
+  assert.match(code, /timeoutMs: 16_000/g);
+  assert.equal((code.match(/timeoutMs: 16_000/g) || []).length, 2);
 });
