@@ -42,6 +42,7 @@ import {
 } from "@/components/mg/uxPreferences";
 
 const WatchlistView = lazy(() => import("@/components/mg/WatchlistView"));
+const CatchUpView = lazy(() => import("@/components/mg/CatchUpView"));
 const RdLibraryView = lazy(() => import("@/components/mg/RdLibraryView"));
 const DebridDashboard = lazy(() => import("@/components/mg/DebridDashboard"));
 const AddonsView = lazy(() => import("@/components/mg/AddonsView"));
@@ -1209,6 +1210,12 @@ function MediaGodApp() {
                 liveSearchRequest.key
               }
             />
+          )}
+
+          {view === "catchup" && (
+            <SafeDeferredView resetKey={view} label="Catch-up" onHome={() => setView("home")}>
+              <CatchUpView />
+            </SafeDeferredView>
           )}
 
           {view ===
