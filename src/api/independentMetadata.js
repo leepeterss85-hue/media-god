@@ -3,6 +3,8 @@
  * No Real-Debrid token, Base44 access token, or private user data is ever
  * forwarded to this endpoint. Other Base44 SDK operations remain unchanged.
  */
+import { sharePendingPublicLookup } from "./publicRequestCoalescing.js";
+
 export const INDEPENDENT_METADATA_API_URL =
   "https://media-god-metadata-api-production.up.railway.app/functions/getTmdbMovies";
 
@@ -72,29 +74,39 @@ export async function invokeIndependentMetadata(payload = {}, {
   if (!fetchImpl) throw new Error("Catalogue network unavailable");
   const request = payload && typeof payload === "object" && !Array.isArray(payload)
     ? payload : {};
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetchImpl(INDEPENDENT_METADATA_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-      signal: controller.signal,
-      credentials: "omit",
-    });
-    if (!response.ok) throw new Error(`Independent metadata returned ${response.status}`);
-    const data = await response.json();
-    if (!data || typeof data !== "object" || data.error) {
-      throw new Error("Independent metadata response invalid");
-    }
+    // The home grid can request the same catalogue segment from several
+    // components at once. On TV-box WebViews, share just the pending network
+    // operation; preserve each caller's normal public storage fallback.
+    const data = await sharePendingPublicLookup(
+      fetchImpl, "catalogue:" + timeoutMs, request, async () => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const response = await fetchImpl(INDEPENDENT_METADATA_API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(request),
+            signal: controller.signal,
+            credentials: "omit",
+          });
+          if (!response.ok) throw new Error(`Independent metadata returned ${response.status}`);
+          const parsed = await response.json();
+          if (!parsed || typeof parsed !== "object" || parsed.error) {
+            throw new Error("Independent metadata response invalid");
+          }
+          return parsed;
+        } finally {
+          clearTimeout(timeout);
+        }
+      },
+    );
     saveCache(request, data, storage);
     return { data };
   } catch (error) {
     const saved = readCache(request, storage);
     if (saved) return { data: saved, stale: true };
     throw new Error("Catalogue temporarily unavailable; please retry", { cause: error });
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -173,29 +185,34 @@ export async function invokeIndependentAddonSources(payload = {}, {
   const request = Object.fromEntries(
     allowed.filter(key => input[key] !== undefined).map(key => [key, input[key]]),
   );
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
-  try {
-    const response = await fetchImpl(
-      INDEPENDENT_METADATA_API_URL.replace(
-        "/functions/getTmdbMovies", "/functions/fetchAddonStreams"),
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request),
-        credentials: "omit",
-        signal: controller.signal,
-      },
-    );
-    if (!response.ok) throw new Error(`Public source lookup HTTP ${response.status}`);
-    const data = await response.json();
-    if (!data || typeof data !== "object" || !Array.isArray(data.streams)) {
-      throw new Error("Public source lookup returned invalid data");
+  // Only the explicitly whitelisted public source query is coalesced.
+  // Do not persist resolver outputs: signed video URLs may expire and must
+  // never be shared with private Real-Debrid account discovery.
+  return sharePendingPublicLookup(fetchImpl, "public-addon", request, async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetchImpl(
+        INDEPENDENT_METADATA_API_URL.replace(
+          "/functions/getTmdbMovies", "/functions/fetchAddonStreams"),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(request),
+          credentials: "omit",
+          signal: controller.signal,
+        },
+      );
+      if (!response.ok) throw new Error(`Public source lookup HTTP ${response.status}`);
+      const data = await response.json();
+      if (!data || typeof data !== "object" || !Array.isArray(data.streams)) {
+        throw new Error("Public source lookup returned invalid data");
+      }
+      return { data };
+    } finally {
+      clearTimeout(timeout);
     }
-    return { data };
-  } finally {
-    clearTimeout(timeout);
-  }
+  });
 }
 
 /**
