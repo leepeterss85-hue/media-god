@@ -2131,7 +2131,7 @@ export default function DetailModal({
               <p className="text-white/40 text-xs 3xl:text-base">
                 No provider information is available for this title in your region.
               </p>
-            )}
+            ) : null}
             {!loading && officialLinks.length > 0 && (
               <section className="mt-5 border-t border-white/10 pt-4" data-mg-official-watch-links="true">
                 <h4 className="text-sm font-semibold text-white">Open in a streaming service</h4>
