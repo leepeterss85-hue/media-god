@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import MediaRow from "@/components/mg/MediaRow";
+import { sortCatalogueNewestFirst } from "@/components/mg/catalogueDateOrder";
 import { resolveStreamingServices } from "@/components/mg/streamingServices";
 import {
   detectStreamingRegion,
@@ -9,6 +10,7 @@ import {
 
 const providerCatalogCache = new Map();
 const serviceItemsCache = new Map();
+const SERVICE_ITEMS_REFRESH_MS = 4 * 60 * 60 * 1000;
 
 const unwrapMovies = (response) => {
   const first = response?.data ?? response ?? {};
@@ -75,15 +77,8 @@ const dedupe = (items) => {
   });
 };
 
-const interleave = (left, right, limit) => {
-  const out = [];
-  const max = Math.max(left.length, right.length);
-  for (let index = 0; index < max && out.length < limit; index += 1) {
-    if (left[index]) out.push(left[index]);
-    if (right[index] && out.length < limit) out.push(right[index]);
-  }
-  return dedupe(out).slice(0, limit);
-};
+const mergeNewest = (left, right, limit) =>
+  sortCatalogueNewestFirst(dedupe([...left, ...right])).slice(0, limit);
 
 const getProviderCatalog = async (region) => {
   const key = String(region || detectStreamingRegion()).toUpperCase();
@@ -120,16 +115,24 @@ const fetchItems = async ({ service, mediaType, region, rowLimit }) => {
 
   if (mediaType === "mixed") {
     const [tv, movies] = await Promise.all([request("tv"), request("movie")]);
-    return interleave(tv, movies, rowLimit);
+    return mergeNewest(tv, movies, rowLimit);
   }
 
-  return dedupe(await request("tv")).slice(0, rowLimit);
+  return sortCatalogueNewestFirst(dedupe(await request("tv"))).slice(0, rowLimit);
 };
 
 const fetchItemsCached = (options) => {
   const key = [options.region, options.mediaType, options.rowLimit, options.service.key].join(":");
-  if (!serviceItemsCache.has(key)) serviceItemsCache.set(key, fetchItems(options));
-  return serviceItemsCache.get(key);
+  const cached = serviceItemsCache.get(key);
+  const now = Date.now();
+  if (cached && now < cached.expiresAt) return cached.promise;
+  // An unchanged session must not keep showing last month's provider rows.
+  // This remains a small on-demand cache; no background provider polling.
+  const promise = fetchItems(options);
+  serviceItemsCache.delete(key);
+  serviceItemsCache.set(key, { promise, expiresAt: now + SERVICE_ITEMS_REFRESH_MS });
+  while (serviceItemsCache.size > 120) serviceItemsCache.delete(serviceItemsCache.keys().next().value);
+  return promise;
 };
 
 export default function StreamingServiceRows({
@@ -209,7 +212,7 @@ export default function StreamingServiceRows({
           {heading}
         </h2>
         <p className="mt-1 text-xs text-white/45 sm:text-sm 3xl:text-base">
-          Browse what is officially available from each service in {activeRegionName}. Playback still uses Media God&apos;s normal source system.
+          Browse what is listed on each service in {activeRegionName}, newest film releases and TV premieres first. Dates are not the day a service added the title. Playback still uses Media God&apos;s normal source system.
         </p>
       </div>
 
