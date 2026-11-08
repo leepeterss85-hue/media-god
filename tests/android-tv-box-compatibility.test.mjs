@@ -55,7 +55,9 @@ test("generic Android box remote detection never forces the phone APK into TV mo
   ms += 100;
   assert.equal(detect({key:"ArrowLeft",keyCode:37}, {...other,editable:false}),false,"First arrow after typing must not switch modes");
   assert.equal(detect({key:"Enter",keyCode:13},other),false);
-  assert.equal(detect({key:"ArrowUp",keyCode:38}, {...other,editable:false}),true,"A generic box can still activate after remote navigation");
+  assert.equal(detect({key:"ArrowUp",keyCode:38}, {...other,editable:false}),false,"A non-arrow key must break the remote detection sequence");
+  ms += 100;
+  assert.equal(detect({key:"ArrowDown",keyCode:40},other),true,"Two consecutive remote arrows still activate generic TV mode");
 });
 
 test("TV focus-memory shares device runtime and activates after late remote detection", () => {
