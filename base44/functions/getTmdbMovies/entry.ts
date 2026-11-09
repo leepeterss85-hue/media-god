@@ -2458,6 +2458,16 @@ export default async function(req) {
         )
       );
 
+    // Local digital query is backed by the selected country's actual streaming
+    // provider catalogue. Worldwide overlay results are discovery only.
+    const localDigitalIds = new Set();
+    if (recentStreamingMovies) {
+      for (const data of pageResults) {
+        for (const item of data?.results || []) {
+          if (item?.id) localDigitalIds.add(String(item.id));
+        }
+      }
+    }
     const globalReleasedDates = new Map();
 
     if (includeGlobalReleases) {
@@ -2650,6 +2660,11 @@ export default async function(req) {
           release_date: firstDate,
           year: firstDate ? firstDate.slice(0, 4) : mapped.year,
           first_worldwide_release_date: globalDate || '',
+          release_context: cinemaLatest ? 'cinema' :
+            recentStreamingMovies ? 'digital' :
+            recentTvPremieres ? 'tv' : '',
+          local_streaming_listed: recentStreamingMovies &&
+            localDigitalIds.has(String(m?.id || '')),
           global_release_available: Boolean(globalDate),
           global_release_date: globalDate,
         };
