@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { getCatalogueMovies } from "@/components/mg/catalogueRequests";
 import { CalendarDays } from "lucide-react";
 import MediaRow from "@/components/mg/MediaRow";
 import NewEpisodesRow from "@/components/mg/NewEpisodesRow";
@@ -10,9 +11,6 @@ import { newThisWeekItems } from "@/components/mg/releaseDiscovery";
  * Playback stays in the existing card/details and episode pathways.
  */
 export default function NewThisWeek({
-  cinema = [],
-  digital = [],
-  tv = [],
   todayKey,
   historyRows = [],
   watchlistRows = [],
@@ -21,9 +19,30 @@ export default function NewThisWeek({
   onWatchlist,
   watched = {},
 }) {
+  // Fetch weekly discovery independently so a slow TMDB response never
+  // delays Home, its hero or Continue Watching.
+  const [weekly, setWeekly] = useState({ cinema: [], digital: [], tv: [] });
+  useEffect(() => {
+    let active = true;
+    const requests = [
+      { media_type:"movie", category:"cinema_latest", region, include_global_releases:true },
+      { media_type:"movie", category:"streaming_recent_movies", region, include_global_releases:true },
+      { media_type:"tv", category:"tv_recent_premieres", region },
+    ];
+    Promise.all(requests.map((params) =>
+      getCatalogueMovies(params).then((res) => {
+        const data = res?.data ?? res ?? {};
+        return Array.isArray(data.movies) ? data.movies : [];
+      }).catch(() => [])
+    )).then(([cinema, digital, tv]) => {
+      if (active) setWeekly({ cinema, digital, tv });
+    });
+    return () => { active = false; };
+  }, [region, todayKey]);
+
   const entries = useMemo(
-    () => newThisWeekItems({ cinema, digital, tv, today: todayKey }),
-    [cinema, digital, tv, todayKey]
+    () => newThisWeekItems({ ...weekly, today: todayKey }),
+    [weekly, todayKey]
   );
 
   return (
