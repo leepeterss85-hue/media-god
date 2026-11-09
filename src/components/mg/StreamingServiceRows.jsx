@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { getCatalogueMovies } from "@/components/mg/catalogueRequests";
 import MediaRow from "@/components/mg/MediaRow";
 import { sortCatalogueNewestFirst } from "@/components/mg/catalogueDateOrder";
 import { resolveStreamingServices } from "@/components/mg/streamingServices";
@@ -11,6 +11,7 @@ import {
 const providerCatalogCache = new Map();
 const serviceItemsCache = new Map();
 const SERVICE_ITEMS_REFRESH_MS = 4 * 60 * 60 * 1000;
+const SERVICE_DIRECTORY_REFRESH_MS = 12 * 60 * 60 * 1000;
 
 const unwrapMovies = (response) => {
   const first = response?.data ?? response ?? {};
@@ -82,26 +83,26 @@ const mergeNewest = (left, right, limit) =>
 
 const getProviderCatalog = async (region) => {
   const key = String(region || detectStreamingRegion()).toUpperCase();
-  if (!providerCatalogCache.has(key)) {
-    providerCatalogCache.set(
-      key,
-      base44.functions
-        .invoke("getTmdbMovies", {
-          provider_catalog: true,
-          media_type: "all",
-          region: key,
-        })
-        .then(unwrapProviders)
-        .catch(() => [])
-    );
-  }
-  return providerCatalogCache.get(key);
+  const existing = providerCatalogCache.get(key);
+  if (existing && existing.expiresAt > Date.now()) return existing.promise;
+
+  const promise = getCatalogueMovies({
+    provider_catalog: true,
+    media_type: "all",
+    region: key,
+  }, SERVICE_DIRECTORY_REFRESH_MS)
+    .then(unwrapProviders)
+    .catch(() => {
+      providerCatalogCache.delete(key);
+      return [];
+    });
+  providerCatalogCache.set(key, { promise, expiresAt: Date.now() + SERVICE_DIRECTORY_REFRESH_MS });
+  return promise;
 };
 
 const fetchItems = async ({ service, mediaType, region, rowLimit }) => {
   const request = (type) =>
-    base44.functions
-      .invoke("getTmdbMovies", {
+    getCatalogueMovies( {
         media_type: type,
         provider_ids: service.providerIds,
         provider_pages: 1,
@@ -118,7 +119,7 @@ const fetchItems = async ({ service, mediaType, region, rowLimit }) => {
     return mergeNewest(tv, movies, rowLimit);
   }
 
-  return sortCatalogueNewestFirst(dedupe(await request("tv"))).slice(0, rowLimit);
+  return sortCatalogueNewestFirst(dedupe(await request(mediaType === "movie" ? "movie" : "tv"))).slice(0, rowLimit);
 };
 
 const fetchItemsCached = (options) => {
@@ -149,9 +150,12 @@ export default function StreamingServiceRows({
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalServices, setTotalServices] = useState(0);
+  const [serviceQuery, setServiceQuery] = useState("");
+  const [displayType, setDisplayType] = useState(mediaType);
   const [visibleLimit, setVisibleLimit] = useState(
     Number(maxServices || (mediaType === "mixed" ? 12 : 20))
   );
+  const effectiveMediaType = mediaType === "mixed" ? displayType : mediaType;
   const activeRegion = String(region || detectStreamingRegion()).toUpperCase();
   const activeRegionName = streamingRegionName(activeRegion);
 
@@ -166,12 +170,14 @@ export default function StreamingServiceRows({
       const catalog = await getProviderCatalog(activeRegion);
       if (cancelled) return;
 
-      const availableServices = resolveStreamingServices(catalog);
+      const term = serviceQuery.trim().toLowerCase();
+      const availableServices = resolveStreamingServices(catalog)
+        .filter((service) => !term || String(service.label || "").toLowerCase().includes(term));
       setTotalServices(availableServices.length);
       const services = availableServices.slice(0, visibleLimit);
 
       const loaded = [];
-      const batchSize = mediaType === "mixed" ? 3 : 4;
+      const batchSize = effectiveMediaType === "mixed" ? 3 : 4;
 
       for (let offset = 0; offset < services.length; offset += batchSize) {
         const batch = services.slice(offset, offset + batchSize);
@@ -180,7 +186,7 @@ export default function StreamingServiceRows({
             service,
             items: await fetchItemsCached({
               service,
-              mediaType,
+              mediaType: effectiveMediaType,
               region: activeRegion,
               rowLimit,
             }),
@@ -201,7 +207,7 @@ export default function StreamingServiceRows({
     return () => {
       cancelled = true;
     };
-  }, [mediaType, activeRegion, rowLimit, visibleLimit]);
+  }, [effectiveMediaType, activeRegion, rowLimit, visibleLimit, serviceQuery]);
 
   if (!loading && rows.length === 0 && totalServices <= visibleLimit) return null;
 
@@ -216,10 +222,32 @@ export default function StreamingServiceRows({
         </p>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 px-3 min-[420px]:px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14">
+        <input type="search" value={serviceQuery}
+          onChange={(event) => setServiceQuery(event.target.value)}
+          placeholder="Find Netflix, Prime, Disney+, BBC…"
+          aria-label="Find streaming service"
+          className="min-h-10 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/25 px-3 text-xs text-white outline-none placeholder:text-white/40 focus:border-mg-green/50 sm:max-w-xs" />
+        {mediaType === "mixed" && (
+          <div className="flex gap-1" role="group" aria-label="Service media type">
+            {[
+              ["mixed", "All"], ["movie", "Films"], ["tv", "TV"],
+            ].map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setDisplayType(value)}
+                aria-pressed={effectiveMediaType === value}
+                className={`min-h-10 rounded-lg px-3 text-xs font-semibold ${effectiveMediaType === value ? "bg-mg-green text-black" : "bg-white/5 text-white/70"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        <span className="text-xs text-white/40">{totalServices} services</span>
+      </div>
+
       {rows.map(({ service, items }) => (
         <MediaRow
           key={service.key}
-          title={mediaType === "tv" || mediaType === "mixed" ? "" : service.label}
+          title={service.label}
           iconUrl={service.logoUrl}
           iconSize={mediaType === "tv" || mediaType === "mixed" ? "large" : "default"}
           items={items}
@@ -227,10 +255,14 @@ export default function StreamingServiceRows({
           onWatchlist={onWatchlist}
           watched={watched}
           showReleaseDate
-          actionLabel={onBrowseAll ? "See all TV" : ""}
-          onAction={onBrowseAll ? () => onBrowseAll(service) : undefined}
+          actionLabel={onBrowseAll && effectiveMediaType !== "movie" ? "See all TV" : ""}
+          onAction={onBrowseAll && effectiveMediaType !== "movie" ? () => onBrowseAll(service) : undefined}
         />
       ))}
+
+      {!loading && rows.length === 0 && serviceQuery.trim() && (
+        <p className="px-4 text-xs text-white/50">No services match that search in {activeRegionName}.</p>
+      )}
 
       {!loading && totalServices > visibleLimit && (
         <div className="px-3 min-[420px]:px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14">

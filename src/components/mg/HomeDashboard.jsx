@@ -20,6 +20,8 @@ import {
 } from "@/components/mg/streamingRegion";
 import ContinueWatchingRow from "@/components/mg/ContinueWatchingRow";
 import NewEpisodesRow from "@/components/mg/NewEpisodesRow";
+import NewThisWeek from "@/components/mg/NewThisWeek";
+import { getCatalogueMovies } from "@/components/mg/catalogueRequests";
 import RecentlyWatchedRow from "@/components/mg/RecentlyWatchedRow";
 import DetailModal from "@/components/mg/DetailModal";
 import { useToast } from "@/components/ui/use-toast";
@@ -448,7 +450,7 @@ export default function HomeDashboard({ onOpenTvService }) {
 
     const fetchRow = async (params, fallbackType = "") => {
       try {
-        const response = await base44.functions.invoke("getTmdbMovies", params);
+        const response = await getCatalogueMovies(params);
 
         return unwrapMovies(response)
           .map((item) => {
@@ -1099,6 +1101,19 @@ export default function HomeDashboard({ onOpenTvService }) {
     if (hiddenHomeSections.has(sectionId)) return null;
 
     switch (sectionId) {
+      case "new-this-week":
+        return (
+          <NewThisWeek
+            key={sectionId}
+            historyRows={historyRows}
+            watchlistRows={rows.watchlist || []}
+            region={streamingRegion}
+            todayKey={todayKey}
+            onOpen={open}
+            onWatchlist={onWatchlist}
+            watched={watched}
+          />
+        );
       case "new-films":
         return (
           <MediaRow
@@ -1127,6 +1142,7 @@ export default function HomeDashboard({ onOpenTvService }) {
           <NewEpisodesRow
             key={sectionId}
             historyRows={historyRows}
+            watchlistRows={rows.watchlist || []}
             region={streamingRegion}
             todayKey={todayKey}
             onOpenDetail={open}

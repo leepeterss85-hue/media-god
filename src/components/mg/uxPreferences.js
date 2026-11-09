@@ -3,6 +3,7 @@ export const UX_PREFERENCES_EVENT = "mg:ux-preferences-changed";
 
 export const HOME_SECONDARY_SECTIONS = [
   { id: "continue-watching", label: "Continue Watching" },
+  { id: "new-this-week", label: "New This Week" },
   { id: "new-films", label: "New Films" },
   { id: "new-tv", label: "New TV Shows" },
   { id: "new-episodes", label: "New Episodes" },
@@ -35,7 +36,16 @@ const cleanOrder = (value) => {
   const missing = HOME_SECONDARY_SECTIONS
     .map((section) => section.id)
     .filter((id) => !supplied.includes(id));
-  return [...supplied, ...missing];
+  const order = [...supplied, ...missing];
+  // Existing viewers already have a saved home order. Put the brand-new row
+  // directly after Continue Watching without rearranging their other rows.
+  if (!supplied.includes("new-this-week")) {
+    const withoutNew = order.filter((id) => id !== "new-this-week");
+    const continueIndex = withoutNew.indexOf("continue-watching");
+    withoutNew.splice(continueIndex < 0 ? 0 : continueIndex + 1, 0, "new-this-week");
+    return withoutNew;
+  }
+  return order;
 };
 
 export const normaliseUxPreferences = (value) => {

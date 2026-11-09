@@ -22,6 +22,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { buildMediaSources, usePlayer } from "@/components/mg/PlayerProvider";
 import DetailModal from "@/components/mg/DetailModal";
 import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
+import WatchlistReleaseAlerts from "@/components/mg/WatchlistReleaseAlerts";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -312,6 +313,10 @@ export default function WatchlistView() {
         </div>
       </div>
 
+      {!loading && !error && items.length > 0 && (
+        <WatchlistReleaseAlerts items={items} onOpen={setSelected} />
+      )}
+
       <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <label className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
@@ -477,7 +482,7 @@ export default function WatchlistView() {
       {selected && (
         <DetailModal
           item={selected}
-          mediaType="tv"
+          mediaType={resolveCatalogMediaType(selected)}
           onClose={() => setSelected(null)}
           onSelectRelated={(nextItem) => setSelected(nextItem)}
         />

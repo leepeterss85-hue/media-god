@@ -4,7 +4,7 @@ import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useRef, useState } from "react";
 import { Search, Play, Globe } from "lucide-react";
 import VoiceSearchButton from "@/components/mg/VoiceSearchButton";
-import { base44 } from "@/api/base44Client";
+import { getCatalogueMovies } from "@/components/mg/catalogueRequests";
 import { Image } from "@/components/ui/image";
 import {
   GENRES_TV,
@@ -177,7 +177,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
       setLoading(true);
 
       try {
-        const response = await base44.functions.invoke("getTmdbMovies", {
+        const response = await getCatalogueMovies( {
           media_type: "tv",
           category,
           country: "",
@@ -471,6 +471,12 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
                 <ReeznCardAction
                   focusKey={`tv:${show.id || show.tmdb_id || show.title}`}
                 />
+                {category === "tv_recent_premieres" && !activeProvider && (
+                  <span data-mg-release-status="true"
+                    className="pointer-events-none absolute right-1 top-1 z-10 rounded bg-black/85 px-1.5 py-1 text-[9px] font-semibold text-white">
+                    First aired worldwide
+                  </span>
+                )}
 
                 <div className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-lg bg-black/45 p-1 backdrop-blur-sm">
                   <StreamingProviderLogos

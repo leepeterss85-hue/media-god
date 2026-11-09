@@ -178,7 +178,11 @@ for (const [source, name] of [
   expect(source.includes("clearAll"), `${name} bulk clear action is missing`);
   expect(source.includes("Clear all"), `${name} bulk clear control is missing`);
   expect(source.includes("DetailModal"), `${name} TV details fallback is missing`);
-  expect(source.includes('mediaType="tv"'), `${name} TV details media type is missing`);
+  expect(
+    source.includes('mediaType="tv"') ||
+      (name === "Watchlist" && source.includes("mediaType={resolveCatalogMediaType(selected)}")),
+    `${name} media type must open the correct film or TV details`
+  );
   expect(source.includes("mediaFilter"), `${name} movie/TV filter is missing`);
   expect(source.includes('["tv", "TV Shows"]'), `${name} TV filter control is missing`);
 }
