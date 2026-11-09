@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { getCatalogueMovies } from "@/components/mg/catalogueRequests";
 import MediaRow from "@/components/mg/MediaRow";
 import { sortCatalogueNewestFirst } from "@/components/mg/catalogueDateOrder";
 import { resolveStreamingServices } from "@/components/mg/streamingServices";
@@ -85,8 +85,7 @@ const getProviderCatalog = async (region) => {
   if (!providerCatalogCache.has(key)) {
     providerCatalogCache.set(
       key,
-      base44.functions
-        .invoke("getTmdbMovies", {
+      getCatalogueMovies( {
           provider_catalog: true,
           media_type: "all",
           region: key,
@@ -100,8 +99,7 @@ const getProviderCatalog = async (region) => {
 
 const fetchItems = async ({ service, mediaType, region, rowLimit }) => {
   const request = (type) =>
-    base44.functions
-      .invoke("getTmdbMovies", {
+    getCatalogueMovies( {
         media_type: type,
         provider_ids: service.providerIds,
         provider_pages: 1,
