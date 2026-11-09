@@ -199,14 +199,14 @@ export default function MoviesView() {
 
         {category === "cinema_latest" && !debouncedQuery.trim() && (
           <p className="text-xs sm:text-sm text-white/50" data-mg-cinema-region="true">
-            Newest theatrical releases in {streamingRegionName(streamingRegion)} (last eight weeks).
-            Cinema listings do not guarantee a playable streaming source.
+            Newest theatrical releases worldwide (last eight weeks), including US films released before the UK.
+            Your country selection controls provider listings, not when a film enters the catalogue. Cinema listings do not guarantee a playable streaming source.
           </p>
         )}
         {category === "streaming_recent_movies" && !debouncedQuery.trim() && (
           <p className="text-xs sm:text-sm text-white/50" data-mg-digital-release-region="true">
-            Recent digital film releases listed on streaming services in {streamingRegionName(streamingRegion)} (last 120 days).
-            These are digital release dates, not necessarily the day Netflix, Prime or another service added the film.
+            Recent digital film releases worldwide (last 120 days), including US-first releases.
+            These are digital release dates, not necessarily the day Netflix, Prime or another service added the film. A digital release abroad does not guarantee streaming availability in {streamingRegionName(streamingRegion)}.
           </p>
         )}
 
@@ -234,7 +234,7 @@ export default function MoviesView() {
                 setCountry(nextCountry);
                 setStreamingRegionOverride(nextCountry);
               }}
-              aria-label="Choose viewing country for cinema dates and streaming services"
+              aria-label="Choose country for local streaming-provider availability"
               className={`${selectClass} pl-10 3xl:pl-11`}
             >
               {COUNTRY_OPTIONS.map((item) => (
@@ -356,7 +356,7 @@ export default function MoviesView() {
               <p className="text-[10px] sm:text-xs 3xl:text-sm text-white/40">
                 {["cinema_latest", "streaming_recent_movies"].includes(category) &&
                  !debouncedQuery.trim() && /^\d{4}-\d{2}-\d{2}$/.test(String(movie.release_date || ""))
-                  ? `${category === "cinema_latest" ? "Cinema" : "Digital"}: ${movie.release_date.slice(8, 10)}/${movie.release_date.slice(5, 7)}/${movie.release_date.slice(0, 4)}`
+                  ? `${category === "cinema_latest" ? "Worldwide cinema" : "Worldwide digital"}: ${movie.release_date.slice(8, 10)}/${movie.release_date.slice(5, 7)}/${movie.release_date.slice(0, 4)}`
                   : movie.year}
               </p>
 
