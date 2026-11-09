@@ -333,7 +333,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
 
         {category === "tv_recent_premieres" && !debouncedQuery.trim() && !activeProvider && (
           <p className="text-xs sm:text-sm text-white/50" data-mg-recent-tv-premieres="true">
-            Series premiered in the last 120 days, newest first. These are first-air dates, not dates when a streaming service added a show. For individual episode dates, use Airing Today.
+            Series that first premiered anywhere worldwide in the last 120 days, including US-first shows, newest first. These are first-air dates, not dates when a streaming service added a show. For individual episode dates, use Airing Today.
           </p>
         )}
 
