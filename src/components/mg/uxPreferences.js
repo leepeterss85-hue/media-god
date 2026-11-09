@@ -36,7 +36,16 @@ const cleanOrder = (value) => {
   const missing = HOME_SECONDARY_SECTIONS
     .map((section) => section.id)
     .filter((id) => !supplied.includes(id));
-  return [...supplied, ...missing];
+  const order = [...supplied, ...missing];
+  // Existing viewers already have a saved home order. Put the brand-new row
+  // directly after Continue Watching without rearranging their other rows.
+  if (!supplied.includes("new-this-week")) {
+    const withoutNew = order.filter((id) => id !== "new-this-week");
+    const continueIndex = withoutNew.indexOf("continue-watching");
+    withoutNew.splice(continueIndex < 0 ? 0 : continueIndex + 1, 0, "new-this-week");
+    return withoutNew;
+  }
+  return order;
 };
 
 export const normaliseUxPreferences = (value) => {
