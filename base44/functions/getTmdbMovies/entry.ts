@@ -2493,7 +2493,23 @@ export default async function(req) {
         pageResults.push(...globalNowPlayingResults);
       }
 
-      pageResults.push(...globalResults, ...earlyRegionResults);
+      if (cinemaLatest || recentStreamingMovies) {
+        // TMDB date filters are applied server-side; enforce them once more
+        // before surfacing overseas results in case metadata is inconsistent.
+        const windowStart = cinemaLatest ? cinemaSince : recentReleaseSince;
+        const withinWindow = (item) => {
+          const date = String(item?.release_date || '');
+          return validYmd(date) && date >= windowStart && date <= requestedDate;
+        };
+        pageResults.push(...[...globalResults, ...earlyRegionResults].map(
+          (data) => ({
+            ...data,
+            results: (data?.results || []).filter(withinWindow),
+          })
+        ));
+      } else {
+        pageResults.push(...globalResults, ...earlyRegionResults);
+      }
     }
 
     const seen =
