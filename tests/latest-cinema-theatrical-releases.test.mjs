@@ -53,7 +53,7 @@ for (const path of backendPaths) {
     const result=buildCinemaQuery(source);
     const q=result.url.searchParams;
     assert.equal(result.cinemaLatest,true);
-    assert.equal(result.includeGlobalReleases,false,'World cinema overlay must not leak into local cinema');
+    assert.equal(result.includeGlobalReleases,true,'Cinema must include US-first and worldwide theatrical releases');
     assert.equal(result.url.pathname,'/3/discover/movie');
     assert.equal(q.get('region'),'GB');
     assert.equal(q.get('with_release_type'),'3|2');
@@ -108,7 +108,7 @@ test('Movies opens latest local cinema listings and keeps wider releases separat
   assert.match(ui,/cinemaRefresh/);
   assert.match(ui,/window\.addEventListener\("focus", checkFreshness\)/);
   assert.match(ui,/document\.addEventListener\("visibilitychange", checkFreshness\)/);
-  assert.match(ui,/category === "cinema_latest" \? "Cinema" : "Digital"/);
+  assert.match(ui,/category === "cinema_latest" \? "Worldwide cinema" : "Worldwide digital"/);
   assert.match(ui,/<Info className=/);
   // No changes to playback, Live TV, remote or Continue Watching required.
   assert.match(ui,/<DetailModal/);
