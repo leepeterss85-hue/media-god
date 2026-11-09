@@ -2,14 +2,16 @@ import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
 import React, { useEffect, useMemo, useState } from "react";
 import { CalendarClock, Play, Tv2 } from "lucide-react";
 
-import { base44 } from "@/api/base44Client";
+import { getCatalogueMovies } from "@/components/mg/catalogueRequests";
+import { formatReleaseDate } from "@/components/mg/releaseDiscovery";
+import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
 
 const PosterImage = /** @type {any} */ (Image);
 const RECENT_DAYS = 21;
 const UPCOMING_DAYS = 28;
-const MAX_SHOWS = 8;
+const MAX_SHOWS = 12;
 const MAX_ITEMS = 12;
 
 const positiveInt = (value) => {
@@ -114,6 +116,18 @@ const watchedTvSeeds = (historyRows) => {
   return out;
 };
 
+const watchlistTvSeeds = (watchlistRows = []) =>
+  (watchlistRows || [])
+    .filter((item) => resolveCatalogMediaType(item) === "tv" && /^\d+$/.test(String(item?.tmdb_id || "")))
+    .map((item) => ({
+      tmdbId: String(item.tmdb_id),
+      title: item.title || "TV Show",
+      year: String(item.year || ""),
+      poster: item.poster_url || "",
+      season: null,
+      episode: null,
+    }));
+
 const candidateSeasonNumbers = (seasons, watchedSeason) => {
   const numbers = (seasons || [])
     .map((season) => positiveInt(season?.season_number))
@@ -156,6 +170,9 @@ const pickEpisodeForShow = (episodes, today) => {
 export default function NewEpisodesRow({
   onOpenDetail,
   historyRows = [],
+  watchlistRows = [],
+  showThisWeekOnly = false,
+  embedded = false,
   region = "",
   todayKey = dateKey(new Date()),
 }) {
@@ -180,7 +197,18 @@ export default function NewEpisodesRow({
     };
   }, []);
 
-  const seeds = useMemo(() => watchedTvSeeds(historyRows), [historyRows]);
+  // TMDB episode air dates follow the first broadcast, not a later UK airing.
+  // Saved series also appear even if no episode has been played yet.
+  const seeds = useMemo(() => {
+    const seen = new Set();
+    return [...watchedTvSeeds(historyRows), ...watchlistTvSeeds(watchlistRows)]
+      .filter((seed) => {
+        if (seen.has(seed.tmdbId)) return false;
+        seen.add(seed.tmdbId);
+        return true;
+      })
+      .slice(0, MAX_SHOWS);
+  }, [historyRows, watchlistRows]);
   const seedKey = useMemo(
     () =>
       seeds
@@ -207,8 +235,7 @@ export default function NewEpisodesRow({
       const results = await Promise.all(
         seeds.map(async (seed) => {
           try {
-            const detailResponse = await base44.functions.invoke(
-              "getTmdbMovies",
+            const detailResponse = await getCatalogueMovies(
               {
                 media_type: "tv",
                 movie_id: seed.tmdbId,
@@ -224,8 +251,7 @@ export default function NewEpisodesRow({
 
             const seasons = await Promise.all(
               seasonNumbers.map(async (seasonNumber) => {
-                const response = await base44.functions.invoke(
-                  "getTmdbMovies",
+                const response = await getCatalogueMovies(
                   {
                     media_type: "tv",
                     movie_id: seed.tmdbId,
@@ -421,21 +447,25 @@ export default function NewEpisodesRow({
     });
   };
 
-  if (loading || items.length === 0) return null;
+  const startOfWeek = shiftDateKey(todayKey, -6);
+  const scopedItems = showThisWeekOnly
+    ? items.filter((item) => item.airDate >= startOfWeek && item.airDate <= todayKey)
+    : items;
+  if (loading || scopedItems.length === 0) return null;
 
   return (
     <section
       data-mg-new-episodes-row="true"
-      className="px-3 min-[420px]:px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14"
+      className={embedded ? "min-w-0" : "px-3 min-[420px]:px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14"}
     >
       <div className="mb-3 flex items-center gap-2.5 3xl:mb-4 3xl:gap-3">
         <Tv2 className="h-4 w-4 text-mg-green 3xl:h-5 3xl:w-5" />
         <div>
           <h2 className="text-sm font-semibold text-white sm:text-base 3xl:text-xl 4xl:text-2xl">
-            New & Upcoming Episodes from Your Shows
+            {showThisWeekOnly ? "This Week’s New Episodes" : "New & Upcoming Episodes from Your Shows"}
           </h2>
           <p className="mt-0.5 text-[10px] text-white/40 sm:text-xs 3xl:text-sm">
-            Fresh episodes and the next scheduled episode from shows you have been watching.
+            First-aired worldwide dates from shows you watch or save, not delayed UK broadcasts.
           </p>
         </div>
       </div>
@@ -445,7 +475,7 @@ export default function NewEpisodesRow({
         aria-label="New and upcoming episodes from your shows"
         className="flex gap-3 overflow-x-auto overscroll-x-contain pb-3 scrollbar-hide snap-x snap-proximity 3xl:gap-5"
       >
-        {items.map((item) => {
+        {scopedItems.map((item) => {
           const upcoming = item.airDate > todayKey;
           const episodeCode = `S${String(item.season).padStart(2, "0")} E${String(
             item.episode
@@ -502,7 +532,7 @@ export default function NewEpisodesRow({
                   }`}
                 >
                   <CalendarClock className="h-3 w-3" />
-                  {upcoming ? `Coming ${item.airDate}` : `New ${item.airDate}`}
+                  {upcoming ? `Coming ${formatReleaseDate(item.airDate)}` : `New ${formatReleaseDate(item.airDate)}`}
                 </span>
               </div>
 
