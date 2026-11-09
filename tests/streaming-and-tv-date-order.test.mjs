@@ -51,7 +51,7 @@ for (const path of backends) {
     const result = buildDateRequest(read(path));
     assert.equal(result.recentStreamingMovies, true);
     assert.equal(result.recentTvPremieres, false);
-    assert.equal(result.includeGlobalReleases, false);
+    assert.equal(result.includeGlobalReleases, true);
     assert.equal(result.url.pathname, "/3/discover/movie");
     const q = result.url.searchParams;
     assert.equal(q.get("region"), "GB");
@@ -158,7 +158,7 @@ test("Movies retain the UK cinema landing tab and add recent digital releases", 
   assert.match(movie,/streaming_recent_movies", label: "Recent Digital \/ Streaming"/);
   assert.match(movie,/data-mg-digital-release-region/);
   assert.match(movie,/These are digital release dates, not necessarily the day/);
-  assert.match(movie,/category === "cinema_latest" \? "Cinema" : "Digital"/);
+  assert.match(movie,/category === "cinema_latest" \? "Worldwide cinema" : "Worldwide digital"/);
   assert.match(movie,/include_global_releases: true/);
 });
 
