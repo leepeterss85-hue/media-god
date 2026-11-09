@@ -4,7 +4,7 @@ import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Plus, Check, Play, Globe, Info } from "lucide-react";
 import VoiceSearchButton from "@/components/mg/VoiceSearchButton";
-import { base44 } from "@/api/base44Client";
+import { getCatalogueMovies } from "@/components/mg/catalogueRequests";
 import { catalogueSourceChecker, showBrowseTitleWithSourceEvidence } from "@/components/mg/catalogueSourceCheckerClient";
 import { createRollingSourceChecks } from "@/components/mg/rollingSourceChecks";
 import { Image } from "@/components/ui/image";
@@ -118,8 +118,7 @@ export default function MoviesView() {
     const requestId = ++requestRef.current;
     setLoading(true);
 
-    base44.functions
-      .invoke("getTmdbMovies", {
+    getCatalogueMovies( {
         media_type: "movie",
         category,
         country: "",
