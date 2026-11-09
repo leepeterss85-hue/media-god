@@ -589,20 +589,6 @@ export default function HomeDashboard({ onOpenTvService }) {
         region: streamingRegion,
       }, "movie"),
 
-      // One curated week of first worldwide cinema, digital and TV debuts.
-      fetchRow({
-        media_type: "movie", category: "cinema_latest",
-        region: streamingRegion, include_global_releases: true,
-      }, "movie"),
-      fetchRow({
-        media_type: "movie", category: "streaming_recent_movies",
-        region: streamingRegion, include_global_releases: true,
-      }, "movie"),
-      fetchRow({
-        media_type: "tv", category: "tv_recent_premieres",
-        region: streamingRegion,
-      }, "tv"),
-
       fetchWatchlist(),
       fetchFavorites(),
       fetchHistory(),
@@ -616,9 +602,6 @@ export default function HomeDashboard({ onOpenTvService }) {
         popularMovies,
         popularTV,
         topRated,
-        weeklyCinema,
-        weeklyDigital,
-        weeklyTv,
         watchlist,
         favorites,
         history,
@@ -686,9 +669,6 @@ export default function HomeDashboard({ onOpenTvService }) {
           popularMovies,
           popularTV,
           topRated,
-          weeklyCinema: sortNewestFirst(dedupeMedia(weeklyCinema)),
-          weeklyDigital: sortNewestFirst(dedupeMedia(weeklyDigital)),
-          weeklyTv: sortNewestFirst(dedupeMedia(weeklyTv)),
           watchlist: normalisedWatchlist,
           favorites: normalisedFavorites,
         });
@@ -1125,9 +1105,6 @@ export default function HomeDashboard({ onOpenTvService }) {
         return (
           <NewThisWeek
             key={sectionId}
-            cinema={rows.weeklyCinema || []}
-            digital={rows.weeklyDigital || []}
-            tv={rows.weeklyTv || []}
             historyRows={historyRows}
             watchlistRows={rows.watchlist || []}
             region={streamingRegion}
