@@ -56,7 +56,7 @@ for (const path of backends) {
       cinemaSince: "2026-09-13",
       recentReleaseSince: "2026-07-11",
       requestedDate: "2026-11-08",
-      validYmd: date => /^\\d{4}-\\d{2}-\\d{2}$/.test(String(date)),
+      validYmd: date => /^\d{4}-\d{2}-\d{2}$/.test(String(date)),
       buildGlobalReleaseUrl: page => "https://example.test/discover?world=true&page=" + page,
       buildRegionalReleaseUrl: (page, country) => "https://example.test/discover?region=" + country + "&page=" + page,
       fetch: async url => ({
