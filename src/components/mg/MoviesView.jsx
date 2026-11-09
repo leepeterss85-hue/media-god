@@ -26,6 +26,7 @@ import {
 import { COUNTRY_OPTIONS } from "@/components/mg/countryOptions";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
 import { addToWatchlistItem } from "@/components/mg/watchlistActions";
+import { releaseStatusLabel } from "@/components/mg/releaseDiscovery";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -307,6 +308,14 @@ export default function MoviesView() {
                 <ReeznCardAction
                   focusKey={`movie:${movie.id || movie.tmdb_id || movie.title}`}
                 />
+                {["cinema_latest", "streaming_recent_movies"].includes(category) && !debouncedQuery.trim() && (
+                  <span title={releaseStatusLabel(movie, category)}
+                    data-mg-release-status="true"
+                    className="pointer-events-none absolute right-1 top-1 z-10 max-w-[70%] truncate rounded bg-black/85 px-1.5 py-1 text-[9px] font-semibold text-white">
+                    {category === "cinema_latest" ? "Cinema · stream unconfirmed" :
+                      movie.local_streaming_listed ? "Digital · local listing" : "Digital worldwide"}
+                  </span>
+                )}
 
                 <div className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-lg bg-black/45 p-1 backdrop-blur-sm">
                   <StreamingProviderLogos
