@@ -471,6 +471,12 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
                 <ReeznCardAction
                   focusKey={`tv:${show.id || show.tmdb_id || show.title}`}
                 />
+                {category === "tv_recent_premieres" && !activeProvider && (
+                  <span data-mg-release-status="true"
+                    className="pointer-events-none absolute right-1 top-1 z-10 rounded bg-black/85 px-1.5 py-1 text-[9px] font-semibold text-white">
+                    First aired worldwide
+                  </span>
+                )}
 
                 <div className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-lg bg-black/45 p-1 backdrop-blur-sm">
                   <StreamingProviderLogos
