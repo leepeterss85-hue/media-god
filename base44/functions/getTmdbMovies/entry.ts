@@ -1967,6 +1967,9 @@ export default async function(req) {
       new Date(Date.parse(requestedDate + 'T12:00:00Z') - 120 * 86400000)
         .toISOString().slice(0, 10);
 
+    // Release discovery follows the earliest known release worldwide.
+    // A viewing region only controls streaming-provider entitlement, not
+    // whether a film can be listed after releasing overseas.
     const includeGlobalReleases =
       mediaType === 'movie' &&
       Boolean(body.include_global_releases) &&
@@ -1976,6 +1979,8 @@ export default async function(req) {
         'now_playing',
         'upcoming',
         'movie_released_today',
+        'cinema_latest',
+        'streaming_recent_movies',
       ].includes(category);
 
     const buildUrl =
@@ -2302,6 +2307,21 @@ export default async function(req) {
         url.searchParams.delete('region');
         url.searchParams.delete('watch_region');
         url.searchParams.delete('with_origin_country');
+        // Monetisation filters only have meaning alongside watch_region.
+        // Worldwide release discovery must not imply local provider access.
+        if (recentStreamingMovies) {
+          url.searchParams.delete('with_watch_monetization_types');
+        }
+        return url.toString();
+      };
+
+    const buildRegionalReleaseUrl =
+      (page, releaseRegion) => {
+        const url = new URL(buildUrl(page));
+        url.searchParams.set('region', releaseRegion);
+        if (recentStreamingMovies) {
+          url.searchParams.set('watch_region', releaseRegion);
+        }
         return url.toString();
       };
 
@@ -2390,6 +2410,37 @@ export default async function(req) {
         )
       );
 
+      // Supplement the primary worldwide dates with the opposite UK/US
+      // theatrical or digital window. For example, US titles are visible
+      // in the UK catalogue before their later British release.
+      const earlyReleaseRegion = region === 'US' ? 'GB' : 'US';
+      const earlyRegionResults = (cinemaLatest || recentStreamingMovies)
+        ? await Promise.all(
+            Array.from({ length: globalPageCount }, (_, i) =>
+              fetch(buildRegionalReleaseUrl(i + 1, earlyReleaseRegion), {
+                headers: { Accept: 'application/json' },
+              })
+                .then((r) => r.ok ? r.json() : { results: [] })
+                .catch(() => ({ results: [] }))
+            )
+          )
+        : [];
+
+      if (cinemaLatest || recentStreamingMovies) {
+        // Use dates from matching cinema/digital discovery windows only.
+        // Do not mistake a future UK premiere for a film unreleased abroad.
+        const windowStart = cinemaLatest ? cinemaSince : recentReleaseSince;
+        for (const data of [...pageResults, ...globalResults, ...earlyRegionResults]) {
+          for (const item of data?.results || []) {
+            const id = String(item?.id || '');
+            const date = String(item?.release_date || '');
+            if (!id || !validYmd(date) || date < windowStart || date > requestedDate) continue;
+            const existing = globalReleasedDates.get(id);
+            if (!existing || date < existing) globalReleasedDates.set(id, date);
+          }
+        }
+      }
+
       if (category === 'now_playing' || category === 'movie_released_today') {
         for (const data of globalResults) {
           for (const item of data?.results || []) {
@@ -2442,7 +2493,7 @@ export default async function(req) {
         pageResults.push(...globalNowPlayingResults);
       }
 
-      pageResults.push(...globalResults);
+      pageResults.push(...globalResults, ...earlyRegionResults);
     }
 
     const seen =
@@ -2499,18 +2550,21 @@ export default async function(req) {
     }
 
     const mappedItems =
-      merged.map(
-        (m) => ({
-          ...mapItem(
-            m,
-            mediaType
-          ),
-          global_release_available:
-            globalReleasedDates.has(String(m?.id || '')),
-          global_release_date:
-            globalReleasedDates.get(String(m?.id || '')) || '',
-        })
-      );
+      merged.map((m) => {
+        const mapped = mapItem(m, mediaType);
+        const globalDate = globalReleasedDates.get(String(m?.id || '')) || '';
+        const firstDate = (cinemaLatest || recentStreamingMovies) && globalDate
+          ? globalDate
+          : mapped.release_date;
+        return {
+          ...mapped,
+          release_date: firstDate,
+          year: firstDate ? firstDate.slice(0, 4) : mapped.year,
+          first_worldwide_release_date: globalDate || '',
+          global_release_available: Boolean(globalDate),
+          global_release_date: globalDate,
+        };
+      });
 
     if (cinemaLatest || recentStreamingMovies || recentTvPremieres) {
       // Ranking by the reported release/premiere date keeps fresh titles
