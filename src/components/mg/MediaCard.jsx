@@ -6,6 +6,7 @@ import { usePlayer } from "@/components/mg/PlayerProvider";
 import ReeznCardAction from "@/components/mg/ReeznCardAction";
 import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
 import { formatCatalogueDate } from "@/components/mg/catalogueDateOrder";
+import { releaseStatusLabel } from "@/components/mg/releaseDiscovery";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -115,6 +116,14 @@ export default function MediaCard({
         <ReeznCardAction
           focusKey={`${getMediaType(item)}:${item?.id || item?.tmdb_id || item?.title || "item"}`}
         />
+
+        {(item.release_context || item.local_streaming_listed) && (
+          <span title={releaseStatusLabel(item)}
+            data-mg-release-status="true"
+            className="pointer-events-none absolute right-1 top-1 z-10 max-w-[65%] truncate rounded bg-black/85 px-1.5 py-1 text-[9px] font-semibold text-white">
+            {releaseStatusLabel(item).split(" · ")[0]}
+          </span>
+        )}
 
         <button
           type="button"
