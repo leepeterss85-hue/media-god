@@ -4,7 +4,7 @@ import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useRef, useState } from "react";
 import { Search, Play, Globe } from "lucide-react";
 import VoiceSearchButton from "@/components/mg/VoiceSearchButton";
-import { base44 } from "@/api/base44Client";
+import { getCatalogueMovies } from "@/components/mg/catalogueRequests";
 import { Image } from "@/components/ui/image";
 import {
   GENRES_TV,
@@ -177,7 +177,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
       setLoading(true);
 
       try {
-        const response = await base44.functions.invoke("getTmdbMovies", {
+        const response = await getCatalogueMovies( {
           media_type: "tv",
           category,
           country: "",
