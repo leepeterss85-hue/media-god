@@ -861,6 +861,79 @@ export default async function(req) {
       );
     }
 
+    /*
+     * Privacy-safe watchlist release metadata batch. No user watchlist,
+     * identity or credentials are stored here; clients submit only TMDB IDs.
+     * One TMDB details request per title (movie release_dates is appended)
+     * and at most four requests in flight, so checking saved titles cannot
+     * overload the metadata service or block playback.
+     */
+    if (Array.isArray(body.release_alerts)) {
+      const wanted = [];
+      const seenAlerts = new Set();
+      for (const raw of body.release_alerts.slice(0, 24)) {
+        const id = String(raw?.tmdb_id ?? raw?.id ?? '').trim();
+        const type = raw?.media_type === 'tv' ? 'tv' : 'movie';
+        if (!/^[1-9]\d{0,8}$/.test(id) || seenAlerts.has(type + ':' + id)) continue;
+        seenAlerts.add(type + ':' + id);
+        wanted.push({ id, type });
+      }
+      const alerts = [];
+      const workers = Array.from({ length: Math.min(4, wanted.length) }, async (_, worker) => {
+        for (let index = worker; index < wanted.length; index += 4) {
+          const item = wanted[index];
+          try {
+            const append = item.type === 'movie' ? '&append_to_response=release_dates' : '';
+            const result = await fetch(
+              `${TMDB_BASE}/${item.type}/${item.id}?api_key=${apiKey}&language=en-GB${append}`,
+              { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(7000) }
+            );
+            if (!result.ok) continue;
+            const data = await result.json();
+            if (item.type === 'tv') {
+              const mapEpisode = (episode) => episode && validYmd(String(episode.air_date || ''))
+                ? {
+                    air_date: String(episode.air_date),
+                    season_number: Number(episode.season_number || 0),
+                    episode_number: Number(episode.episode_number || 0),
+                  }
+                : null;
+              alerts.push({
+                tmdb_id: item.id,
+                media_type: 'tv',
+                title: data.name || '',
+                premiere_date: validYmd(data.first_air_date) ? data.first_air_date : '',
+                last_episode: mapEpisode(data.last_episode_to_air),
+                next_episode: mapEpisode(data.next_episode_to_air),
+              });
+            } else {
+              const byType = (types) => {
+                const dates = [];
+                for (const regionEntry of data?.release_dates?.results || []) {
+                  for (const release of regionEntry?.release_dates || []) {
+                    const value = String(release?.release_date || '').slice(0, 10);
+                    if (types.includes(Number(release?.type)) && validYmd(value)) dates.push(value);
+                  }
+                }
+                return dates.sort()[0] || '';
+              };
+              alerts.push({
+                tmdb_id: item.id,
+                media_type: 'movie',
+                title: data.title || '',
+                first_cinema_date: byType([2, 3]),
+                first_digital_date: byType([4]),
+              });
+            }
+          } catch {
+            // A missing title/timeout cannot hide other saved-title alerts.
+          }
+        }
+      });
+      await Promise.all(workers);
+      return Response.json({ alerts });
+    }
+
     if (body.community_reviews === true) {
       const tmdbId = String(body.tmdb_id ?? '').trim();
       if (!/^[1-9]\d{0,8}$/.test(tmdbId) || requestedMediaType === 'all') {
