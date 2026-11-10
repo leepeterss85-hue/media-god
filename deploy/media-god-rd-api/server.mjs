@@ -57,7 +57,7 @@ function allowedOrigin(origin, authorization = "") {
 }
 function cors(origin, authorization = "") {
   return {
-    ...(origin && allowedOrigin(origin, authorization)
+    ...(origin && (origin === "null" || allowedOrigin(origin, authorization))
       ? {"Access-Control-Allow-Origin": origin} : {}),
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
