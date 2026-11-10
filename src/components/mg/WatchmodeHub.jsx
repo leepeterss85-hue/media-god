@@ -74,7 +74,7 @@ export default function WatchmodeHub() {
         const cleaned = items.map(item => ({
           ...item,
           media_type: releaseType,
-          release_date: String(item.release_date || item.first_air_date || ""),
+          release_date: String(releaseType === "movie" ? (item.first_worldwide_release_date || item.global_release_date || item.release_date || "") : (item.first_air_date || item.release_date || "")),
           source_name: releaseType === "movie" ? "TMDB · Film" : "TMDB · TV",
           status: releaseType === "movie" ? "Listed release date" : "Series premiere (not a new episode)",
         })).filter(item => dateOnly(item.release_date) && item.release_date >= today)
