@@ -51,7 +51,7 @@ function allowedOrigin(origin, authorization = "") {
   try {
     const url = new URL(origin);
     return url.protocol === "https:" &&
-      /^[a-z0-9-]+\\.base44\\.app$/i.test(url.hostname) &&
+      /^[a-z0-9-]+\.base44\.app$/i.test(url.hostname) &&
       url.origin === origin;
   } catch { return false; }
 }
