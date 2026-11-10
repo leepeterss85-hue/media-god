@@ -1,279 +1,94 @@
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  Award, CalendarClock, CalendarDays, CircleAlert, Clock3, ExternalLink,
-  Loader2, Radio, RefreshCw, Search, Tv, Wifi,
-} from "lucide-react";
+import { CalendarDays, Loader2, RefreshCw, Radio, Tv, Film, AlertCircle, ExternalLink } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { watchmodeError } from "@/components/mg/watchmodeResponse";
 
-const TABS = [
-  { id: "events", label: "Live sports & TV", icon: Radio },
-  { id: "leaving", label: "Leaving soon", icon: CalendarClock },
-  { id: "awards", label: "Awards", icon: Award },
-  { id: "releases", label: "Release times", icon: Clock3 },
-  { id: "changes", label: "Availability changes", icon: RefreshCw },
+const API = "https://media-god-metadata-api-production.up.railway.app/functions/publicDiscovery";
+const tabs = [
+  { id: "sports", label: "Sports fixtures", icon: Radio },
+  { id: "tv", label: "TV schedule", icon: Tv },
+  { id: "releases", label: "Film & TV releases", icon: Film },
 ];
-
-const asArray = (value) => Array.isArray(value) ? value : [];
-const firstArray = (data, keys) => {
-  if (Array.isArray(data)) return data;
-  for (const key of keys) if (Array.isArray(data?.[key])) return data[key];
-  return [];
-};
-const titleOf = (item) => item?.title || item?.name || item?.full_name || item?.event_name || item?.program_title || "Untitled";
-const dateOf = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: value.includes?.("T") ? "short" : undefined });
-};
-
-function ResultCard({ item, fallbackDate }) {
-  const title = titleOf(item);
-  const poster = item?.poster_url || item?.image_url || item?.thumbnail_url;
-  const links = [
-    item?.web_url, item?.watch_url, item?.url,
-    ...(asArray(item?.sources).map((source) => source?.web_url || source?.url)),
-    ...(asArray(item?.streaming_options).map((source) => source?.web_url || source?.url)),
-  ].filter((url, index, all) => /^https?:\/\//i.test(String(url || "")) && all.indexOf(url) === index);
-  const date = item?.start_time || item?.start_date || item?.release_at || item?.release_date || item?.leaving_date || item?.leaves_on || fallbackDate;
-  const providerNames = [
-    item?.source_name, item?.network, item?.league_name, item?.status,
-    ...(asArray(item?.sources).map((source) => source?.name || source?.source_name)),
-    ...(asArray(item?.streaming_options).map((source) => source?.name || source?.provider_name)),
-  ].filter(Boolean);
-  return (
-    <article className="flex gap-3 rounded-xl border border-white/10 bg-mg-card p-3 sm:p-4">
-      {poster ? <img src={poster} alt="" loading="lazy" className="h-24 w-16 shrink-0 rounded-md bg-black/30 object-cover" /> : (
-        <div className="flex h-20 w-14 shrink-0 items-center justify-center rounded-md bg-white/5 text-mg-green"><Tv className="h-6 w-6" /></div>
-      )}
-      <div className="min-w-0 flex-1">
-        <h3 className="font-semibold text-white">{title}</h3>
-        {item?.year || item?.release_year ? <p className="mt-0.5 text-xs text-white/50">{item.year || item.release_year}</p> : null}
-        {date ? <p className="mt-1 flex items-center gap-1.5 text-xs text-white/60"><CalendarDays className="h-3.5 w-3.5 shrink-0" />{dateOf(date)}</p> : null}
-        {item?.description || item?.overview || item?.short_description ? <p className="mt-2 line-clamp-3 text-sm text-white/60">{item.description || item.overview || item.short_description}</p> : null}
-        {providerNames.length > 0 ? <p className="mt-2 text-xs text-mg-green">{[...new Set(providerNames)].slice(0, 4).join(" · ")}</p> : null}
-        {links.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{links.slice(0, 3).map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-mg-green px-3 py-2 text-xs font-bold text-black hover:brightness-110">Watch / details <ExternalLink className="h-3 w-3" /></a>)}</div> : null}
-      </div>
-    </article>
-  );
-}
-
-export default function WatchmodeHub() {
-  const [tab, setTab] = useState("events");
-  const [region, setRegion] = useState("GB");
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
-  const [metadata, setMetadata] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [fallbackNotice, setFallbackNotice] = useState("");
-  const [searchMatches, setSearchMatches] = useState([]);
-  const [selectedTitle, setSelectedTitle] = useState(null);
-  const [coverage, setCoverage] = useState(null);
-  const [coverageError, setCoverageError] = useState("");
-  const [liveMode, setLiveMode] = useState("events");
-  const [liveQuery, setLiveQuery] = useState("");
-  const [submittedLiveQuery, setSubmittedLiveQuery] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-    base44.functions.invoke("watchmodeData", { action: "coverage", params: {} })
-      .then((response) => {
-        const payload = response?.data?.data ?? response?.data ?? response;
-        if (cancelled) return;
-        if (payload?.error) setCoverageError(payload.error);
-        else setCoverage(payload);
-      })
-      .catch((err) => {
-        if (!cancelled) setCoverageError(watchmodeError(err));
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  const request = useCallback(async (action, params = {}) => {
-    setLoading(true);
-    setError("");
-    setFallbackNotice("");
-    try {
-      const response = await base44.functions.invoke("watchmodeData", { action, params: { region, regions: region, ...params } });
-      const payload = response?.data || {};
-      if (payload.error) {
-        const failure = new Error(payload.error);
-        failure.status = payload.provider_status || response?.status;
-        failure.response = { status: failure.status, data: payload };
-        throw failure;
-      }
-      return payload.data ?? payload;
-    } catch (err) {
-      const status = Number(err?.response?.status || err?.status || 0);
-      if (["events", "releases"].includes(action) && [401, 403, 503].includes(status)) {
-        try {
-          // A genuine public catalogue fallback: these are upcoming TV
-          // programmes, never presented as live sports or Watchmode events.
-          const catalogue = await base44.functions.invoke("getTmdbMovies", {
-            category: "tv_upcoming",
-            media_type: "tv",
-            region,
-            date: new Date().toISOString().slice(0, 10),
-          });
-          const titles = catalogue?.data?.movies ?? catalogue?.movies ?? [];
-          if (Array.isArray(titles) && titles.length) {
-            const adapted = titles.map(item => ({
-              ...item,
-              start_date: item?.first_air_date || item?.release_date || item?.air_date || "",
-              title: item?.title || item?.name || "TV programme",
-            }));
-            setFallbackNotice("Watchmode access is unavailable. Showing upcoming TV releases from Media God's catalogue instead; these are not live sports events.");
-            return { events: adapted, releases: adapted, results: adapted, fallback: true };
-          }
-        } catch {
-          // Keep the original provider-access message when the fallback fails.
-        }
-      }
-      const message = watchmodeError(err);
-      setError(message);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [region]);
-
-  const loadTab = useCallback(async (nextTab = tab) => {
-    setResults([]);
-    setMetadata(null);
-    if (nextTab === "events" && liveMode === "leagues") {
-      const data = await request("leagues", { types: "sport,awards" });
-      if (data) setResults(firstArray(data, ["leagues", "results"]));
-    } else if (nextTab === "events" && liveMode === "teams") {
-      if (!submittedLiveQuery.trim()) return;
-      const data = await request("teams", { search: submittedLiveQuery.trim(), page: "1" });
-      if (data) setResults(firstArray(data, ["teams", "results"]));
-    } else if (nextTab === "events") {
-      const now = new Date();
-      const from = new Date(now.getTime() - 7 * 86400000);
-      const to = new Date(now.getTime() + 7 * 86400000);
-      const data = await request("events", {
-        date_from: from.toISOString(), date_to: to.toISOString(),
-        status: "scheduled,live", page: "1", limit: "25",
-        ...(submittedLiveQuery.trim() ? { search: submittedLiveQuery.trim() } : {}),
-      });
-      if (data) {
-        setResults(firstArray(data, ["events", "results"]));
-        setMetadata({ total: data.total_results, limited: data.date_range_limited });
-      }
-    } else if (nextTab === "leaving") {
-      const now = new Date();
-      const end = new Date(now.getTime() + 30 * 86400000);
-      const ymd = (date) => Number(date.toISOString().slice(0, 10).replaceAll("-", ""));
-      const data = await request("leaving", { start_date: String(ymd(now)), end_date: String(ymd(end)), page: "1", limit: "100" });
-      if (data) setResults(firstArray(data, ["titles", "results", "leaving", "data"]));
-    } else if (nextTab === "releases") {
-      const now = new Date();
-      const end = new Date(now.getTime() + 30 * 86400000);
-      const ymd = (date) => Number(date.toISOString().slice(0, 10).replaceAll("-", ""));
-      const data = await request("releases", { start_date: String(ymd(now)), end_date: String(ymd(end)), limit: "100" });
-      if (data) setResults(firstArray(data, ["releases", "results"]));
-    } else if (nextTab === "changes") {
-      const now = new Date();
-      const from = new Date(now.getTime() - 7 * 86400000);
-      const ymd = (date) => Number(date.toISOString().slice(0, 10).replaceAll("-", "") + "000000");
-      const data = await request("sourceChanges", { start_date: String(ymd(from)), end_date: String(ymd(now)), page: "1", limit: "100" });
-      if (data) {
-        const changed = firstArray(data, ["titles", "results"]);
-        setResults(changed.map((item) => typeof item === "number" || typeof item === "string" ? { id: item, title: `Watchmode title ${item}` } : item));
-        setMetadata({ total: data.total_results });
-      }
-    }
-  }, [request, tab, liveMode, submittedLiveQuery, region]);
-
-  useEffect(() => { loadTab(tab); }, [tab, region, loadTab]);
-
-  const searchAwards = async () => {
-    if (!query.trim()) return;
-    setSearchMatches([]);
-    setSelectedTitle(null);
-    const data = await request("search", { search_field: "name", search_value: query.trim(), types: "movie,tv,person" });
-    if (data) {
-      const matches = [...firstArray(data, ["title_results"]), ...firstArray(data, ["people_results"]), ...firstArray(data, ["results", "titles"])];
-      setSearchMatches(matches.slice(0, 8));
-    }
-  };
-
-  const loadAwards = async (item) => {
-    const id = item?.id || item?.title_id || item?.watchmode_id;
-    if (!id) return;
-    setSelectedTitle(item);
-    const isPerson = /person/i.test(String(item?.type || item?.result_type || item?.kind || ""));
-    const data = await request(isPerson ? "person" : "awards", {
-      id: String(id),
-      ...(isPerson ? { append_to_response: "awards" } : {}),
-    });
-    if (data) setResults(firstArray(data, ["awards", "results", "nominations", "data"]));
-  };
-
-  const currentTab = TABS.find((item) => item.id === tab);
-  const Icon = currentTab?.icon || Wifi;
-
-  return (
-    <div className="w-full p-3 sm:p-5 md:p-6 text-white" data-mg-watchmode-hub="true">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-mg-green">Powered by Watchmode</p>
-          <h1 className="mt-1 text-2xl font-bold sm:text-3xl">What to watch</h1>
-          <p className="mt-2 max-w-2xl text-sm text-white/60">Find live events, streaming availability, upcoming releases and titles leaving services. Coverage depends on your Watchmode plan and region.</p>
-        </div>
-        <label className="text-xs text-white/60">Country
-          <select value={region} onChange={(event) => setRegion(event.target.value)} className="mt-1 block min-h-10 rounded-lg border border-white/10 bg-mg-card px-3 text-sm text-white" aria-label="Watchmode country">
-            <option value="GB">United Kingdom</option><option value="US">United States</option><option value="CA">Canada</option><option value="AU">Australia</option>
-          </select>
-        </label>
-      </header>
-
-      {(coverage || coverageError) && <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-mg-card px-3 py-2 text-xs text-white/55">
-        <span className="font-semibold text-white/75">Live API access</span>
-        {coverage?.access_level && <span className="rounded-full bg-mg-green/10 px-2 py-1 font-semibold text-mg-green">{coverage.access_level}</span>}
-        {coverage?.guide_available != null && <span>{coverage.guide_available ? "TV guide available" : "TV guide not included in this plan"}</span>}
-        {coverageError && <span>{coverageError}</span>}
-        {coverage?.available_event_ranges && <span>{coverage.available_event_ranges.length} event coverage windows reported</span>}
-      </div>}
-
-      <div className="mb-5 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Watchmode features">
-        {TABS.map((item) => {
-          const TabIcon = item.icon;
-          return <button key={item.id} role="tab" aria-selected={tab === item.id} onClick={() => setTab(item.id)} className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-semibold ${tab === item.id ? "border-mg-green bg-mg-green text-black" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"}`}><TabIcon className="h-4 w-4" />{item.label}</button>;
-        })}
-      </div>
-
-      {tab === "awards" && <section className="mb-5 rounded-xl border border-white/10 bg-mg-card p-3 sm:p-4">
-        <label className="mb-2 block text-sm font-semibold">Find awards for a film or TV show</label>
-        <div className="flex gap-2"><input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") searchAwards(); }} placeholder="Search a title…" className="min-h-11 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white outline-none focus:border-mg-green" /><button onClick={searchAwards} disabled={loading || !query.trim()} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-mg-green px-4 text-sm font-bold text-black disabled:opacity-50"><Search className="h-4 w-4" />Search</button></div>
-        {searchMatches.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">{searchMatches.map((item, index) => <button key={item.id || index} onClick={() => loadAwards(item)} className="rounded-lg border border-white/10 p-3 text-left hover:border-mg-green/50"><span className="block font-semibold">{titleOf(item)}</span><span className="mt-1 block text-xs text-white/50">{item.year || item.type || "Title"}{item.id ? ` · Watchmode ID ${item.id}` : ""}</span></button>)}</div>}
-        {selectedTitle && <p className="mt-3 text-xs text-white/50">Showing award records for {titleOf(selectedTitle)}.</p>}
-      </section>}
-
-      {tab === "events" && <section className="mb-4 rounded-xl border border-white/10 bg-mg-card p-3 sm:p-4">
-        <div className="flex flex-wrap gap-2">
-          {[{ id: "events", label: "Event schedule" }, { id: "leagues", label: "Sports & award leagues" }, { id: "teams", label: "Find teams" }].map((mode) => <button key={mode.id} onClick={() => { setLiveMode(mode.id); setSubmittedLiveQuery(""); setResults([]); setError(""); }} className={`min-h-9 rounded-lg border px-3 text-xs font-semibold ${liveMode === mode.id ? "border-mg-green bg-mg-green text-black" : "border-white/10 text-white/65 hover:bg-white/5"}`}>{mode.label}</button>)}
-        </div>
-        {liveMode !== "leagues" && <div className="mt-3 flex gap-2">
-          <input value={liveQuery} onChange={(event) => setLiveQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && liveQuery.trim()) setSubmittedLiveQuery(liveQuery.trim()); }} placeholder={liveMode === "teams" ? "Search teams by name…" : "Filter events by team, league or event…"} className="min-h-10 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white outline-none focus:border-mg-green" />
-          <button onClick={() => { if (!liveQuery.trim()) { setError(liveMode === "teams" ? "Enter a team name to search." : "Enter a team, league or event to filter the schedule."); return; } setSubmittedLiveQuery(liveQuery.trim()); }} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-mg-green px-3 text-xs font-bold text-black"><Search className="h-4 w-4" />Search</button>
-          {submittedLiveQuery && <button onClick={() => { setLiveQuery(""); setSubmittedLiveQuery(""); setError(""); }} className="min-h-10 rounded-lg border border-white/10 px-3 text-xs text-white/70">Clear</button>}
-        </div>}
-      </section>}
-
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-bold"><Icon className="h-5 w-5 text-mg-green" />{currentTab?.label}</h2>
-        <button onClick={() => tab === "awards" ? searchAwards() : loadTab(tab)} disabled={loading} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-white/70 hover:bg-white/5 disabled:opacity-50"><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />Refresh</button>
-      </div>
-
-      {fallbackNotice && <p role="status" className="mb-4 rounded-lg border border-white/10 bg-mg-card px-4 py-3 text-sm text-white/70">{fallbackNotice}</p>}
-      {loading && <div className="flex min-h-32 items-center justify-center gap-2 text-sm text-white/60"><Loader2 className="h-5 w-5 animate-spin text-mg-green" />Loading Watchmode data…</div>}
-      {!loading && error && <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm text-amber-100"><CircleAlert className="mt-0.5 h-5 w-5 shrink-0" /><div><p className="font-semibold">Watchmode data unavailable</p><p className="mt-1 text-amber-100/70">{error}</p></div></div>}
-      {!loading && !error && results.length === 0 && <div className="rounded-xl border border-white/10 bg-mg-card p-6 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-mg-green/10 text-mg-green"><Icon className="h-6 w-6" /></div><p className="mt-3 font-semibold">No results returned</p><p className="mt-1 text-sm text-white/50">This can mean there is no matching data for {region}, or your Watchmode plan does not include this endpoint.</p></div>}
-      {!loading && results.length > 0 && <><p className="mb-3 text-xs text-white/40">{metadata?.total != null ? `${metadata.total} matching records` : `${results.length} records returned`}{metadata?.limited ? " · Date range limited by plan" : ""}</p><div className="grid gap-3 lg:grid-cols-2">{results.map((item, index) => <ResultCard key={item?.id || item?.title_id || item?.event_id || index} item={item} />)}</div></>}
-
-      <p className="mt-6 border-t border-white/10 pt-4 text-xs text-white/35">Watchmode data and deep links depend on service, event, country and account coverage. A listed service is not a guarantee that a title is currently playable.</p>
+const normalise = item => ({
+  id: item?.id || item?.tmdb_id || item?.title,
+  title: item?.title || item?.name || "Untitled",
+  description: item?.description || item?.overview || "",
+  start_time: item?.start_time || item?.release_date || item?.first_air_date || "",
+  poster_url: item?.poster_url || item?.image_url || "",
+  source_name: item?.source_name || "",
+  web_url: item?.web_url || "",
+  status: item?.status || "",
+});
+function DiscoveryCard({ item }) {
+  const row = normalise(item);
+  let when = "";
+  if (row.start_time) {
+    const date = new Date(row.start_time);
+    when = Number.isNaN(date.getTime()) ? row.start_time : date.toLocaleString("en-GB", {dateStyle:"medium", ...(row.start_time.includes("T") ? {timeStyle:"short"} : {})});
+  }
+  return <article className="flex gap-3 rounded-xl border border-white/10 bg-mg-card p-3">
+    {row.poster_url ? <img className="h-24 w-16 shrink-0 rounded object-cover" src={row.poster_url} loading="lazy" alt="" /> : <div className="flex h-24 w-16 shrink-0 items-center justify-center rounded bg-white/5"><Tv className="h-5 w-5 text-mg-green" /></div>}
+    <div className="min-w-0 flex-1">
+      <h3 className="font-semibold text-white">{row.title}</h3>
+      {when && <p className="mt-1 flex items-center gap-1.5 text-xs text-white/60"><CalendarDays className="h-3.5 w-3.5" />{when}</p>}
+      {row.description && <p className="mt-2 line-clamp-3 text-sm text-white/60">{row.description}</p>}
+      {(row.source_name || row.status) && <p className="mt-2 text-xs text-mg-green">{[row.source_name,row.status].filter(Boolean).join(" · ")}</p>}
+      {/^https:\/\//i.test(row.web_url) && <a href={row.web_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-9 items-center gap-1 rounded-lg border border-mg-green/30 px-3 py-1 text-xs font-semibold text-mg-green">Details <ExternalLink className="h-3 w-3" /></a>}
     </div>
-  );
+  </article>;
+}
+async function discovery(action, region, signal) {
+  const response = await fetch(API, {
+    method: "POST", credentials: "omit",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, region }),
+    signal,
+  });
+  const data = await response.json();
+  if (!response.ok || data.error) throw new Error(data.error || "Discovery service unavailable");
+  return Array.isArray(data.results) ? data.results : [];
+}
+export default function WatchmodeHub() {
+  const [tab, setTab] = useState("sports");
+  const [region, setRegion] = useState("GB");
+  const [rows, setRows] = useState([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [reload, setReload] = useState(0);
+  const load = useCallback(async (signal) => {
+    setLoading(true); setError(""); setRows([]);
+    try {
+      if (tab === "releases") {
+        const [films, shows] = await Promise.allSettled([
+          base44.functions.invoke("getTmdbMovies", {category:"upcoming",media_type:"movie",region,include_global_releases:true,date:new Date().toISOString().slice(0,10)}),
+          base44.functions.invoke("getTmdbMovies", {category:"tv_upcoming",media_type:"tv",region,date:new Date().toISOString().slice(0,10)}),
+        ]);
+        if (signal.aborted) return;
+        const merged = [films,shows].flatMap(x => x.status === "fulfilled" && Array.isArray(x.value?.data?.movies) ? x.value.data.movies : []);
+        if (!merged.length && films.status === "rejected" && shows.status === "rejected") throw new Error("Film and TV release data is temporarily unavailable");
+        setRows(merged.map(x=>({...x,source_name:"TMDB"})).sort((a,b)=>String(a.release_date||a.first_air_date||"").localeCompare(String(b.release_date||b.first_air_date||""))).slice(0,80));
+      } else {
+        const data = await discovery(tab,region,signal);
+        if (!signal.aborted) setRows(data);
+      }
+    } catch (e) {
+      if (!signal.aborted) setError(e?.message || "Discovery temporarily unavailable");
+    } finally { if (!signal.aborted) setLoading(false); }
+  },[tab,region]);
+  useEffect(()=> { const controller = new AbortController(); void load(controller.signal); return ()=>controller.abort(); },[load,reload]);
+  return <div data-mg-watchmode-hub="true" className="w-full p-3 sm:p-5 md:p-6 text-white">
+    <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
+      <div><p className="text-xs font-bold uppercase tracking-wider text-mg-green">TMDB · TVmaze · TheSportsDB</p>
+        <h1 className="mt-1 text-2xl font-bold sm:text-3xl">What to watch</h1>
+        <p className="mt-2 max-w-2xl text-sm text-white/60">Film releases, scheduled TV episodes and selected upcoming sports fixtures. No Watchmode account required.</p></div>
+      <label className="text-xs text-white/60">Country<select aria-label="Discovery country" value={region} onChange={event=>setRegion(event.target.value)} className="mt-1 block min-h-10 rounded-lg border border-white/10 bg-mg-card px-3 text-sm text-white">
+        <option value="GB">United Kingdom</option><option value="US">United States</option><option value="CA">Canada</option><option value="AU">Australia</option></select></label>
+    </header>
+    <div className="mb-4 flex gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Discovery sections">{tabs.map(t=>{const Icon=t.icon;return <button key={t.id} role="tab" aria-selected={tab===t.id} onClick={()=>setTab(t.id)} className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-semibold ${tab===t.id?"border-mg-green bg-mg-green text-black":"border-white/10 bg-white/5 text-white/70"}`}><Icon className="h-4 w-4" />{t.label}</button>})}</div>
+    <div className="mb-4 flex items-center justify-between gap-3"><p className="text-sm text-white/60">{tab==="sports"?"Selected fixtures from TheSportsDB's limited free feed":tab==="tv"?"TVmaze scheduled episodes":"Worldwide and regional releases from TMDB"}</p><button onClick={()=>setReload(x=>x+1)} disabled={loading} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 px-3 text-xs font-bold"><RefreshCw className="h-4 w-4" />Refresh</button></div>
+    {loading && <p role="status" className="flex min-h-24 items-center gap-2 text-sm text-white/60"><Loader2 className="h-5 w-5 animate-spin" />Loading discovery…</p>}
+    {!loading && error && <p role="alert" className="mb-4 flex gap-2 rounded-lg border border-amber-400/30 p-4 text-sm text-amber-100"><AlertCircle className="h-5 w-5 shrink-0" />{error}</p>}
+    {!loading && !error && !rows.length && <p className="rounded-xl bg-mg-card p-6 text-sm text-white/60">No confirmed entries available for this selection right now.</p>}
+    {!loading && rows.length>0 && <div className="grid gap-3 lg:grid-cols-2">{rows.map((item,index)=><DiscoveryCard item={item} key={item?.id||index}/>)}</div>}
+    <p className="mt-6 border-t border-white/10 pt-4 text-xs text-white/40">Sports information is a limited fixture sample, not a live score or streaming guide. Listed programmes and releases are not guaranteed playable; provider coverage and dates can change.</p>
+  </div>;
 }
