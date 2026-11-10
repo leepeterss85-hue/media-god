@@ -96,10 +96,10 @@ test("a late stale Android SDK token cannot replace the fallback after timeout",
   assert.equal(result, "bootstrap");
 });
 
-test("real-debrid network wrapper still sends only verified account sessions", () => {
+test("real-debrid network wrapper supports account and device authentication", () => {
   const code = read("src/api/independentRealDebrid.js");
   assert.match(code, /resolveAccountToken/);
   assert.match(code, /timeoutMs = 1_800/);
-  assert.match(code, /"Authorization": `Bearer \$\{session\}`/);
+  assert.match(code, /"Authorization": deviceToken \? `Device \$\{deviceToken\}` : `Bearer \$\{session\}`/);
   assert.doesNotMatch(code, /localStorage\.setItem/);
 });

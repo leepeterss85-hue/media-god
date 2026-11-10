@@ -65,7 +65,7 @@ test("no silent return to Base44 credits for public catalogue requests", () => {
   const client = read("src/api/base44Client.js");
   assert.match(client, /if \(name === 'getTmdbMovies'\) \{\s*return invokeIndependentMetadata\(payload\)/);
   assert.match(client, /return rawInvoke\(/);
-  assert.match(client, /withGuestDebridPayload\(payload\)/);
+  assert.match(client, /deviceToken: railwayDeviceToken\(\)/);
   const metadata = read("src/api/independentMetadata.js");
   assert.doesNotMatch(metadata, /base44\.functions\.invoke|rd_token|asServiceRole/);
 });

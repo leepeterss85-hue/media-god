@@ -216,8 +216,8 @@ test("Real-Debrid 8-digit device linking works for guests in Addons and Settings
 
   assert.match(deviceHelper, /mg:guest-real-debrid-device-key:v1/);
   assert.match(deviceHelper, /crypto\.getRandomValues/);
-  assert.match(client, /DEVICE_SCOPED_DEBRID_FUNCTIONS/);
-  assert.match(client, /withGuestDebridPayload\(payload\)/);
+  assert.match(client, /INDEPENDENT_RD_FUNCTIONS/);
+  assert.match(client, /deviceToken: railwayDeviceToken\(\)/);
 
   assert.match(guestSchema, /"device_key_hash"/);
   assert.match(guestSchema, /"role": "__disabled__"/);

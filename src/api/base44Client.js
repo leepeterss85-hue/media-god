@@ -1,6 +1,6 @@
 import { createClient } from '@base44/sdk';
 import { appParams } from '@/lib/app-params';
-import { withGuestDebridPayload } from '@/components/mg/guestDebridDevice';
+import { railwayDeviceToken } from './railwayDeviceToken.js';
 import { invokeIndependentMetadata, invokeIndependentImdbResolver, invokeIndependentAddonSources, invokeIndependentPublicFeature } from './independentMetadata.js';
 import { INDEPENDENT_RD_FUNCTIONS, invokeIndependentRealDebrid, readAccountSessionToken } from './independentRealDebrid.js';
 import { searchAddonSourcesWithPublicFallback } from './addonSourceRecovery.js';
@@ -16,13 +16,6 @@ export const base44 = createClient({
   requiresAuth: false,
   appBaseUrl
 });
-
-const DEVICE_SCOPED_DEBRID_FUNCTIONS = new Set([
-  'realDebridAuth',
-  'realDebrid',
-  'multiDebrid',
-  'findRdLibrary',
-]);
 
 const rawInvoke = base44.functions.invoke.bind(base44.functions);
 
@@ -47,23 +40,11 @@ base44.functions.invoke = async (name, payload = {}, ...rest) => {
       name === 'getFireTvApkLink') {
     return invokeIndependentPublicFeature(name, payload);
   }
-  // Real-Debrid and cache checks run through a separate user-authenticated
-  // Railway backend. It validates this Media God account with Base44 auth.me,
-  // reads only that user's RD credentials, and never gets service-role access.
-  // Guest-device connections cannot authenticate there yet and retain their
-  // existing device-scoped path, without exposing any guest credentials.
+  // Both account and isolated guest-device requests run on Railway.
   if (INDEPENDENT_RD_FUNCTIONS.has(String(name || ''))) {
     const sessionToken = await readAccountSessionToken();
-    if (sessionToken) {
-      return invokeIndependentRealDebrid(name, payload, { token: sessionToken });
-    }
+    if (sessionToken) return invokeIndependentRealDebrid(name, payload, { token: sessionToken });
+    return invokeIndependentRealDebrid(name, payload, { deviceToken: railwayDeviceToken() });
   }
-  // Keep the old guest-device path until a secure migration is complete.
-  return rawInvoke(
-    name,
-    DEVICE_SCOPED_DEBRID_FUNCTIONS.has(String(name || ''))
-      ? withGuestDebridPayload(payload)
-      : payload,
-    ...rest
-  );
+  return rawInvoke(name, payload, ...rest);
 };

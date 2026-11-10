@@ -1,4 +1,5 @@
 import http from "node:http";
+import { deviceClient } from "./deviceClient.mjs";
 import { createClient } from "@base44/sdk";
 import realDebrid from "./realDebrid.mjs";
 import realDebridAuth from "./realDebridAuth.mjs";
@@ -21,6 +22,20 @@ const HANDLERS = Object.freeze({
 });
 const MAX_BODY = 128 * 1024;
 const rate = new Map();
+const deviceQueues = new Map();
+async function runHandler(handler, request, deviceId) {
+  if (!deviceId) return handler(request);
+  const previous = deviceQueues.get(deviceId) || Promise.resolve();
+  let release;
+  const current = new Promise(resolve => { release = resolve; });
+  deviceQueues.set(deviceId, current);
+  await previous;
+  try { return await handler(request); }
+  finally {
+    release();
+    if (deviceQueues.get(deviceId) === current) deviceQueues.delete(deviceId);
+  }
+}
 const RATE_WINDOW_MS = 60_000;
 const MAX_REQUESTS_PER_USER = 220;
 
@@ -87,7 +102,13 @@ async function serve(req, res) {
     res.writeHead(204, cors(origin)); res.end(); return;
   }
   if (req.method !== "POST") return respond(res, 405, {error: "POST required"}, origin);
-  const verified = await verifiedClient(req.headers.authorization);
+  const isDevice = String(req.headers.authorization || "").startsWith("Device ");
+  if (isDevice && limited("ip:" + String(req.headers["x-real-ip"] || req.socket.remoteAddress))) {
+    return respond(res, 429, {error: "Too many device requests. Retry shortly."}, origin);
+  }
+  const verified = isDevice
+    ? await deviceClient(req.headers.authorization)
+    : await verifiedClient(req.headers.authorization);
   if (!verified) return respond(res, 401, {error: "Sign in to Media God to use Real-Debrid."}, origin);
   if (limited(verified.user.id)) {
     return respond(res, 429, {error: "Too many Real-Debrid requests. Retry shortly."}, origin);
@@ -123,7 +144,7 @@ async function serve(req, res) {
       __mediaGodVerifiedUserId: {value: verified.user.id},
       __mediaGodVerifiedUser: {value: verified.user},
     });
-    const result = await handler(request);
+    const result = await runHandler(handler, request, isDevice ? verified.user.id : "");
     const raw = await result.text();
     if (raw.length > 2_000_000) {
       return respond(res, 502, {error: "Real-Debrid response too large"}, origin);

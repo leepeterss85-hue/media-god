@@ -119,7 +119,8 @@ test("client redirects all main RD actions and cached-source checks to verified 
   }
   assert.match(helper, /getAccessToken/);
   assert.match(helper, /credentials: "omit"/);
-  assert.match(helper, /"Authorization": \`Bearer \$\{session\}\`/);
+  assert.match(helper, /"Authorization": deviceToken \? `Device/);
+  assert.match(helper, /`Bearer \$\{session\}`/);
   assert.doesNotMatch(helper, /localStorage\.setItem|process\.env/);
   const server = source("deploy/media-god-rd-api/server.mjs");
   assert.match(server, /"\/functions\/multiDebrid": multiDebrid/);

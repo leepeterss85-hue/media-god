@@ -7,8 +7,7 @@ import { resolveAccountToken } from "./accountSessionToken.js";
  * God user record. The browser sends only the existing Base44 session token.
  * No Real-Debrid token, refresh credential or private addon URL is transmitted.
  *
- * A guest (no Base44 session) keeps the existing device-specific Base44 path
- * until a secure per-device guest migration can be implemented.
+ * Guests use a separate device capability and encrypted Railway storage.
  */
 export const INDEPENDENT_RD_ENDPOINT =
   "https://media-god-rd-api-production.up.railway.app";
@@ -49,6 +48,7 @@ export function independentRdPayload(payload = {}) {
 export async function invokeIndependentRealDebrid(name, payload = {}, {
   fetchImpl = globalThis.fetch,
   token,
+  deviceToken,
   timeoutMs = 120_000,
   // A 401 can mean the native WebView's bootstrap session expired while the
   // Base44 SDK refreshed its account token. Retry only if a NEW token exists.
@@ -64,7 +64,7 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
     throw new Error("Real-Debrid network unavailable");
   }
   let session = token || await readAccountSessionToken();
-  if (!session) {
+  if (!session && !deviceToken) {
     const error = new Error("A Media God account session is required for Railway Real-Debrid");
     error.code = "NO_ACCOUNT_SESSION";
     throw error;
@@ -99,7 +99,7 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session}`,
+          "Authorization": deviceToken ? `Device ${deviceToken}` : `Bearer ${session}`,
         },
         body,
         credentials: "omit",
@@ -112,7 +112,7 @@ export async function invokeIndependentRealDebrid(name, payload = {}, {
     // Railway verifies every request with Base44 auth.me. A rejected session
     // can be retried safely ONLY when the SDK actually obtained a different
     // Media God session. A 403 (origin/permission denial) is never retried.
-    if (response.status === 401 && typeof refreshToken === "function") {
+    if (!deviceToken && response.status === 401 && typeof refreshToken === "function") {
       let fresh = "";
       try {
         fresh = String(await refreshToken() || "").trim();
