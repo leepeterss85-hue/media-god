@@ -45,7 +45,7 @@ function allowedOrigin(origin, authorization = "") {
   // Installed Android/Fire TV WebViews may send an opaque origin rather
   // than the hosted app's URL. Only permit that origin for device-bound
   // capabilities, never for user bearer sessions.
-  if (origin === "null") return /^Device [a-f0-9]{64}$/.test(authorization);
+  if (origin === "null") return /^Device [a-f0-9]{64}$/.test(authorization) || authorization === "preflight";
   // Base44 preview/published app origins can change independently of
   // Railway deploys. Restrict this exception to HTTPS Base44 hosts.
   try {
@@ -105,7 +105,7 @@ async function verifiedClient(header) {
 }
 async function serve(req, res) {
   const origin = String(req.headers.origin || "");
-  if (!allowedOrigin(origin, String(req.headers.authorization || ""))) {
+  if (!allowedOrigin(origin, req.method === "OPTIONS" ? "preflight" : String(req.headers.authorization || ""))) {
     return respond(res, 403, {error: "Origin not allowed"});
   }
   const path = (req.url || "/").split("?")[0];
@@ -115,7 +115,7 @@ async function serve(req, res) {
   const handler = HANDLERS[path];
   if (!handler) return respond(res, 404, {error: "Not found"}, origin);
   if (req.method === "OPTIONS") {
-    res.writeHead(204, cors(origin, String(req.headers.authorization || ""))); res.end(); return;
+    res.writeHead(204, cors(origin, req.method === "OPTIONS" ? "preflight" : String(req.headers.authorization || ""))); res.end(); return;
   }
   if (req.method !== "POST") return respond(res, 405, {error: "POST required"}, origin);
   const isDevice = String(req.headers.authorization || "").startsWith("Device ");
