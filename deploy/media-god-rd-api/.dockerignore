@@ -10,3 +10,5 @@
 !multiDebrid.mjs
 
 !fetchAddonStreams.mjs
+
+!deviceClient.mjs
