@@ -66,6 +66,7 @@ export default function WatchmodeHub() {
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fallbackNotice, setFallbackNotice] = useState("");
   const [searchMatches, setSearchMatches] = useState([]);
   const [selectedTitle, setSelectedTitle] = useState(null);
   const [coverage, setCoverage] = useState(null);
@@ -92,6 +93,7 @@ export default function WatchmodeHub() {
   const request = useCallback(async (action, params = {}) => {
     setLoading(true);
     setError("");
+    setFallbackNotice("");
     try {
       const response = await base44.functions.invoke("watchmodeData", { action, params: { region, regions: region, ...params } });
       const payload = response?.data || {};
@@ -103,6 +105,31 @@ export default function WatchmodeHub() {
       }
       return payload.data ?? payload;
     } catch (err) {
+      const status = Number(err?.response?.status || err?.status || 0);
+      if (["events", "releases"].includes(action) && [401, 403, 503].includes(status)) {
+        try {
+          // A genuine public catalogue fallback: these are upcoming TV
+          // programmes, never presented as live sports or Watchmode events.
+          const catalogue = await base44.functions.invoke("getTmdbMovies", {
+            category: "tv_upcoming",
+            media_type: "tv",
+            region,
+            date: new Date().toISOString().slice(0, 10),
+          });
+          const titles = catalogue?.data?.movies ?? catalogue?.movies ?? [];
+          if (Array.isArray(titles) && titles.length) {
+            const adapted = titles.map(item => ({
+              ...item,
+              start_date: item?.first_air_date || item?.release_date || item?.air_date || "",
+              title: item?.title || item?.name || "TV programme",
+            }));
+            setFallbackNotice("Watchmode access is unavailable. Showing upcoming TV releases from Media God's catalogue instead; these are not live sports events.");
+            return { events: adapted, releases: adapted, results: adapted, fallback: true };
+          }
+        } catch {
+          // Keep the original provider-access message when the fallback fails.
+        }
+      }
       const message = watchmodeError(err);
       setError(message);
       return null;
@@ -240,6 +267,7 @@ export default function WatchmodeHub() {
         <button onClick={() => tab === "awards" ? searchAwards() : loadTab(tab)} disabled={loading} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-white/70 hover:bg-white/5 disabled:opacity-50"><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />Refresh</button>
       </div>
 
+      {fallbackNotice && <p role="status" className="mb-4 rounded-lg border border-white/10 bg-mg-card px-4 py-3 text-sm text-white/70">{fallbackNotice}</p>}
       {loading && <div className="flex min-h-32 items-center justify-center gap-2 text-sm text-white/60"><Loader2 className="h-5 w-5 animate-spin text-mg-green" />Loading Watchmode data…</div>}
       {!loading && error && <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm text-amber-100"><CircleAlert className="mt-0.5 h-5 w-5 shrink-0" /><div><p className="font-semibold">Watchmode data unavailable</p><p className="mt-1 text-amber-100/70">{error}</p></div></div>}
       {!loading && !error && results.length === 0 && <div className="rounded-xl border border-white/10 bg-mg-card p-6 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-mg-green/10 text-mg-green"><Icon className="h-6 w-6" /></div><p className="mt-3 font-semibold">No results returned</p><p className="mt-1 text-sm text-white/50">This can mean there is no matching data for {region}, or your Watchmode plan does not include this endpoint.</p></div>}
