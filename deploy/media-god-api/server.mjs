@@ -240,7 +240,15 @@ const sportRow = item => ({
   web_url: item.strVideo && /^https:\/\//.test(item.strVideo) ? item.strVideo : "",
   status: "Scheduled sports fixture",
 });
-const LEAGUES = Object.freeze([4328, 4335, 4387, 4391, 4424]);
+// Curated league IDs verified against TheSportsDB. The provider's free
+// schedule API returns a small sample per league, not full regional coverage.
+// Never include foreign leagues solely because they appeared in the old feed.
+const LEAGUES_BY_REGION = Object.freeze({
+  GB: Object.freeze([4328, 4329, 4330, 4396, 4397, 4414, 4415, 4463, 4482, 4372]),
+  US: Object.freeze([4387, 4391, 4424, 4346, 4380]),
+  CA: Object.freeze([4405]),
+  AU: Object.freeze([4356, 4416, 4456, 4461]),
+});
 async function publicDiscovery(req) {
   if (req.method !== "POST") return json({ error: "POST required" }, 405);
   let body;
@@ -262,18 +270,24 @@ async function publicDiscovery(req) {
   }
   // TheSportsDB v1 free plan exposes only limited upcoming fixtures per league.
   // Never represent this as a comprehensive or live sports guide.
-  const settled = await Promise.allSettled(LEAGUES.map(async id => {
+  const leagueIds = LEAGUES_BY_REGION[region];
+  const selectedLeagues = new Set(leagueIds.map(String));
+  const settled = await Promise.allSettled(leagueIds.map(async id => {
     const url = new URL("https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php");
     url.searchParams.set("id", String(id));
     const data = await read(url);
     return Array.isArray(data?.events) ? data.events : [];
   }));
-  const rows = settled.filter(r => r.status === "fulfilled").flatMap(r => r.value).filter(e => e?.idEvent);
+  // Reject any mismatched league the provider might return. An event without
+  // an idLeague came from one of the region's explicitly selected league URLs.
+  const rows = settled.filter(r => r.status === "fulfilled").flatMap(r => r.value)
+    .filter(e => e?.idEvent && (!e.idLeague || selectedLeagues.has(String(e.idLeague))))
+    .filter(e => !e.dateEvent || e.dateEvent >= today());
   const unique = [...new Map(rows.map(e => [e.idEvent, e])).values()]
     .map(sportRow).sort((a,b) => String(a.start_time).localeCompare(String(b.start_time)));
   if (!settled.some(r => r.status === "fulfilled")) {
-    return json({ results: [], source: "TheSportsDB", error: "Sports schedules temporarily unavailable" }, 502);
+    return json({ results: [], source: "TheSportsDB", region, error: "Sports schedules temporarily unavailable" }, 502);
   }
-  return json({ results: unique, source: "TheSportsDB", limited: true, liveSports: false });
+  return json({ results: unique, source: "TheSportsDB", region, selected_league_ids: leagueIds, limited: true, liveSports: false });
 }
 
