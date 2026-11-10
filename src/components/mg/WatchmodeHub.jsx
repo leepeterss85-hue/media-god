@@ -4,6 +4,7 @@ import {
   Loader2, Radio, RefreshCw, Search, Tv, Wifi,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { watchmodeError } from "@/components/mg/watchmodeResponse";
 
 const TABS = [
   { id: "events", label: "Live sports & TV", icon: Radio },
@@ -83,7 +84,7 @@ export default function WatchmodeHub() {
         else setCoverage(payload);
       })
       .catch((err) => {
-        if (!cancelled) setCoverageError(err?.response?.data?.error || err?.message || "Live coverage could not be checked.");
+        if (!cancelled) setCoverageError(watchmodeError(err));
       });
     return () => { cancelled = true; };
   }, []);
@@ -94,10 +95,15 @@ export default function WatchmodeHub() {
     try {
       const response = await base44.functions.invoke("watchmodeData", { action, params: { region, regions: region, ...params } });
       const payload = response?.data || {};
-      if (payload.error) throw new Error(payload.error);
+      if (payload.error) {
+        const failure = new Error(payload.error);
+        failure.status = payload.provider_status || response?.status;
+        failure.response = { status: failure.status, data: payload };
+        throw failure;
+      }
       return payload.data ?? payload;
     } catch (err) {
-      const message = err?.response?.data?.error || err?.message || "Unable to load Watchmode data.";
+      const message = watchmodeError(err);
       setError(message);
       return null;
     } finally {
