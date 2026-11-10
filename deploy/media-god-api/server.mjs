@@ -7,6 +7,7 @@ import fetchAddonStreams from "./fetchAddonStreams.mjs";
 import getEntertainmentNews from "./getEntertainmentNews.mjs";
 import getSkipSegments from "./getSkipSegments.mjs";
 import getFireTvApkLink from "./getFireTvApkLink.mjs";
+import publicDiscovery from "./publicDiscovery.mjs";
 
 // Public film/TV metadata only. Personal account history and Real-Debrid
 // credentials are never sent to this service.
@@ -53,6 +54,7 @@ const ROUTE_LIMITS = {
   "/functions/getEntertainmentNews": 120,
   "/functions/getSkipSegments": 150,
   "/functions/getFireTvApkLink": 90,
+  "/functions/publicDiscovery": 60,
 };
 const inflight = new Map();
 const okOrigin = (origin) => !origin || allowedOrigins.has(origin);
@@ -96,6 +98,7 @@ const serve = async (req, res) => {
     "/functions/getEntertainmentNews": getEntertainmentNews,
     "/functions/getSkipSegments": getSkipSegments,
     "/functions/getFireTvApkLink": getFireTvApkLink,
+    "/functions/publicDiscovery": publicDiscovery,
   }[route];
   if (!handler) {
     return sendJson(res, 404, { error: "Not found" }, origin);
