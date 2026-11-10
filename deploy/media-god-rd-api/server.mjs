@@ -39,9 +39,25 @@ async function runHandler(handler, request, deviceId) {
 const RATE_WINDOW_MS = 60_000;
 const MAX_REQUESTS_PER_USER = 220;
 
-function cors(origin) {
+function allowedOrigin(origin, authorization = "") {
+  if (!origin) return true;
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  // Installed Android/Fire TV WebViews may send an opaque origin rather
+  // than the hosted app's URL. Only permit that origin for device-bound
+  // capabilities, never for user bearer sessions.
+  if (origin === "null") return /^Device [a-f0-9]{64}$/.test(authorization);
+  // Base44 preview/published app origins can change independently of
+  // Railway deploys. Restrict this exception to HTTPS Base44 hosts.
+  try {
+    const url = new URL(origin);
+    return url.protocol === "https:" &&
+      /^[a-z0-9-]+\\.base44\\.app$/i.test(url.hostname) &&
+      url.origin === origin;
+  } catch { return false; }
+}
+function cors(origin, authorization = "") {
   return {
-    ...(origin && ALLOWED_ORIGINS.has(origin)
+    ...(origin && allowedOrigin(origin, authorization)
       ? {"Access-Control-Allow-Origin": origin} : {}),
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -49,9 +65,9 @@ function cors(origin) {
     "Vary": "Origin",
   };
 }
-function respond(res, status, payload, origin = "") {
+function respond(res, status, payload, origin = "", authorization = "") {
   res.writeHead(status, {
-    ...cors(origin),
+    ...cors(origin, authorization),
     "Cache-Control": "private, no-store, max-age=0",
     "Pragma": "no-cache",
     "Content-Type": "application/json; charset=utf-8",
@@ -89,17 +105,17 @@ async function verifiedClient(header) {
 }
 async function serve(req, res) {
   const origin = String(req.headers.origin || "");
-  if (origin && !ALLOWED_ORIGINS.has(origin)) {
+  if (!allowedOrigin(origin, String(req.headers.authorization || ""))) {
     return respond(res, 403, {error: "Origin not allowed"});
   }
   const path = (req.url || "/").split("?")[0];
   if (path === "/health" && req.method === "GET") {
-    return respond(res, 200, {status: "ready", service: "media-god-rd", auth: "required"}, origin);
+    return respond(res, 200, {status: "ready", service: "media-god-rd", auth: "required"}, origin, String(req.headers.authorization || ""));
   }
   const handler = HANDLERS[path];
   if (!handler) return respond(res, 404, {error: "Not found"}, origin);
   if (req.method === "OPTIONS") {
-    res.writeHead(204, cors(origin)); res.end(); return;
+    res.writeHead(204, cors(origin, String(req.headers.authorization || ""))); res.end(); return;
   }
   if (req.method !== "POST") return respond(res, 405, {error: "POST required"}, origin);
   const isDevice = String(req.headers.authorization || "").startsWith("Device ");
