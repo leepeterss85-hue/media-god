@@ -38,8 +38,20 @@ async function verifyDigitalReleases(items, apiKey, since, today, releaseTypes =
           const cinemaEvent = releaseTypes.length === 1 && releaseTypes[0] === 3;
           const firstDate = firstDigitalReleaseDate(data.results, releaseTypes);
           const firstDigital = cinemaEvent ? firstDigitalReleaseDate(data.results, [4]) : '';
-          // Digital-first films must not appear as newly opening in cinemas.
-          cached = { date: (cinemaEvent && firstDigital && firstDigital < firstDate) ? '' : firstDate, expires: Date.now() + 6 * 60 * 60 * 1000 };
+          // UK and US full theatrical openings only. A film that premiered
+          // months ago overseas must not become "new" on each regional date.
+          const primaryMarketDates = cinemaEvent
+            ? (Array.isArray(data.results) ? data.results : [])
+                .filter(record => ['GB', 'US'].includes(String(record?.iso_3166_1 || '').toUpperCase()))
+                .flatMap(record => Array.isArray(record.release_dates) ? record.release_dates : [])
+                .filter(event => Number(event?.type) === 3)
+                .map(event => String(event.release_date || '').slice(0, 10))
+                .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date))
+            : [];
+          const hasOpening = primaryMarketDates.some(date => date >= since && date <= today);
+          cached = { date: cinemaEvent && (!hasOpening || firstDate < since ||
+            (firstDigital && firstDigital < firstDate)) ? '' : firstDate,
+            expires: Date.now() + 6 * 60 * 60 * 1000 };
           if (digitalReleaseCache.size >= 2000) digitalReleaseCache.delete(digitalReleaseCache.keys().next().value);
           digitalReleaseCache.set(cacheKey, cached);
         } catch { continue; } // Unknown dates never fall back to cinema dates.
@@ -2237,7 +2249,7 @@ export default async function(req) {
       !query &&
       providerIds.length === 0;
     const cinemaSince =
-      new Date(Date.parse(requestedDate + 'T12:00:00Z') - 35 * 86400000)
+      new Date(Date.parse(requestedDate + 'T12:00:00Z') - 28 * 86400000)
         .toISOString().slice(0, 10);
 
     // Provider availability is current metadata, NOT a timestamp recording
@@ -2361,8 +2373,8 @@ export default async function(req) {
         }
 
         /*
-         * LATEST IN CINEMAS: verified standard theatrical openings in the last
-         * five weeks. Limited previews and digital-first titles do not qualify. Never include a future
+         * LATEST IN CINEMAS: verified UK/US standard theatrical openings in the last
+         * four weeks. Limited previews and digital-first titles do not qualify. Never include a future
          * release or a digital/TV-only debut. Preserve selected filters.
          */
         if (cinemaLatest) {
