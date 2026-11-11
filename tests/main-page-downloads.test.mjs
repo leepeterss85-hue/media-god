@@ -38,7 +38,10 @@ test("movie details and TV episodes have their own Download actions without chan
   assert.match(episodes,/<MediaDownloadPicker/);
   assert.match(episodes,/season=\{seasonNumber\}/);
   assert.match(episodes,/episode=\{episodeNumber\}/);
-  assert.match(picker,/discoverMediaDownload/);
+  assert.match(picker,/discoverDownloadChoices/);
+  assert.match(picker,/resolveDownloadChoice/);
+  assert.match(picker,/formatDownloadSize/);
+  assert.match(picker,/data-mg-download-quality-filter="true"/);
   assert.match(picker,/startDeviceDownload\(file\)/);
   assert.match(picker,/data-mg-main-page-save="true"/);
   assert.match(picker,/Choose source manually/);

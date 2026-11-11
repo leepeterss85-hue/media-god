@@ -17,7 +17,7 @@ const number = value => {
  * exact TV episode. Never offer a loosely matched series pack or other title
  * as a one-click download from a detail page.
  */
-export function readyMediaDownloads(torrents, { title, year, mediaType, season, episode } = {}) {
+export function readyMediaDownloads(torrents, { title, year, mediaType, season, episode } = {}, limit = 12) {
   const wanted = words(title);
   if (!wanted || wanted.length < 3) return [];
   const isEpisode = mediaType === "tv";
@@ -51,5 +51,5 @@ export function readyMediaDownloads(torrents, { title, year, mediaType, season, 
       }
       return true;
     })
-    .slice(0, 12);
+    .slice(0, Math.max(1, Math.min(100, Number(limit) || 12)));
 }
