@@ -56,10 +56,10 @@ for (const path of backendPaths) {
     assert.equal(result.includeGlobalReleases,true,'Cinema must include US-first and worldwide theatrical releases');
     assert.equal(result.url.pathname,'/3/discover/movie');
     assert.equal(q.get('region'),'GB');
-    assert.equal(q.get('with_release_type'),'3|2');
+    assert.equal(q.get('with_release_type'),'3');
     assert.equal(q.get('sort_by'),'release_date.desc');
     assert.equal(q.get('release_date.lte'),'2026-11-08');
-    assert.equal(q.get('release_date.gte'),'2026-09-13');
+    assert.equal(q.get('release_date.gte'),'2026-10-04');
     assert.equal(q.get('include_adult'),'false');
     assert.equal(q.get('page'),'1');
     assert.equal(q.get('api_key'),'TEST_ONLY');
@@ -76,7 +76,7 @@ for (const path of backendPaths) {
     assert.equal(query.get('primary_release_year'),'2026');
     assert.equal(query.get('with_original_language'),'en');
     assert.equal(query.get('with_origin_country'),'GB');
-    assert.equal(query.get('with_release_type'),'3|2');
+    assert.equal(query.get('with_release_type'),'3');
     assert.equal(query.get('release_date.lte'),'2026-11-08');
   });
 
@@ -95,16 +95,17 @@ for (const path of backendPaths) {
   });
 }
 
-test('Movies opens Latest Digitally and keeps wider releases separate', () => {
+test('Movies opens new cinema releases with separate official Top 10 and digital tabs', () => {
   const ui=read('src/components/mg/MoviesView.jsx');
-  assert.match(ui,/id: "streaming_recent_movies", label: "Latest Digitally"/);
+  assert.match(ui,/id: "streaming_recent_movies", label: "New Digital Releases"/);
+  assert.match(ui,/id: "cinema_top10", label: "Top 10 Cinema"/);
   assert.match(ui,/id: "now_playing", label: "Wider Releases"/);
-  assert.match(ui,/useState\("streaming_recent_movies"\)/);
+  assert.match(ui,/useState\("cinema_latest"\)/);
   assert.match(ui,/region: streamingRegion/);
   assert.match(ui,/include_global_releases: true/);
   assert.match(ui,/A cinema release does not mean a streaming source is available/);
   assert.match(ui,/category === "cinema_latest" && !debouncedQuery\.trim\(\)/);
-  assert.match(ui,/\["cinema_latest", "streaming_recent_movies"\]\.includes\(category\)\) return undefined/);
+  assert.match(ui,/\["cinema_latest", "cinema_top10", "streaming_recent_movies"\]\.includes\(category\)\) return undefined/);
   assert.match(ui,/cinemaRefresh/);
   assert.match(ui,/window\.addEventListener\("focus", checkFreshness\)/);
   assert.match(ui,/document\.addEventListener\("visibilitychange", checkFreshness\)/);
