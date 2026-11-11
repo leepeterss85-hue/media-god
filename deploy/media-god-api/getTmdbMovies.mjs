@@ -35,7 +35,11 @@ async function verifyDigitalReleases(items, apiKey, since, today, releaseTypes =
           });
           if (!response.ok) continue;
           const data = await response.json();
-          cached = { date: firstDigitalReleaseDate(data.results, releaseTypes), expires: Date.now() + 6 * 60 * 60 * 1000 };
+          const cinemaEvent = releaseTypes.length === 1 && releaseTypes[0] === 3;
+          const firstDate = firstDigitalReleaseDate(data.results, releaseTypes);
+          const firstDigital = cinemaEvent ? firstDigitalReleaseDate(data.results, [4]) : '';
+          // Digital-first films must not appear as newly opening in cinemas.
+          cached = { date: (cinemaEvent && firstDigital && firstDigital < firstDate) ? '' : firstDate, expires: Date.now() + 6 * 60 * 60 * 1000 };
           if (digitalReleaseCache.size >= 2000) digitalReleaseCache.delete(digitalReleaseCache.keys().next().value);
           digitalReleaseCache.set(cacheKey, cached);
         } catch { continue; } // Unknown dates never fall back to cinema dates.
@@ -2069,7 +2073,7 @@ export default async function(req) {
       !query &&
       providerIds.length === 0;
     const cinemaSince =
-      new Date(Date.parse(requestedDate + 'T12:00:00Z') - 56 * 86400000)
+      new Date(Date.parse(requestedDate + 'T12:00:00Z') - 35 * 86400000)
         .toISOString().slice(0, 10);
 
     // Provider availability is current metadata, NOT a timestamp recording
@@ -2193,9 +2197,8 @@ export default async function(req) {
         }
 
         /*
-         * LATEST IN CINEMAS: region-specific theatrical releases in the last
-         * eight weeks. TMDB's with_release_type=3|2 selects the standard
-         * theatrical date before a limited release. Never include a future
+         * LATEST IN CINEMAS: verified standard theatrical openings in the last
+         * five weeks. Limited previews and digital-first titles do not qualify. Never include a future
          * release or a digital/TV-only debut. Preserve selected filters.
          */
         if (cinemaLatest) {
@@ -2206,7 +2209,7 @@ export default async function(req) {
             page: String(page),
             include_adult: 'false',
             sort_by: 'release_date.desc',
-            with_release_type: '3|2',
+            with_release_type: '3',
             'release_date.gte': cinemaSince,
             'release_date.lte': requestedDate,
           });
@@ -2561,7 +2564,7 @@ export default async function(req) {
       if (cinemaLatest || recentStreamingMovies) {
         // Use dates from matching cinema/digital discovery windows only.
         // Do not mistake a future UK premiere for a film unreleased abroad.
-        const windowStart = cinemaLatest ? cinemaSince : recentReleaseSince;
+        const windowStart = cinemaLatest ? cinemaSince : digitalReleaseSince;
         for (const data of [...pageResults, ...globalResults, ...earlyRegionResults]) {
           for (const item of data?.results || []) {
             const id = String(item?.id || '');
@@ -2628,7 +2631,7 @@ export default async function(req) {
       if (cinemaLatest || recentStreamingMovies) {
         // TMDB date filters are applied server-side; enforce them once more
         // before surfacing overseas results in case metadata is inconsistent.
-        const windowStart = cinemaLatest ? cinemaSince : recentReleaseSince;
+        const windowStart = cinemaLatest ? cinemaSince : digitalReleaseSince;
         const withinWindow = (item) => {
           const date = String(item?.release_date || '');
           return validYmd(date) && date >= windowStart && date <= requestedDate;
@@ -2705,7 +2708,7 @@ export default async function(req) {
       for (const [id, date] of verifiedDigitalDates) globalReleasedDates.set(id, date);
     }
     const verifiedCinemaDates = cinemaLatest
-      ? await verifyDigitalReleases(merged, apiKey, cinemaSince, requestedDate, [2, 3])
+      ? await verifyDigitalReleases(merged, apiKey, cinemaSince, requestedDate, [3])
       : new Map();
     if (cinemaLatest) {
       globalReleasedDates.clear();
