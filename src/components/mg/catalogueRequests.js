@@ -22,6 +22,15 @@ const cacheKey = (params) =>
 
 export const clearCatalogueRequestCache = () => requests.clear();
 
+// Render recently visited public catalogue metadata immediately instead of
+// showing a skeleton while a cached promise resolves. This never stores
+// history, Real-Debrid credentials, source results or user-private records.
+export const peekCatalogueMovies = (params) => {
+  if (!cacheable(params)) return null;
+  const existing = requests.get(cacheKey(params));
+  return existing && existing.expiresAt > Date.now() ? existing.response ?? null : null;
+};
+
 export const getCatalogueMovies = (params, ttlMs = DEFAULT_TTL_MS) => {
   if (!cacheable(params)) return base44.functions.invoke("getTmdbMovies", params);
 
@@ -32,13 +41,15 @@ export const getCatalogueMovies = (params, ttlMs = DEFAULT_TTL_MS) => {
 
   if (existing) requests.delete(key);
   const request = base44.functions.invoke("getTmdbMovies", params);
-  const entry = { promise: request, expiresAt: now + Math.max(1000, ttlMs) };
+  const entry = { promise: request, response: null, expiresAt: now + Math.max(1000, ttlMs) };
   requests.set(key, entry);
 
-  // Evict failed responses so a temporary 429/network error can recover.
-  void request.catch(() => {
-    if (requests.get(key) === entry) requests.delete(key);
-  });
+  // Store only successfully returned public metadata for an instant revisit.
+  // Evict failures so a temporary 429/network error can recover normally.
+  void request.then(
+    (response) => { if (requests.get(key) === entry) entry.response = response; },
+    () => { if (requests.get(key) === entry) requests.delete(key); }
+  );
 
   while (requests.size > MAX_ENTRIES) {
     requests.delete(requests.keys().next().value);
