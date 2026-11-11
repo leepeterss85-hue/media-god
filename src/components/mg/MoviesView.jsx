@@ -4,7 +4,7 @@ import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Plus, Check, Play, Globe, Info } from "lucide-react";
 import VoiceSearchButton from "@/components/mg/VoiceSearchButton";
-import { getCatalogueMovies } from "@/components/mg/catalogueRequests";
+import { getCatalogueMovies, peekCatalogueMovies } from "@/components/mg/catalogueRequests";
 import { catalogueSourceChecker, showBrowseTitleWithSourceEvidence } from "@/components/mg/catalogueSourceCheckerClient";
 import { createRollingSourceChecks } from "@/components/mg/rollingSourceChecks";
 import { Image } from "@/components/ui/image";
@@ -120,20 +120,29 @@ export default function MoviesView() {
 
   useEffect(() => {
     const requestId = ++requestRef.current;
-    setLoading(true);
-    setMovies([]);
+    const params = {
+      media_type: "movie",
+      category,
+      country: "",
+      region: streamingRegion,
+      include_global_releases: true,
+      genre,
+      year,
+      language,
+      query: debouncedQuery.trim(),
+    };
+    const cached = peekCatalogueMovies(params);
+    if (cached) {
+      setMovies(cached.data?.movies || []);
+      setChartInfo(cached.data || {});
+      setError("");
+      setLoading(false);
+    } else {
+      setLoading(true);
+      setMovies([]);
+    }
 
-    getCatalogueMovies( {
-        media_type: "movie",
-        category,
-        country: "",
-        region: streamingRegion,
-        include_global_releases: true,
-        genre,
-        year,
-        language,
-        query: debouncedQuery.trim(),
-      })
+    getCatalogueMovies(params)
       .then((res) => {
         if (requestId !== requestRef.current) return;
         setMovies(res.data?.movies || []);
