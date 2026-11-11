@@ -30,6 +30,7 @@ function buildCinemaQuery(source, opts = {}) {
     region: opts.region ?? 'GB',
     timezone: 'Europe/London',
     apiKey: 'TEST_ONLY',
+    CINEMA_FEATURE_MINUTES: 75,
     TMDB_BASE: 'https://api.themoviedb.org/3',
     URLSearchParams,
     URL,
