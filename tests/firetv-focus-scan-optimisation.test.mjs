@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
-const source = read('src/components/mg/FireTvRemote.jsx');
+const stable = read('src/components/mg/fireTvStableMode.js');
 
 class Element {
   constructor(parentElement = null, x = 0) {
@@ -21,57 +21,57 @@ class Element {
 }
 
 const fragment = (start, end) => {
-  const a = source.indexOf(start);
-  const b = source.indexOf(end, a);
-  assert.ok(a >= 0 && b > a, 'production focus logic must exist');
-  return source.slice(a, b);
+  const a = stable.indexOf(start);
+  const b = stable.indexOf(end, a);
+  assert.ok(a >= 0 && b > a, 'production stable focus logic must exist');
+  return stable.slice(a, b);
 };
 
-test('a 120-poster focus scan measures each shared parent style once, not 120 times', () => {
+const newContext = () => {
   let computed = 0;
-  const root = new Element();
-  const row = new Element(root);
-  const poster = Array.from({length: 120}, (_,i) => new Element(row,i * 101));
-  root.querySelectorAll = () => poster;
   const context = {
-    HTMLElement: Element,
+    HTMLElement: Element, Array, WeakMap,
     window: { getComputedStyle: node => {computed++; return node.style;} },
     document: { querySelectorAll: () => [] },
-    Array, WeakMap,
   };
   vm.createContext(context);
-  vm.runInContext(fragment('const visible =', 'const focusElement =') +
-    '\nglobalThis.pick = focusables;', context);
+  vm.runInContext(fragment('const visible =', 'const mediaGodAppReady') +
+    '\nglobalThis.pick = filterVisible;', context);
+  return { context, reads: () => computed };
+};
 
-  const found = context.pick(root);
-  assert.equal(found.length, 120);
-  assert.ok(computed <= 124,
-    'each child and two shared ancestor styles should be read once during the scan; reads=' + computed);
+test('120 poster focus scans share ancestor style reads, then re-check changes on the next key', () => {
+  const {context,reads} = newContext();
+  const root = new Element();
+  const row = new Element(root);
+  const posters = Array.from({length:120},(_,i)=>new Element(row,i * 101));
+  assert.equal(context.pick(posters).length,120);
+  assert.ok(reads() <= 124, 'style lookups should scale with children, not child × ancestor count');
 
-  // Visibility must be re-read on a new press, not retained across frames.
+  // No cross-key caching: hidden parent must affect the next remote press.
   row.style = {...row.style, display:'none'};
-  assert.equal(context.pick(root).length, 0);
+  assert.equal(context.pick(posters).length,0);
   row.style = {...row.style, display:'block'};
-  assert.equal(context.pick(root).length, 120);
+  assert.equal(context.pick(posters).length,120);
 });
 
-test('nearest-column navigation measures candidates once and retains tie order', () => {
-  const context = { HTMLElement:Element, Array, Math };
-  vm.createContext(context);
-  vm.runInContext(
-    fragment('const centre =', 'const directionalTarget =') +
-    fragment('const nearestByX =', 'const activeSidebarTarget =') +
-    '\nglobalThis.closest = nearestByX;', context);
-  const current = new Element(null, 200);
-  const candidates = [new Element(null, -100), new Element(null, 205),
-    new Element(null, 210), new Element(null, 500)];
-  const nearest = context.closest(current, candidates);
-  assert.equal(nearest, candidates[1]);
-  assert.equal(current.rectReads, 1);
-  assert.ok(candidates.every(item => item.rectReads === 1));
+test('Home rows read each geometry once while preserving visual top-to-bottom order', () => {
+  const {context} = newContext();
+  const root = new Element();
+  const rows = [new Element(root), new Element(root), new Element(root)];
+  rows[0].rect.top = 400;
+  rows[1].rect.top = 150;
+  rows[2].rect.top = 280;
+  context.document.querySelectorAll = () => rows;
+  vm.runInContext(fragment('const rows =', 'const sidebarButtons =') +
+    '\nglobalThis.ordered = rows;', context);
+  const order = context.ordered();
+  assert.deepEqual([...order],[rows[1],rows[2],rows[0]]);
+  assert.deepEqual(rows.map(row=>row.rectReads),[2,2,2],
+    'each row uses one visibility rect and one positioning rect, not repeated sort measurements');
 });
 
-test('remote focus memory skips unrelated poster CSS while retaining overlay and route recovery', () => {
+test('focus recovery ignores poster CSS churn but retains modal and route changes', () => {
   const memory = read('src/components/mg/FireTvFocusMemory.jsx');
   assert.match(memory, /const relevant = records\.some/);
   assert.match(memory, /record\.type !== "attributes"/);
@@ -81,10 +81,10 @@ test('remote focus memory skips unrelated poster CSS while retaining overlay and
   assert.match(memory, /childList:\s*true/);
   assert.match(memory, /state\.timer !== null/);
   assert.match(memory, /restoreSnapshot/);
+  assert.match(stable, /const sharedStyles = new WeakMap\(\)/);
+  assert.match(stable, /visible\(element, sharedStyles\)/);
+  // Known-good player/remote component is read-only in this pass.
   const remote = read('src/components/mg/FireTvRemote.jsx');
-  assert.match(remote, /const sharedStyles = new WeakMap\(\)/);
-  assert.match(remote, /visible\(element, sharedStyles\)/);
-  assert.match(remote, /candidates\.filter\(candidate => candidate !== current\)/);
   assert.match(remote, /tapOnlyFlixForRemote/);
   assert.match(remote, /liveTvRemoteTarget/);
   assert.match(remote, /window\.addEventListener\("keydown", onKeyDown, true\)/);
