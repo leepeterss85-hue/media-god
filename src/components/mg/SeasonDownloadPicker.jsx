@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AlertCircle, Download, Loader2, RefreshCw, X } from "lucide-react";
+import { discoverMediaDownload } from "@/components/mg/automaticMediaDownload";
 import { base44 } from "@/api/base44Client";
 import { downloadableMedia, startDeviceDownload } from "@/components/mg/deviceMediaDownload";
 import {
@@ -10,12 +11,12 @@ import {
 } from "@/components/mg/seasonMediaDownloads";
 
 /**
- * Only save already-ready Real-Debrid files, never embeds or guessed sources.
+ * Save matching ready files, discovering missing episodes automatically.
  * Queued means a request was handed to Android's DownloadManager, not that
  * the bytes are on disk. Browser bulk downloading is intentionally disabled
  * (async multiple downloads can be blocked by browser gesture restrictions).
  */
-export default function SeasonDownloadPicker({ title, year, season, episodes, onClose }) {
+export default function SeasonDownloadPicker({ title, year, tmdbId, season, episodes, onClose }) {
   const numbers = seasonEpisodeNumbers(episodes);
   const [loading, setLoading] = useState(true);
   const [torrents, setTorrents] = useState([]);
@@ -109,6 +110,24 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
             // A failed source does not prevent trying another ready file.
           }
         }
+        if (!saved && !couldNotQueue && !cancelRef.current) {
+          try {
+            const file = await discoverMediaDownload({ title, year, tmdbId, mediaType: "tv", season, episode }, {
+              invoke: (name, payload) => base44.functions.invoke(name, payload),
+              cancelled: () => cancelRef.current || !isMountedRef.current,
+            });
+            if (cancelRef.current || !isMountedRef.current) break;
+            if (!seenFiles.has(file.url)) {
+              if (startDeviceDownload(file) === "native") {
+                seenFiles.add(file.url);
+                queued.push(episode);
+                queuedEpisodesRef.current.add(episode);
+                saved = true;
+              } else couldNotQueue = true;
+            }
+          } catch { /* Report unavailable and continue with the remaining episodes. */ }
+        }
+        if (cancelRef.current) break;
         if (!saved) (couldNotQueue ? errors : missing).push(episode);
         checked += 1;
         if (isMountedRef.current) {
@@ -141,7 +160,7 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
         </button>
       </div>
       <p className="mt-2 text-xs text-white/65">
-        Save {numbers.length} listed episodes as separate offline files. Only completed Real-Debrid sources are considered; missing episodes are skipped. Previously saved files are not detected automatically.
+        Save {numbers.length} listed episodes as separate offline files. Missing files are searched for automatically; unavailable episodes are skipped. Previously saved files are not detected automatically.
       </p>
       {loading ? (
         <p className="mt-3 flex gap-2 items-center text-xs text-white/70"><Loader2 className="h-4 w-4 animate-spin" /> Checking ready season files…</p>

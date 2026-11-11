@@ -39,7 +39,7 @@ const buildDateRequest = (source, options = {}) => {
   };
   vm.createContext(context);
   vm.runInContext(source.slice(begin, end) +
-    "\nglobalThis.exports = { buildUrl, recentStreamingMovies, recentTvPremieres, recentReleaseSince, includeGlobalReleases };", context);
+    "\nglobalThis.exports = { buildUrl, recentStreamingMovies, recentTvPremieres, recentReleaseSince, digitalReleaseSince, includeGlobalReleases };", context);
   return {
     ...context.exports,
     url: new URL(context.exports.buildUrl(1)),
@@ -56,13 +56,13 @@ for (const path of backends) {
     const q = result.url.searchParams;
     assert.equal(q.get("region"), "GB");
     assert.equal(q.get("watch_region"), "GB");
-    assert.equal(q.get("with_watch_monetization_types"), "flatrate|free|ads");
+    assert.equal(q.get("with_watch_monetization_types"), "flatrate|free|ads|rent|buy");
     assert.equal(q.get("with_release_type"), "4");
     assert.equal(q.get("sort_by"), "release_date.desc");
     assert.equal(q.get("release_date.lte"), "2026-11-08");
-    assert.equal(q.get("release_date.gte"), result.recentReleaseSince);
-    assert.equal(result.recentReleaseSince,
-      new Date(Date.parse("2026-11-08T12:00:00Z") - 120 * 86400000).toISOString().slice(0, 10));
+    assert.equal(q.get("release_date.gte"), result.digitalReleaseSince);
+    assert.equal(result.digitalReleaseSince,
+      new Date(Date.parse("2026-11-08T12:00:00Z") - 30 * 86400000).toISOString().slice(0, 10));
   });
 
   test(path + " digital film filters retain digital release window and streaming region", () => {
@@ -152,12 +152,12 @@ test("date display is opt-in on streaming provider rows and does not change othe
   assert.match(card,/launchFireTvCardPlay\(player, media\)/);
 });
 
-test("Movies retain the UK cinema landing tab and add recent digital releases", () => {
+test("Movies open confirmed digital releases", () => {
   const movie=read("src/components/mg/MoviesView.jsx");
-  assert.match(movie,/useState\("cinema_latest"\)/);
-  assert.match(movie,/streaming_recent_movies", label: "Recent Digital \/ Streaming"/);
+  assert.match(movie,/useState\("streaming_recent_movies"\)/);
+  assert.match(movie,/streaming_recent_movies", label: "Latest Digitally"/);
   assert.match(movie,/data-mg-digital-release-region/);
-  assert.match(movie,/These are digital release dates, not necessarily the day/);
+  assert.match(movie,/Confirmed first digital releases worldwide from the last 30 days/);
   assert.match(movie,/category === "cinema_latest" \? "Worldwide cinema" : "Worldwide digital"/);
   assert.match(movie,/include_global_releases: true/);
 });

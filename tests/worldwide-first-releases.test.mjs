@@ -37,7 +37,7 @@ for (const path of backends) {
     assert.equal(us.get("with_watch_monetization_types"), "flatrate|free|ads");
   });
 
-  test(path + " includes US-first releases, keeps the earliest date and rejects future listings", async () => {
+  test(path + " collects US-first candidates before theatrical date verification", async () => {
     const source = read(path);
     const begin = source.indexOf("    const globalReleasedDates =");
     const end = source.indexOf("    const seen =", begin);
@@ -85,6 +85,7 @@ for (const path of backends) {
     assert.equal(dates.get("404"), "2026-11-07");
     assert.equal(dates.has("999"), false);
     assert.equal(context.out.rows.some(x => x.id === 202), true);
-    assert.equal(context.out.rows.some(x => x.id === 999), false);
+    // Discovery dates are provisional; the verifiedCinemaDates gate decides inclusion.
+    assert.equal(context.out.rows.some(x => x.id === 999), true);
   });
 }

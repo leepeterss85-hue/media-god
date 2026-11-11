@@ -1269,6 +1269,7 @@ export default function EpisodeSelector({
           </button>
           {downloadSeasonOpen && (
             <SeasonDownloadPicker
+              tmdbId={tmdbId}
               key={"season-download:" + tmdbId + ":" + season}
               title={showTitle}
               year={item?.year}
@@ -1581,6 +1582,7 @@ export default function EpisodeSelector({
                     {downloadEpisode === episodeNumber && (
                       <MediaDownloadPicker
                         key={`episode:${tmdbId}:${seasonNumber}:${episodeNumber}`}
+                        tmdbId={tmdbId}
                         title={showTitle}
                         year={item?.year}
                         mediaType="tv"

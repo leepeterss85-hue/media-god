@@ -38,12 +38,10 @@ test("movie details and TV episodes have their own Download actions without chan
   assert.match(episodes,/<MediaDownloadPicker/);
   assert.match(episodes,/season=\{seasonNumber\}/);
   assert.match(episodes,/episode=\{episodeNumber\}/);
-  assert.match(picker,/action: "torrents_list"/);
-  assert.match(picker,/action: "torrent_info"/);
-  assert.match(picker,/downloadableMedia\(result, torrent\.filename\)/);
+  assert.match(picker,/discoverMediaDownload/);
   assert.match(picker,/startDeviceDownload\(file\)/);
   assert.match(picker,/data-mg-main-page-save="true"/);
-  assert.match(picker,/No matching completed file was found/);
+  assert.match(picker,/Choose source manually/);
   const continueWatching = read("src/components/mg/ContinueWatchingRow.jsx");
   assert.match(continueWatching,/data-mg-continue-download="true"/);
   assert.match(continueWatching,/setDownloadPicker\(\{ item, meta \}\)/);

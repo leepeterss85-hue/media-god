@@ -95,14 +95,14 @@ for (const path of backendPaths) {
   });
 }
 
-test('Movies opens latest local cinema listings and keeps wider releases separate', () => {
+test('Movies opens Latest Digitally and keeps wider releases separate', () => {
   const ui=read('src/components/mg/MoviesView.jsx');
-  assert.match(ui,/id: "cinema_latest", label: "Latest in Cinemas"/);
+  assert.match(ui,/id: "streaming_recent_movies", label: "Latest Digitally"/);
   assert.match(ui,/id: "now_playing", label: "Wider Releases"/);
-  assert.match(ui,/useState\("cinema_latest"\)/);
+  assert.match(ui,/useState\("streaming_recent_movies"\)/);
   assert.match(ui,/region: streamingRegion/);
   assert.match(ui,/include_global_releases: true/);
-  assert.match(ui,/Cinema listings do not guarantee a playable streaming source/);
+  assert.match(ui,/A cinema release does not mean a streaming source is available/);
   assert.match(ui,/category === "cinema_latest" && !debouncedQuery\.trim\(\)/);
   assert.match(ui,/\["cinema_latest", "streaming_recent_movies"\]\.includes\(category\)\) return undefined/);
   assert.match(ui,/cinemaRefresh/);

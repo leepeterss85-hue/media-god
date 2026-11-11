@@ -31,8 +31,8 @@ import { releaseStatusLabel } from "@/components/mg/releaseDiscovery";
 const PosterImage = /** @type {any} */ (Image);
 
 const CATEGORIES = [
-  { id: "cinema_latest", label: "Latest in Cinemas" },
-  { id: "streaming_recent_movies", label: "Recent Digital / Streaming" },
+  { id: "streaming_recent_movies", label: "Latest Digitally" },
+  { id: "cinema_latest", label: "New in Cinemas" },
   { id: "now_playing", label: "Wider Releases" },
   { id: "popular", label: "Popular" },
   { id: "top_rated", label: "Top Rated" },
@@ -53,7 +53,7 @@ export default function MoviesView() {
   const [retry, setRetry] = useState(0);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState(() => getStreamingRegionOverride());
-  const [category, setCategory] = useState("cinema_latest");
+  const [category, setCategory] = useState("streaming_recent_movies");
   const [cinemaRefresh, setCinemaRefresh] = useState(0);
   const lastCinemaRefreshRef = useRef({ at: Date.now(), day: new Date().toISOString().slice(0, 10) });
   const [genre, setGenre] = useState("");
@@ -199,14 +199,14 @@ export default function MoviesView() {
 
         {category === "cinema_latest" && !debouncedQuery.trim() && (
           <p className="text-xs sm:text-sm text-white/50" data-mg-cinema-region="true">
-            Newest theatrical releases worldwide (last eight weeks), including US films released before the UK.
-            Your country selection controls provider listings, not when a film enters the catalogue. Cinema listings do not guarantee a playable streaming source.
+            Confirmed first cinema releases from the last eight weeks, newest first, including US-first releases.
+            Festival premieres, digital-only releases and later regional re-releases are excluded. A cinema release does not mean a streaming source is available.
           </p>
         )}
         {category === "streaming_recent_movies" && !debouncedQuery.trim() && (
           <p className="text-xs sm:text-sm text-white/50" data-mg-digital-release-region="true">
-            Recent digital film releases worldwide (last 120 days), including US-first releases.
-            These are digital release dates, not necessarily the day Netflix, Prime or another service added the film. A digital release abroad does not guarantee streaming availability in {streamingRegionName(streamingRegion)}.
+            Confirmed first digital releases worldwide from the last 30 days, newest first — including US-first releases.
+            Cinema-only films and later regional re-releases are excluded. Rentals, purchases and streaming releases are included. A digital release abroad does not guarantee streaming availability in {streamingRegionName(streamingRegion)}.
           </p>
         )}
 

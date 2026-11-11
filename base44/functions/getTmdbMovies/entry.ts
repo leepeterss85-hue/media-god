@@ -1,6 +1,48 @@
 import { secrets } from 'base44:runtime';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
+// Discovery is only a candidate list. Verify the first event of the requested
+// release type; later regional rereleases must not reset the date.
+const digitalReleaseCache = new Map();
+const firstDigitalReleaseDate = (results, releaseTypes = [4]) => (Array.isArray(results) ? results : [])
+  .flatMap(region => Array.isArray(region?.release_dates) ? region.release_dates : [])
+  .filter(event => releaseTypes.includes(Number(event?.type)))
+  .map(event => String(event.release_date || '').slice(0, 10))
+  .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+    Number.isFinite(Date.parse(date + 'T00:00:00Z')) &&
+    new Date(date + 'T00:00:00Z').toISOString().slice(0, 10) === date)
+  .sort()[0] || '';
+
+async function verifyDigitalReleases(items, apiKey, since, today, releaseTypes = [4]) {
+  const verified = new Map();
+  let cursor = 0;
+  const deadline = Date.now() + 12000;
+  await Promise.all(Array.from({ length: Math.min(8, items.length) }, async () => {
+    while (cursor < items.length && Date.now() < deadline) {
+      const item = items[cursor++];
+      const id = String(item?.id || '');
+      if (!/^\d+$/.test(id)) continue;
+      const cacheKey = releaseTypes.join(',') + ':' + id;
+      let cached = digitalReleaseCache.get(cacheKey);
+      if (!cached || cached.expires <= Date.now()) {
+        try {
+          const response = await fetch(`${TMDB_BASE}/movie/${id}/release_dates?api_key=${encodeURIComponent(apiKey)}`, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(Math.max(1, Math.min(4000, deadline - Date.now()))),
+          });
+          if (!response.ok) continue;
+          const data = await response.json();
+          cached = { date: firstDigitalReleaseDate(data.results, releaseTypes), expires: Date.now() + 6 * 60 * 60 * 1000 };
+          if (digitalReleaseCache.size >= 2000) digitalReleaseCache.delete(digitalReleaseCache.keys().next().value);
+          digitalReleaseCache.set(cacheKey, cached);
+        } catch { continue; } // Unknown dates never fall back to cinema dates.
+      }
+      if (cached.date && cached.date >= since && cached.date <= today) verified.set(id, cached.date);
+    }
+  }));
+  return verified;
+}
+
 const IMG_BASE = 'https://image.tmdb.org/t/p/w500';
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/w780';
 const PROVIDER_LOGO_BASE = 'https://image.tmdb.org/t/p/w92';
@@ -2040,6 +2082,10 @@ export default async function(req) {
       new Date(Date.parse(requestedDate + 'T12:00:00Z') - 120 * 86400000)
         .toISOString().slice(0, 10);
 
+    const digitalReleaseSince =
+      new Date(Date.parse(requestedDate + 'T12:00:00Z') - 30 * 86400000)
+        .toISOString().slice(0, 10);
+
     // Release discovery follows the earliest known release worldwide.
     // A viewing region only controls streaming-provider entitlement, not
     // whether a film can be listed after releasing overseas.
@@ -2178,11 +2224,11 @@ export default async function(req) {
           const params = new URLSearchParams({
             api_key: apiKey, language: 'en-GB', region,
             watch_region: region,
-            with_watch_monetization_types: 'flatrate|free|ads',
+            with_watch_monetization_types: 'flatrate|free|ads|rent|buy',
             with_release_type: '4',
             sort_by: 'release_date.desc',
             include_adult: 'false', page: String(page),
-            'release_date.gte': recentReleaseSince,
+            'release_date.gte': digitalReleaseSince,
             'release_date.lte': requestedDate,
           });
           if (country) params.set('with_origin_country', String(country));
@@ -2587,7 +2633,7 @@ export default async function(req) {
         pageResults.push(...[...globalResults, ...earlyRegionResults].map(
           (data) => ({
             ...data,
-            results: (data?.results || []).filter(withinWindow),
+            results: (cinemaLatest || recentStreamingMovies) ? (data?.results || []) : (data?.results || []).filter(withinWindow),
           })
         ));
       } else {
@@ -2648,8 +2694,23 @@ export default async function(req) {
       );
     }
 
+    const verifiedDigitalDates = recentStreamingMovies
+      ? await verifyDigitalReleases(merged, apiKey, digitalReleaseSince, requestedDate)
+      : new Map();
+    if (recentStreamingMovies) {
+      globalReleasedDates.clear();
+      for (const [id, date] of verifiedDigitalDates) globalReleasedDates.set(id, date);
+    }
+    const verifiedCinemaDates = cinemaLatest
+      ? await verifyDigitalReleases(merged, apiKey, cinemaSince, requestedDate, [2, 3])
+      : new Map();
+    if (cinemaLatest) {
+      globalReleasedDates.clear();
+      for (const [id, date] of verifiedCinemaDates) globalReleasedDates.set(id, date);
+    }
     const mappedItems =
-      merged.map((m) => {
+      merged.filter(m => !recentStreamingMovies || verifiedDigitalDates.has(String(m.id)))
+        .filter(m => !cinemaLatest || verifiedCinemaDates.has(String(m.id))).map((m) => {
         const mapped = mapItem(m, mediaType);
         const globalDate = globalReleasedDates.get(String(m?.id || '')) || '';
         const firstDate = (cinemaLatest || recentStreamingMovies) && globalDate
@@ -2658,7 +2719,9 @@ export default async function(req) {
         return {
           ...mapped,
           release_date: firstDate,
-          year: firstDate ? firstDate.slice(0, 4) : mapped.year,
+          year: recentStreamingMovies ? mapped.year : (firstDate ? firstDate.slice(0, 4) : mapped.year),
+          digital_release_date: recentStreamingMovies ? firstDate : '',
+          theatrical_release_date: cinemaLatest ? firstDate : '',
           first_worldwide_release_date: globalDate || '',
           release_context: cinemaLatest ? 'cinema' :
             recentStreamingMovies ? 'digital' :

@@ -1811,6 +1811,7 @@ export default function DetailModal({
           {downloadOpen && resolvedMediaType === "movie" && (
             <MediaDownloadPicker
               key={`movie:${itemId}`}
+              tmdbId={itemId}
               title={displayTitle}
               year={safeItem.year}
               mediaType="movie"
