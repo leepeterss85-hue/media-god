@@ -27,6 +27,7 @@ import { COUNTRY_OPTIONS } from "@/components/mg/countryOptions";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
 import { addToWatchlistItem } from "@/components/mg/watchlistActions";
 import { releaseStatusLabel } from "@/components/mg/releaseDiscovery";
+import { cataloguePosterUrl } from "@/components/mg/posterImageSizing";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -335,7 +336,7 @@ export default function MoviesView() {
             <article key={movie.id} className="mg-fire-tv-library-card group min-w-0">
               <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
                 {movie.poster_url ? <PosterImage
-                  src={movie.poster_url}
+                  src={cataloguePosterUrl(movie.poster_url)}
                   alt={movie.title}
                   className="w-full h-full object-cover"
                   fittingType="fill"
