@@ -47,6 +47,104 @@ async function verifyDigitalReleases(items, apiKey, since, today, releaseTypes =
   return verified;
 }
 
+
+// UK & Ireland box-office rankings are sourced from published weekend ticket
+// sales, never inferred from TMDB's popularity or streaming-provider feeds.
+const UK_CINEMA_CHART_SOURCES = [
+  { url: 'https://www.cinemauk.org.uk/the-industry/facts-and-figures/latest-uk-cinema-statistics/weekend-top-10-box-office/', label: 'UK Cinema Association' },
+  { url: 'https://filmdistributorsassociation.com/the-industry/databank/uk-and-ireland-current-top-15/', label: 'Film Distributors’ Association' },
+];
+let ukCinemaChartCache = null;
+const chartPlainText = value => String(value || '')
+  .replace(/<[^>]*>/g, ' ')
+  .replace(/&(#x[\da-f]+|#\d+|amp|quot|apos|nbsp|pound|rsquo|lsquo|ndash);/gi, (_text, part) => {
+    const names = { amp: '&', quot: '"', apos: "'", nbsp: ' ', pound: '£', rsquo: '’', lsquo: '‘', ndash: '–' };
+    const name = part.toLowerCase();
+    if (names[name]) return names[name];
+    const cp = name.startsWith('#x') ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
+    return Number.isFinite(cp) && cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : ' ';
+  })
+  .replace(/\s+/g, ' ').trim();
+
+function parseUkCinemaChart(html) {
+  const period = chartPlainText(html).match(/\b\d{1,2}\s*[-–]\s*\d{1,2}\s+[A-Za-z]+\s+20\d{2}\b/)?.[0] || '';
+  const rows = [];
+  const seen = new Set();
+  for (const match of String(html || '').matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    const cells = [...match[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(cell => chartPlainText(cell[1]));
+    if (cells.length < 4 || !/^(?:[1-9]|10)$/.test(cells[0])) continue;
+    const rank = Number(cells[0]);
+    const title = cells[1].replace(/\s+\([^()]{2,70}\)\s*$/, '').trim();
+    const amount = cells[cells.length - 2].replace(/[^\d]/g, '');
+    const gross = Number(amount);
+    if (!title || title.length > 160 || !amount || !Number.isSafeInteger(gross) || gross <= 0 || seen.has(rank)) continue;
+    seen.add(rank);
+    rows.push({ rank, title, weekend_gross_gbp: gross });
+    if (rows.length === 10) break;
+  }
+  return { period, rows: rows.sort((a, b) => a.rank - b.rank) };
+}
+
+const normaliseBoxOfficeTitle = value => String(value || '').normalize('NFKD')
+  .replace(/[\u0300-\u036f]/g, '').replace(/&/g, 'and')
+  .toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+async function getUkCinemaTop10(apiKey) {
+  const now = Date.now();
+  if (ukCinemaChartCache && ukCinemaChartCache.expires > now) return ukCinemaChartCache.payload;
+  let latest = null;
+  for (const source of UK_CINEMA_CHART_SOURCES) {
+    try {
+      const response = await fetch(source.url, { headers: { Accept: 'text/html' }, signal: AbortSignal.timeout(6500) });
+      if (!response.ok) continue;
+      const parsed = parseUkCinemaChart(await response.text());
+      if (parsed.rows.length !== 10 || parsed.rows.some((row, index) => row.rank !== index + 1)) continue;
+      latest = { ...parsed, source };
+      break;
+    } catch {
+      // Secondary official source is tried when the main chart is unavailable.
+    }
+  }
+  if (!latest) {
+    if (ukCinemaChartCache && now - ukCinemaChartCache.checked_at < 7 * 86400000) {
+      return { ...ukCinemaChartCache.payload, chart_stale: true };
+    }
+    return { movies: [], chart_unavailable: true, chart_region: 'GB', chart_source_url: UK_CINEMA_CHART_SOURCES[0].url };
+  }
+  const movies = await Promise.all(latest.rows.map(async entry => {
+    let match = null;
+    try {
+      const query = new URLSearchParams({ api_key: apiKey, language: 'en-GB', query: entry.title, include_adult: 'false' });
+      const response = await fetch(TMDB_BASE + '/search/movie?' + query, {
+        headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(4500),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        match = (Array.isArray(data.results) ? data.results : [])
+          .filter(movie => normaliseBoxOfficeTitle(movie.title) === normaliseBoxOfficeTitle(entry.title) ||
+                           normaliseBoxOfficeTitle(movie.original_title) === normaliseBoxOfficeTitle(entry.title))
+          .sort((a, b) => Number(b.popularity || 0) - Number(a.popularity || 0))[0] || null;
+      }
+    } catch {
+      // Chart rank survives an unsuccessful TMDB identity/poster search.
+    }
+    return {
+      ...(match ? mapItem(match, 'movie') : {
+        id: 'uk-chart-' + entry.rank, title: entry.title, year: '', media_type: 'movie',
+        tmdb_id: null, poster_url: '', release_date: '',
+      }),
+      title: entry.title, chart_rank: entry.rank, chart_weekend_gross_gbp: entry.weekend_gross_gbp,
+      release_context: 'cinema_boxoffice',
+    };
+  }));
+  const payload = {
+    movies, chart_region: 'GB', chart_period: latest.period, chart_source: latest.source.label,
+    chart_source_url: latest.source.url, chart_unavailable: false, chart_stale: false,
+  };
+  ukCinemaChartCache = { payload, checked_at: now, expires: now + 4 * 60 * 60 * 1000 };
+  return payload;
+}
+
 const IMG_BASE = 'https://image.tmdb.org/t/p/w500';
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/w780';
 const PROVIDER_LOGO_BASE = 'https://image.tmdb.org/t/p/w92';
@@ -905,6 +1003,12 @@ export default async function(req) {
             500,
         }
       );
+    }
+
+    if (body.category === 'cinema_top10' && mediaType === 'movie' &&
+        !String(body.query || '').trim()) {
+      const chart = await getUkCinemaTop10(apiKey);
+      return Response.json({ ...chart, requested_date: requestedDate });
     }
 
     /*
