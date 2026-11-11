@@ -21,6 +21,11 @@ export const releaseStatusLabel = (item = {}, section = "") => {
   if (context === "cinema" || context === "cinema_latest") {
     return "In cinemas worldwide · stream unconfirmed";
   }
+  if (context === "special" || context === "cinema_extras") {
+    return item.cinema_group === "short" ? "Short film · special theatrical screening" :
+      item.cinema_group === "runtime_unconfirmed" ? "Cinema event · feature length unconfirmed" :
+      "Special cinema event · not a regular feature-film premiere";
+  }
   if (context === "digital" || context === "streaming_recent_movies") {
     return item.local_streaming_listed
       ? "Digital release · local streaming listed"

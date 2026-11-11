@@ -30,6 +30,7 @@ function buildCinemaQuery(source, opts = {}) {
     region: opts.region ?? 'GB',
     timezone: 'Europe/London',
     apiKey: 'TEST_ONLY',
+    CINEMA_FEATURE_MINUTES: 75,
     TMDB_BASE: 'https://api.themoviedb.org/3',
     URLSearchParams,
     URL,
@@ -39,7 +40,7 @@ function buildCinemaQuery(source, opts = {}) {
     TV_ENDPOINTS: {tv_popular:'tv/popular'},
   };
   vm.createContext(context);
-  vm.runInContext(script + '\nglobalThis.output = {cinemaLatest,cinemaSince,includeGlobalReleases,buildUrl};', context);
+  vm.runInContext(script + '\nglobalThis.output = {cinemaLatest,cinemaExtras,cinemaSince,includeGlobalReleases,buildUrl};', context);
   const result = context.output;
   return {
     ...result,
@@ -57,15 +58,16 @@ for (const path of backendPaths) {
     assert.equal(result.url.pathname,'/3/discover/movie');
     assert.equal(q.get('region'),'GB');
     assert.equal(q.get('with_release_type'),'3');
+    assert.equal(q.get('with_runtime.gte'),'75');
     assert.equal(q.get('sort_by'),'release_date.desc');
     assert.equal(q.get('release_date.lte'),'2026-11-08');
     assert.equal(q.get('release_date.gte'),'2026-10-11');
     assert.equal(q.get('include_adult'),'false');
     assert.equal(q.get('page'),'1');
     assert.equal(q.get('api_key'),'TEST_ONLY');
-    assert.match(source,/if \(cinemaLatest \|\| recentStreamingMovies \|\| recentTvPremieres\) \{/);
+    assert.match(source,/if \(cinemaDiscovery \|\| recentStreamingMovies \|\| recentTvPremieres\) \{/);
     assert.match(source,/mappedItems\.sort\(\(a, b\) =>/);
-    assert.match(source,/\['cinema_latest', 'movie_released_today', 'streaming_recent_movies', 'tv_recent_premieres'\]/);
+    assert.match(source,/\['cinema_latest', 'cinema_extras', 'movie_released_today', 'streaming_recent_movies', 'tv_recent_premieres'\]/);
   });
 
   test(path + ': genre, year, original language and country filters cannot escape the cinema window', () => {
@@ -77,12 +79,19 @@ for (const path of backendPaths) {
     assert.equal(query.get('with_original_language'),'en');
     assert.equal(query.get('with_origin_country'),'GB');
     assert.equal(query.get('with_release_type'),'3');
+    assert.equal(query.get('with_runtime.gte'),'75');
     assert.equal(query.get('release_date.lte'),'2026-11-08');
   });
 
   test(path + ': chosen cinema region updates without changing global Now Playing or search', () => {
     const regional=buildCinemaQuery(read(path),{region:'FR'});
     assert.equal(regional.url.searchParams.get('region'),'FR');
+    const specials=buildCinemaQuery(read(path),{category:'cinema_extras',region:'GB'});
+    assert.equal(specials.cinemaLatest,false);
+    assert.equal(specials.cinemaExtras,true);
+    assert.equal(specials.url.pathname,'/3/discover/movie');
+    assert.equal(specials.url.searchParams.get('with_release_type'),'3');
+    assert.equal(specials.url.searchParams.has('with_runtime.gte'),false);
     const wider=buildCinemaQuery(read(path),{category:'now_playing',region:'GB'});
     assert.equal(wider.cinemaLatest,false);
     assert.equal(wider.includeGlobalReleases,true);
@@ -100,17 +109,20 @@ test('Movies opens new UK/US cinema releases with separate official Top 10 and d
   assert.match(ui,/id: "streaming_recent_movies", label: "New Digital Releases"/);
   assert.match(ui,/id: "cinema_top10", label: "Top 10 Cinema"/);
   assert.match(ui,/id: "now_playing", label: "Wider Releases"/);
+  assert.match(ui,/id: "cinema_extras", label: "Short Films & Specials"/);
+  assert.match(ui,/data-mg-cinema-extras/);
   assert.match(ui,/useState\("cinema_latest"\)/);
   assert.match(ui,/useState\("en"\)/);
   assert.match(ui,/region: streamingRegion/);
   assert.match(ui,/include_global_releases: true/);
   assert.match(ui,/A cinema release does not guarantee a playable stream/);
+  assert.match(ui,/75 minutes or longer/);
   assert.match(ui,/category === "cinema_latest" && !debouncedQuery\.trim\(\)/);
-  assert.match(ui,/\["cinema_latest", "cinema_top10", "streaming_recent_movies"\]\.includes\(category\)\) return undefined/);
+  assert.match(ui,/\["cinema_latest", "cinema_top10", "cinema_extras", "streaming_recent_movies"\]\.includes\(category\)\) return undefined/);
   assert.match(ui,/cinemaRefresh/);
   assert.match(ui,/window\.addEventListener\("focus", checkFreshness\)/);
   assert.match(ui,/document\.addEventListener\("visibilitychange", checkFreshness\)/);
-  assert.match(ui,/category === "cinema_latest" \? "Worldwide cinema" : "Worldwide digital"/);
+  assert.match(ui,/category === "streaming_recent_movies" \? "Worldwide digital" : "Worldwide cinema"/);
   assert.match(ui,/<Info className=/);
   // No changes to playback, Live TV, remote or Continue Watching required.
   assert.match(ui,/<DetailModal/);

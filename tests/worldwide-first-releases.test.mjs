@@ -52,6 +52,7 @@ for (const path of backends) {
       category: "cinema_latest",
       region: "GB",
       cinemaLatest: true,
+      cinemaDiscovery: true,
       recentStreamingMovies: false,
       cinemaSince: "2026-09-13",
       recentReleaseSince: "2026-07-11",

@@ -158,7 +158,7 @@ test("Movies open confirmed digital releases", () => {
   assert.match(movie,/streaming_recent_movies", label: "New Digital Releases"/);
   assert.match(movie,/data-mg-digital-release-region/);
   assert.match(movie,/Confirmed first digital releases worldwide from the last 30 days/);
-  assert.match(movie,/category === "cinema_latest" \? "Worldwide cinema" : "Worldwide digital"/);
+  assert.match(movie,/category === "streaming_recent_movies" \? "Worldwide digital" : "Worldwide cinema"/);
   assert.match(movie,/include_global_releases: true/);
 });
 

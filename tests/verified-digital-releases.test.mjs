@@ -51,9 +51,23 @@ for (const path of paths) {
       8: records([4, '2026-10-15'], [3, '2026-11-07']),
       9: [{ iso_3166_1:'IN', release_dates:[{type:3, release_date:'2026-11-06'}] }],
       10: [{ iso_3166_1:'JP', release_dates:[{type:3, release_date:'2025-08-01'}] }, ...records([3, '2026-11-06'])],
+      11: records([3, '2026-11-04']),
+      12: records([3, '2026-11-03']),
+      13: records([3, '2026-11-02']),
+      14: records([3, '2026-11-01']),
+      15: records([3, '2026-10-31']),
     };
     const context = { Map, Date, Promise, AbortSignal, encodeURIComponent, TMDB_BASE:'https://example.test',
-      fetch: async url => ({ok:true, json:async () => ({results:data[new URL(url).pathname.split('/')[2]]})}),
+      fetch: async url => {
+        const id = new URL(url).pathname.split('/')[2];
+        return {ok:true, json:async () => ({
+          runtime: id === '11' ? 53 : id === '15' ? 0 : 98,
+          video: id === '13',
+          genres: id === '14' ? [{id:10770,name:'TV Movie'}] : [],
+          title: id === '12' ? 'A Proper Cinema Feature' : '',
+          release_dates: { results:data[id] },
+        })};
+      },
     };
     vm.createContext(context);
     vm.runInContext(source.slice(source.indexOf('const digitalReleaseCache'), source.indexOf('const IMG_BASE')) + '\nglobalThis.verify = verifyDigitalReleases;', context);
@@ -61,9 +75,21 @@ for (const path of paths) {
     // A cached digital result must never qualify as theatrical evidence.
     await context.verify(items, 'key', '2026-09-16', '2026-11-11');
     const dates = await context.verify(items, 'key', '2026-10-07', '2026-11-11', [3]);
-    assert.deepEqual([...dates.entries()].sort(), [['5','2026-11-05'],['6','2026-11-10'],['7','2026-11-01']]);
+    assert.deepEqual([...dates.entries()].sort(), [
+      ['12','2026-11-03'], ['5','2026-11-05'], ['6','2026-11-10'], ['7','2026-11-01'],
+    ].sort());
     assert.ok(!dates.has('9'), 'foreign-only cinema debuts are excluded');
     assert.ok(!dates.has('10'), 'overseas rereleases are excluded');
-    assert.match(source, /filter\(m => !cinemaLatest \|\| verifiedCinemaDates.has\(String\(m.id\)\)\)/);
+    assert.ok(!dates.has('11'), 'a 53-minute short is not a regular cinema feature');
+    assert.ok(!dates.has('13'), 'video-first special is not a regular cinema feature');
+    assert.ok(!dates.has('14'), 'TV movie is not a regular cinema feature');
+    assert.ok(!dates.has('15'), 'unknown runtime cannot claim feature-film status');
+    const extras = await context.verify(items, 'key', '2026-10-07', '2026-11-11', [3], 'other');
+    assert.deepEqual([...extras.entries()].sort(), [
+      ['11','2026-11-04'], ['13','2026-11-02'],
+      ['14','2026-11-01'], ['15','2026-10-31'],
+    ].sort());
+    assert.ok(source.includes('append_to_response=release_dates'), 'runtime and release dates must be retrieved together');
+    assert.match(source, /filter\(m => !cinemaDiscovery \|\| verifiedCinemaDates.has\(String\(m.id\)\)\)/);
   });
 }
