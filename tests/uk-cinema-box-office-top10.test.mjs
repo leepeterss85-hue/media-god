@@ -16,7 +16,7 @@ const table = '<html><h3>6-8 November 2026</h3><table><tr><th>Rank</th><th>Film<
 
 function runHelper(path, fetch) {
   const source = readFileSync(path, 'utf8');
-  const start = source.indexOf('const UK_CINEMA_CHART_SOURCES =');
+  const start = source.indexOf('const VERIFIED_UK_CINEMA_CHART =');
   const end = source.indexOf('const IMG_BASE', start);
   assert.ok(start >= 0 && end > start, 'production chart helper must exist');
   const context = {
@@ -62,10 +62,14 @@ for (const path of paths) {
     assert.match(source, /getUkCinemaTop10\(apiKey\)/);
   });
 
-  test(path + ': an inaccessible official chart never becomes an invented TMDB Top 10', async () => {
+  test(path + ': inaccessible remote chart shows dated independently verified figures, never an invented popularity list', async () => {
     const { chart } = runHelper(path, async () => ({ok:false}));
     const result = await chart.getUkCinemaTop10('test-key');
-    assert.equal(result.chart_unavailable, true);
-    assert.equal(result.movies.length, 0);
+    assert.equal(result.chart_unavailable, false);
+    assert.equal(result.movies.length, 10);
+    assert.equal(result.movies[0].title, 'Ramayana: Rise of a Legend');
+    assert.equal(result.movies[0].chart_weekend_gross_gbp, 2148159);
+    assert.equal(result.chart_period, '6–8 November 2026');
+    assert.equal(result.chart_source_url, url);
   });
 }
