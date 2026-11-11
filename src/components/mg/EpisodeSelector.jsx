@@ -1270,6 +1270,8 @@ export default function EpisodeSelector({
           {downloadSeasonOpen && (
             <SeasonDownloadPicker
               key={"season-download:" + tmdbId + ":" + season}
+              tmdbId={tmdbId}
+              imdbId={item?.imdb_id || item?.imdbId || ""}
               title={showTitle}
               year={item?.year}
               season={Number(season)}
@@ -1581,6 +1583,8 @@ export default function EpisodeSelector({
                     {downloadEpisode === episodeNumber && (
                       <MediaDownloadPicker
                         key={`episode:${tmdbId}:${seasonNumber}:${episodeNumber}`}
+                        tmdbId={tmdbId}
+                        imdbId={item?.imdb_id || item?.imdbId || ""}
                         title={showTitle}
                         year={item?.year}
                         mediaType="tv"

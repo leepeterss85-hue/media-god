@@ -872,6 +872,8 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
             onClick={(event) => event.stopPropagation()}>
             <MediaDownloadPicker
               title={downloadPicker.meta.title}
+              tmdbId={downloadPicker.meta.tmdbId || downloadPicker.item.tmdb_id}
+              imdbId={downloadPicker.item.imdb_id}
               year={downloadPicker.meta.year}
               mediaType={downloadPicker.meta.mediaType}
               season={downloadPicker.meta.season}
