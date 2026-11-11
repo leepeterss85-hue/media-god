@@ -69,7 +69,8 @@ test("season download UI is beside season selector and retains individual episod
   assert.match(bulk, /action: "torrents_list"/);
   assert.match(bulk, /action: "torrent_info"/);
   assert.match(bulk, /fileMatchesSeasonEpisode\(result\.filename, season, episode\)/);
-  assert.match(bulk, /downloadableMedia\(result, result\.filename\)/);
+  assert.match(bulk, /matchingDownloadFile\(result/);
+  assert.match(bulk, /discoverMediaDownload/);
   assert.match(bulk, /startDeviceDownload\(file\)/);
   assert.match(bulk, /queuedEpisodesRef\.current\.has\(episode\)/);
   assert.match(bulk, /data-mg-season-download-start="true"/);

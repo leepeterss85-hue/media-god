@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AlertCircle, Download, Loader2, RefreshCw, X } from "lucide-react";
+import { discoverMediaDownload, matchingDownloadFile, rankedDownloadSources } from "@/components/mg/automaticMediaDownload";
 import { base44 } from "@/api/base44Client";
-import { downloadableMedia, startDeviceDownload } from "@/components/mg/deviceMediaDownload";
+import { startDeviceDownload } from "@/components/mg/deviceMediaDownload";
 import {
   candidatesForSeasonEpisode,
   fileMatchesSeasonEpisode,
@@ -10,20 +11,22 @@ import {
 } from "@/components/mg/seasonMediaDownloads";
 
 /**
- * Only save already-ready Real-Debrid files, never embeds or guessed sources.
+ * Save ready files and discover missing episode files automatically.
  * Queued means a request was handed to Android's DownloadManager, not that
  * the bytes are on disk. Browser bulk downloading is intentionally disabled
  * (async multiple downloads can be blocked by browser gesture restrictions).
  */
-export default function SeasonDownloadPicker({ title, year, season, episodes, onClose }) {
+export default function SeasonDownloadPicker({ title, year, tmdbId, imdbId, season, episodes, onClose }) {
   const numbers = seasonEpisodeNumbers(episodes);
   const [loading, setLoading] = useState(true);
   const [torrents, setTorrents] = useState([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState({ checked: 0, queued: [], missing: [], errors: [] });
   const [error, setError] = useState("");
+  const [discoveryMessage, setDiscoveryMessage] = useState("");
   const [refresh, setRefresh] = useState(0);
   const cancelRef = useRef(false);
+  const runningRef = useRef(false);
   // Do not enqueue the same episode twice if the user clicks Retry.
   const queuedEpisodesRef = useRef(new Set());
   const isMountedRef = useRef(true);
@@ -58,7 +61,8 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
     typeof window.MediaGodNative?.downloadFile === "function";
 
   const startSeason = async () => {
-    if (busy || loading || !hasNativeDownload || !numbers.length) return;
+    if (runningRef.current || busy || loading || !hasNativeDownload || !numbers.length) return;
+    runningRef.current = true;
     cancelRef.current = false;
     setBusy(true);
     setError("");
@@ -76,7 +80,7 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
         const candidates = candidatesForSeasonEpisode(torrents, season, episode);
         let saved = false;
         let couldNotQueue = false;
-        for (const torrent of candidates.slice(0, 10)) {
+        for (const torrent of rankedDownloadSources(candidates).slice(0, 10)) {
           if (cancelRef.current) break;
           try {
             const response = await base44.functions.invoke("realDebrid", {
@@ -92,7 +96,7 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
             if (result.status !== "ready") continue;
             // Never assume that a season pack resolved the right episode.
             if (!fileMatchesSeasonEpisode(result.filename, season, episode)) continue;
-            const file = downloadableMedia(result, result.filename);
+            const file = matchingDownloadFile(result, { title, year, mediaType: "tv", season, episode });
             if (!file) continue;
             if (seenFiles.has(file.url)) continue;
             const method = startDeviceDownload(file);
@@ -109,6 +113,26 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
             // A failed source does not prevent trying another ready file.
           }
         }
+        if (!saved && !couldNotQueue && !cancelRef.current) {
+          try {
+            const file = await discoverMediaDownload({ title, year, tmdbId, imdbId, mediaType: "tv", season, episode }, {
+              invoke: (name, payload) => base44.functions.invoke(name, payload),
+              isCancelled: () => cancelRef.current,
+              onProgress: message => { if (isMountedRef.current) setDiscoveryMessage(message); },
+            });
+            if (cancelRef.current) break;
+            if (!seenFiles.has(file.url) && startDeviceDownload(file) === "native") {
+              seenFiles.add(file.url);
+              queued.push(episode);
+              queuedEpisodesRef.current.add(episode);
+              saved = true;
+            } else { couldNotQueue = true; }
+          } catch (reason) {
+            if (cancelRef.current) break;
+            if (isMountedRef.current) setError(reason?.message || "Could not find an episode download.");
+          }
+        }
+        if (cancelRef.current) break;
         if (!saved) (couldNotQueue ? errors : missing).push(episode);
         checked += 1;
         if (isMountedRef.current) {
@@ -116,6 +140,7 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
         }
       }
     } finally {
+      runningRef.current = false;
       if (isMountedRef.current) {
         setBusy(false);
         if (cancelRef.current) {
@@ -141,14 +166,14 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
         </button>
       </div>
       <p className="mt-2 text-xs text-white/65">
-        Save {numbers.length} listed episodes as separate offline files. Only completed Real-Debrid sources are considered; missing episodes are skipped. Previously saved files are not detected automatically.
+        Save {numbers.length} listed episodes as separate offline files. Ready files are checked first, then missing episodes are searched for automatically. Previously saved files are not detected automatically.
       </p>
       {loading ? (
         <p className="mt-3 flex gap-2 items-center text-xs text-white/70"><Loader2 className="h-4 w-4 animate-spin" /> Checking ready season files…</p>
       ) : (
         <p className="mt-3 text-xs text-white/70">
           {torrents.length} ready source{torrents.length === 1 ? "" : "s"} found for this season.
-          {torrents.length ? " Season packs are checked against the exact file for each episode." : " No completed season files found yet."}
+          {torrents.length ? " Season packs are checked against the exact file for each episode." : " Available downloads will be discovered automatically."}
         </p>
       )}
       {!hasNativeDownload && (
@@ -157,7 +182,7 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
         </p>
       )}
       {busy && <p role="status" className="mt-3 text-xs text-mg-green">
-        Checking episode {Math.min(progress.checked + 1, numbers.length)} of {numbers.length}…
+        Checking episode {Math.min(progress.checked + 1, numbers.length)} of {numbers.length}… {discoveryMessage}
       </p>}
       {progress.checked > 0 && (
         <div className="mt-3 space-y-1 text-xs text-white/75" role="status">
@@ -174,7 +199,7 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
       </p>}
       <div className="mt-3 flex flex-wrap gap-2">
         <button type="button" data-mg-season-download-start="true"
-          disabled={loading || busy || !hasNativeDownload || !torrents.length || !numbers.length}
+          disabled={loading || busy || !hasNativeDownload || !numbers.length}
           onClick={() => { void startSeason(); }}
           className="min-h-11 inline-flex items-center gap-2 rounded-lg bg-mg-green px-4 text-xs font-bold text-black disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-white">
           <Download className="h-4 w-4" />
