@@ -65,7 +65,7 @@ for (const path of backendPaths) {
     assert.equal(q.get('include_adult'),'false');
     assert.equal(q.get('page'),'1');
     assert.equal(q.get('api_key'),'TEST_ONLY');
-    assert.match(source,/if \(cinemaLatest \|\| recentStreamingMovies \|\| recentTvPremieres\) \{/);
+    assert.match(source,/if \(cinemaDiscovery \|\| recentStreamingMovies \|\| recentTvPremieres\) \{/);
     assert.match(source,/mappedItems\.sort\(\(a, b\) =>/);
     assert.match(source,/\['cinema_latest', 'cinema_extras', 'movie_released_today', 'streaming_recent_movies', 'tv_recent_premieres'\]/);
   });
