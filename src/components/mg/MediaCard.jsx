@@ -6,6 +6,7 @@ import { usePlayer } from "@/components/mg/PlayerProvider";
 import ReeznCardAction from "@/components/mg/ReeznCardAction";
 import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
 import { formatCatalogueDate } from "@/components/mg/catalogueDateOrder";
+import { cataloguePosterUrl } from "@/components/mg/posterImageSizing";
 import { releaseStatusLabel } from "@/components/mg/releaseDiscovery";
 
 const PosterImage = /** @type {any} */ (Image);
@@ -106,7 +107,7 @@ export default function MediaCard({
     <article className="mg-fire-tv-card group shrink-0 w-28 min-[420px]:w-32 sm:w-36 md:w-40 xl:w-44 3xl:w-52 4xl:w-60">
       <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
         <PosterImage
-          src={item.poster_url}
+          src={cataloguePosterUrl(item.poster_url)}
           alt={item.title}
           className="w-full h-full object-cover"
           fittingType="fill"
