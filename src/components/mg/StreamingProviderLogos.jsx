@@ -116,16 +116,23 @@ export default function StreamingProviderLogos({
       };
     }
 
+    // The catalogue has already supplied region-specific provider logos.
+    // Previously every visible poster still made an extra providers_only
+    // request, even with complete logos, competing with navigation/catalogue
+    // traffic on inexpensive TV boxes.
     if (Array.isArray(initialProviders) && initialProviders.length > 0) {
       setProviders(initialProviders);
+      return () => { cancelled = true; };
     }
 
+    // Reused cards must not briefly display the previous title's services.
+    setProviders([]);
     fetchProviders({
       mediaType,
       tmdbId,
       region: activeRegion,
     }).then((items) => {
-      if (!cancelled && items.length > 0) {
+      if (!cancelled) {
         setProviders(items);
       }
     });

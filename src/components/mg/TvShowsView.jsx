@@ -4,7 +4,8 @@ import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useRef, useState } from "react";
 import { Search, Play, Globe } from "lucide-react";
 import VoiceSearchButton from "@/components/mg/VoiceSearchButton";
-import { getCatalogueMovies } from "@/components/mg/catalogueRequests";
+import { getCatalogueMovies, peekCatalogueMovies } from "@/components/mg/catalogueRequests";
+import { cataloguePosterUrl } from "@/components/mg/posterImageSizing";
 import { Image } from "@/components/ui/image";
 import {
   GENRES_TV,
@@ -174,26 +175,37 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
     let cancelled = false;
 
     const loadShows = async () => {
-      setLoading(true);
+      const params = {
+        media_type: "tv",
+        category,
+        country: "",
+        genre,
+        year,
+        language,
+        query: String(debouncedQuery || "").trim(),
+        region: streamingRegion,
+        timezone: streamingTimezone,
+        ...(activeProviderIds.length
+          ? {
+              provider_ids: activeProviderIds,
+              provider_pages: 10,
+            }
+          : {}),
+      };
+      const cached = peekCatalogueMovies(params);
+      if (cached) {
+        const result = cached?.data ?? cached ?? {};
+        const payload = result?.data && typeof result.data === "object"
+          ? result.data : result;
+        setShows(Array.isArray(payload?.movies) ? payload.movies : []);
+        setError("");
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
 
       try {
-        const response = await getCatalogueMovies( {
-          media_type: "tv",
-          category,
-          country: "",
-          genre,
-          year,
-          language,
-          query: String(debouncedQuery || "").trim(),
-          region: streamingRegion,
-          timezone: streamingTimezone,
-          ...(activeProviderIds.length
-            ? {
-                provider_ids: activeProviderIds,
-                provider_pages: 10,
-              }
-            : {}),
-        });
+        const response = await getCatalogueMovies(params);
 
         if (cancelled) {
           return;
@@ -461,7 +473,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
             >
               <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
                 <PosterImage
-                  src={show.poster_url}
+                  src={cataloguePosterUrl(show.poster_url)}
                   alt={show.title}
                   className="w-full h-full object-cover"
                   fittingType="fill"

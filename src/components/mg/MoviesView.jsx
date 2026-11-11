@@ -4,7 +4,7 @@ import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Plus, Check, Play, Globe, Info } from "lucide-react";
 import VoiceSearchButton from "@/components/mg/VoiceSearchButton";
-import { getCatalogueMovies } from "@/components/mg/catalogueRequests";
+import { getCatalogueMovies, peekCatalogueMovies } from "@/components/mg/catalogueRequests";
 import { catalogueSourceChecker, showBrowseTitleWithSourceEvidence } from "@/components/mg/catalogueSourceCheckerClient";
 import { createRollingSourceChecks } from "@/components/mg/rollingSourceChecks";
 import { Image } from "@/components/ui/image";
@@ -27,6 +27,7 @@ import { COUNTRY_OPTIONS } from "@/components/mg/countryOptions";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
 import { addToWatchlistItem } from "@/components/mg/watchlistActions";
 import { releaseStatusLabel } from "@/components/mg/releaseDiscovery";
+import { cataloguePosterUrl } from "@/components/mg/posterImageSizing";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -120,20 +121,29 @@ export default function MoviesView() {
 
   useEffect(() => {
     const requestId = ++requestRef.current;
-    setLoading(true);
-    setMovies([]);
+    const params = {
+      media_type: "movie",
+      category,
+      country: "",
+      region: streamingRegion,
+      include_global_releases: true,
+      genre,
+      year,
+      language,
+      query: debouncedQuery.trim(),
+    };
+    const cached = peekCatalogueMovies(params);
+    if (cached) {
+      setMovies(cached.data?.movies || []);
+      setChartInfo(cached.data || {});
+      setError("");
+      setLoading(false);
+    } else {
+      setLoading(true);
+      setMovies([]);
+    }
 
-    getCatalogueMovies( {
-        media_type: "movie",
-        category,
-        country: "",
-        region: streamingRegion,
-        include_global_releases: true,
-        genre,
-        year,
-        language,
-        query: debouncedQuery.trim(),
-      })
+    getCatalogueMovies(params)
       .then((res) => {
         if (requestId !== requestRef.current) return;
         setMovies(res.data?.movies || []);
@@ -326,7 +336,7 @@ export default function MoviesView() {
             <article key={movie.id} className="mg-fire-tv-library-card group min-w-0">
               <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
                 {movie.poster_url ? <PosterImage
-                  src={movie.poster_url}
+                  src={cataloguePosterUrl(movie.poster_url)}
                   alt={movie.title}
                   className="w-full h-full object-cover"
                   fittingType="fill"

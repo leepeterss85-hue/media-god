@@ -11,8 +11,6 @@ import { ArrowLeft, Mic } from "lucide-react";
 
 import Navbar from "@/components/mg/Navbar";
 import HomeDashboard from "@/components/mg/HomeDashboard";
-import MoviesView from "@/components/mg/MoviesView";
-import TvShowsView from "@/components/mg/TvShowsView";
 import LiveTVView from "@/components/mg/LiveTVView";
 import LiveTvVoiceSearchAccessory from "@/components/mg/LiveTvVoiceSearchAccessory";
 import SearchDialog from "@/components/mg/SearchDialog";
@@ -42,6 +40,10 @@ import {
   UX_PREFERENCES_EVENT,
 } from "@/components/mg/uxPreferences";
 
+// Large catalogue pages are fetched when first opened, not at every
+// Home startup. Their code is cached by the browser for subsequent visits.
+const MoviesView = lazy(() => import("@/components/mg/MoviesView"));
+const TvShowsView = lazy(() => import("@/components/mg/TvShowsView"));
 const WatchlistView = lazy(() => import("@/components/mg/WatchlistView"));
 const CatchUpView = lazy(() => import("@/components/mg/CatchUpView"));
 const RdLibraryView = lazy(() => import("@/components/mg/RdLibraryView"));
