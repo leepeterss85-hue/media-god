@@ -90,6 +90,6 @@ for (const path of paths) {
       ['14','2026-11-01'], ['15','2026-10-31'],
     ].sort());
     assert.ok(source.includes('append_to_response=release_dates'), 'runtime and release dates must be retrieved together');
-    assert.match(source, /filter\(m => !cinemaLatest \|\| verifiedCinemaDates.has\(String\(m.id\)\)\)/);
+    assert.match(source, /filter\(m => !cinemaDiscovery \|\| verifiedCinemaDates.has\(String\(m.id\)\)\)/);
   });
 }
