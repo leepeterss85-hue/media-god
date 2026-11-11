@@ -35,6 +35,7 @@ const CATEGORIES = [
   { id: "cinema_top10", label: "Top 10 Cinema" },
   { id: "streaming_recent_movies", label: "New Digital Releases" },
   { id: "now_playing", label: "Wider Releases" },
+  { id: "cinema_extras", label: "Short Films & Specials" },
   { id: "popular", label: "Popular" },
   { id: "top_rated", label: "Top Rated" },
   { id: "upcoming", label: "Upcoming" },
@@ -72,7 +73,7 @@ export default function MoviesView() {
   // backgrounded Fire Stick/mobile browser returns after several hours.
   // No high-frequency TMDB polling or new requests during playback.
   useEffect(() => {
-    if (!["cinema_latest", "cinema_top10", "streaming_recent_movies"].includes(category)) return undefined;
+    if (!["cinema_latest", "cinema_top10", "cinema_extras", "streaming_recent_movies"].includes(category)) return undefined;
     const checkFreshness = () => {
       if (document.visibilityState === "hidden") return;
       const day = new Date().toISOString().slice(0, 10);
@@ -103,7 +104,7 @@ export default function MoviesView() {
   useEffect(() => {
     // Cinema listings are release metadata, not a promise of an available
     // stream. Do not spend bandwidth checking every newly released title.
-    if (loading || !movies.length || ["cinema_latest", "cinema_top10", "streaming_recent_movies"].includes(category)) return undefined;
+    if (loading || !movies.length || ["cinema_latest", "cinema_top10", "cinema_extras", "streaming_recent_movies"].includes(category)) return undefined;
     return createRollingSourceChecks(
       () => movies,
       (movie) => catalogueSourceChecker.check({ ...movie, media_type: 'movie' })
@@ -113,7 +114,7 @@ export default function MoviesView() {
   const displayedMovies = useMemo(() => movies.filter((movie) =>
     // New cinema releases must remain visible even when no digital stream
     // exists yet. A cinema listing is not a playback-availability claim.
-    (["cinema_latest", "cinema_top10", "streaming_recent_movies"].includes(category) && !debouncedQuery.trim()) ||
+    (["cinema_latest", "cinema_top10", "cinema_extras", "streaming_recent_movies"].includes(category) && !debouncedQuery.trim()) ||
     showBrowseTitleWithSourceEvidence({ ...movie, media_type: 'movie' })
   ), [movies, sourceAvailabilityEpoch, category, debouncedQuery]);
 
@@ -208,9 +209,9 @@ export default function MoviesView() {
 
         {category === "cinema_latest" && !debouncedQuery.trim() && (
           <p className="text-xs sm:text-sm text-white/50" data-mg-cinema-region="true">
-            Genuine new UK and US full theatrical openings from the past four weeks, sorted newest first.
+            Confirmed feature-length UK and US cinema openings (75 minutes or longer) from the past four weeks, newest first.
             English-language films are shown by default — use the Language filter to see other languages.
-            Festival previews, limited-only screenings, digital-first titles and re-releases are excluded.
+            Shorts, filmed event screenings, TV movies, festival previews and digital-first releases are moved out of this section.
             A cinema release does not guarantee a playable stream.
           </p>
         )}
@@ -221,6 +222,13 @@ export default function MoviesView() {
             {chartInfo.chart_stale ? " Showing the last verified chart until newer figures can be retrieved." : ""}
             {" "}<a href={chartInfo.chart_source_url || "https://www.cinemauk.org.uk/the-industry/facts-and-figures/latest-uk-cinema-statistics/weekend-top-10-box-office/"} target="_blank" rel="noopener noreferrer" className="text-mg-green underline">See official chart</a>.
             A box-office ranking is not a promise that a playable stream exists.
+          </p>
+        )}
+        {category === "cinema_extras" && !debouncedQuery.trim() && (
+          <p className="text-xs sm:text-sm text-white/50" data-mg-cinema-extras="true">
+            Short films, filmed events, TV specials and titles without a verified feature-length runtime.
+            These are separate from new cinema feature films; their theatrical dates are verified, but a stream may not yet be available.
+            Digital-only titles belong in New Digital Releases.
           </p>
         )}
         {category === "streaming_recent_movies" && !debouncedQuery.trim() && (
@@ -331,11 +339,13 @@ export default function MoviesView() {
                 {(category !== "cinema_top10" || movie.tmdb_id) && <ReeznCardAction
                   focusKey={`movie:${movie.id || movie.tmdb_id || movie.title}`}
                 />}
-                {["cinema_latest", "cinema_top10", "streaming_recent_movies"].includes(category) && !debouncedQuery.trim() && (
+                {["cinema_latest", "cinema_top10", "cinema_extras", "streaming_recent_movies"].includes(category) && !debouncedQuery.trim() && (
                   <span title={releaseStatusLabel(movie, category)}
                     data-mg-release-status="true"
                     className="pointer-events-none absolute right-1 top-1 z-10 max-w-[70%] truncate rounded bg-black/85 px-1.5 py-1 text-[9px] font-semibold text-white">
                     {category === "cinema_top10" ? "UK box office · stream unconfirmed" :
+                      category === "cinema_extras" ? (movie.cinema_group === "short" ? "Short film" :
+                        movie.cinema_group === "runtime_unconfirmed" ? "Runtime unconfirmed" : "Special screening") :
                       category === "cinema_latest" ? "Cinema · stream unconfirmed" :
                       movie.local_streaming_listed ? "Digital · local listing" : "Digital worldwide"}
                   </span>
@@ -361,7 +371,7 @@ export default function MoviesView() {
                   aria-label={`Open ${movie.title}`}
                 >
                   <span className="w-11 h-11 sm:w-12 sm:h-12 3xl:w-14 3xl:h-14 4xl:w-16 4xl:h-16 rounded-full bg-mg-green text-black flex items-center justify-center">
-                    {["cinema_latest", "cinema_top10", "streaming_recent_movies"].includes(category) && !debouncedQuery.trim()
+                    {["cinema_latest", "cinema_top10", "cinema_extras", "streaming_recent_movies"].includes(category) && !debouncedQuery.trim()
                       ? <Info className="w-5 h-5 sm:w-6 sm:h-6 3xl:w-7 3xl:h-7 4xl:w-8 4xl:h-8" />
                       : <Play className="w-5 h-5 sm:w-6 sm:h-6 3xl:w-7 3xl:h-7 4xl:w-8 4xl:h-8 fill-black" />}
 
@@ -390,9 +400,9 @@ export default function MoviesView() {
               <p className="text-[10px] sm:text-xs 3xl:text-sm text-white/40">
                 {category === "cinema_top10" && !debouncedQuery.trim()
                   ? `Weekend: £${Number(movie.chart_weekend_gross_gbp || 0).toLocaleString("en-GB")}`
-                  : ["cinema_latest", "streaming_recent_movies"].includes(category) &&
+                  : ["cinema_latest", "cinema_extras", "streaming_recent_movies"].includes(category) &&
                    !debouncedQuery.trim() && /^\d{4}-\d{2}-\d{2}$/.test(String(movie.release_date || ""))
-                    ? `${category === "cinema_latest" ? "Worldwide cinema" : "Worldwide digital"}: ${movie.release_date.slice(8, 10)}/${movie.release_date.slice(5, 7)}/${movie.release_date.slice(0, 4)}`
+                    ? `${category === "streaming_recent_movies" ? "Worldwide digital" : "Worldwide cinema"}: ${movie.release_date.slice(8, 10)}/${movie.release_date.slice(5, 7)}/${movie.release_date.slice(0, 4)}${movie.runtime ? " · " + movie.runtime + " min" : ""}`
                     : movie.year}
               </p>
 
