@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Search, Play, Globe } from "lucide-react";
 import VoiceSearchButton from "@/components/mg/VoiceSearchButton";
 import { getCatalogueMovies, peekCatalogueMovies } from "@/components/mg/catalogueRequests";
+import { cataloguePosterUrl } from "@/components/mg/posterImageSizing";
 import { Image } from "@/components/ui/image";
 import {
   GENRES_TV,
@@ -472,7 +473,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
             >
               <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
                 <PosterImage
-                  src={show.poster_url}
+                  src={cataloguePosterUrl(show.poster_url)}
                   alt={show.title}
                   className="w-full h-full object-cover"
                   fittingType="fill"
