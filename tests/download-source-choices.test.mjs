@@ -27,7 +27,7 @@ test('video quality and file size labels distinguish 4K, 1080p, 720p, SD and unk
   assert.equal(downloadSizeBytes({ behaviorHints: { videoSize: 3 * 1024 ** 3 } }), 3 * 1024 ** 3);
   assert.equal(downloadSizeBytes({ bytes: 4 * 1024 ** 3 }), 0, 'torrent aggregate is not presented as exact file size without explicit opt-in');
   assert.equal(downloadSizeBytes({ bytes: 4 * 1024 ** 3 }, { allowTorrentSize: true }), 4 * 1024 ** 3);
-  assert.equal(formatDownloadSize(2 * 1024 ** 3), '2.00 GB');
+  assert.equal(formatDownloadSize(2 * 1024 ** 3), '2 GB');
   assert.equal(formatDownloadSize(0), 'Size unknown');
 });
 
