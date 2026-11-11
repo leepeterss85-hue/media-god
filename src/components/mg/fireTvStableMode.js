@@ -30,7 +30,7 @@ const keyDirection = (event) => {
 const isFireTv = () =>
   !isAndroidMobileRuntime() && isFireTvRuntime();
 
-const visible = (element) => {
+const visible = (element, sharedStyles = null) => {
   if (!(element instanceof HTMLElement)) {
     return false;
   }
@@ -60,7 +60,14 @@ const visible = (element) => {
       return false;
     }
 
-    const style = window.getComputedStyle(node);
+    // D-pad navigation examines many sibling posters. Share expensive
+    // computed-style reads for their common ancestors only within this
+    // synchronous pass; never keep stale visibility across key presses.
+    let style = sharedStyles?.get(node);
+    if (!style) {
+      style = window.getComputedStyle(node);
+      sharedStyles?.set(node, style);
+    }
 
     if (
       style.display === "none" ||
@@ -73,7 +80,14 @@ const visible = (element) => {
     node = node.parentElement;
   }
 
-  return window.getComputedStyle(element).pointerEvents !== "none";
+  return (sharedStyles?.get(element) || window.getComputedStyle(element)).pointerEvents !== "none";
+};
+
+// A fresh per-scan cache preserves immediate changes to disabled controls,
+// overlays and focused cards while avoiding repeated ancestor style queries.
+const filterVisible = (elements) => {
+  const sharedStyles = new WeakMap();
+  return Array.from(elements || []).filter(element => visible(element, sharedStyles));
 };
 
 const mediaGodAppReady = () =>
@@ -100,7 +114,7 @@ const firstMainFocusable = () => {
   }
 
   return (
-    Array.from(main.querySelectorAll(MAIN_FOCUSABLE)).find(visible) ||
+    filterVisible(main.querySelectorAll(MAIN_FOCUSABLE))[0] ||
     null
   );
 };
@@ -176,28 +190,27 @@ const cardTarget = (card) => {
 };
 
 const cardsInRow = (row) =>
-  Array.from(
+  filterVisible(
     row?.querySelectorAll?.(
       ".mg-fire-tv-card, .mg-fire-tv-resume-card"
     ) || []
-  ).filter(visible);
+  );
 
 const rows = () =>
-  Array.from(
+  filterVisible(
     document.querySelectorAll('[data-mg-tv-row="true"]')
   )
-    .filter(visible)
-    .sort(
-      (a, b) =>
-        a.getBoundingClientRect().top - b.getBoundingClientRect().top
-    );
+    // Read each row's geometry once instead of on every sort comparison.
+    .map(row => ({ row, top: row.getBoundingClientRect().top }))
+    .sort((a, b) => a.top - b.top)
+    .map(entry => entry.row);
 
 const sidebarButtons = () =>
-  Array.from(
+  filterVisible(
     document.querySelectorAll(
       ".mg-fire-tv-nav button:not([disabled])"
     )
-  ).filter(visible);
+  );
 
 const activeSidebarButton = () => {
   const buttons = sidebarButtons();
@@ -213,11 +226,11 @@ const activeSidebarButton = () => {
 };
 
 const heroButtons = () =>
-  Array.from(
+  filterVisible(
     document.querySelectorAll(
       '.mg-fire-tv-hero button:not([disabled])'
     )
-  ).filter(visible);
+  );
 
 const heroTarget = () => heroButtons()[0] || null;
 
