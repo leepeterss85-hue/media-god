@@ -48,6 +48,7 @@ for (const path of paths) {
       5: records([1, '2026-01-01'], [3, '2026-11-05']),
       6: records([2, '2026-10-01'], [3, '2026-11-10']),
       7: [...records([3, '2026-11-01']), {iso_3166_1:'GB', release_dates:[{type:3,release_date:'2026-12-01'}]}],
+      8: records([4, '2026-10-15'], [3, '2026-11-07']),
     };
     const context = { Map, Date, Promise, AbortSignal, encodeURIComponent, TMDB_BASE:'https://example.test',
       fetch: async url => ({ok:true, json:async () => ({results:data[new URL(url).pathname.split('/')[2]]})}),
@@ -57,8 +58,8 @@ for (const path of paths) {
     const items = Object.keys(data).map(id => ({id}));
     // A cached digital result must never qualify as theatrical evidence.
     await context.verify(items, 'key', '2026-09-16', '2026-11-11');
-    const dates = await context.verify(items, 'key', '2026-09-16', '2026-11-11', [2,3]);
-    assert.deepEqual([...dates.entries()].sort(), [['5','2026-11-05'],['6','2026-10-01'],['7','2026-11-01']]);
+    const dates = await context.verify(items, 'key', '2026-10-07', '2026-11-11', [3]);
+    assert.deepEqual([...dates.entries()].sort(), [['5','2026-11-05'],['6','2026-11-10'],['7','2026-11-01']]);
     assert.match(source, /filter\(m => !cinemaLatest \|\| verifiedCinemaDates.has\(String\(m.id\)\)\)/);
   });
 }

@@ -154,8 +154,8 @@ test("date display is opt-in on streaming provider rows and does not change othe
 
 test("Movies open confirmed digital releases", () => {
   const movie=read("src/components/mg/MoviesView.jsx");
-  assert.match(movie,/useState\("streaming_recent_movies"\)/);
-  assert.match(movie,/streaming_recent_movies", label: "Latest Digitally"/);
+  assert.match(movie,/useState\("cinema_latest"\)/);
+  assert.match(movie,/streaming_recent_movies", label: "New Digital Releases"/);
   assert.match(movie,/data-mg-digital-release-region/);
   assert.match(movie,/Confirmed first digital releases worldwide from the last 30 days/);
   assert.match(movie,/category === "cinema_latest" \? "Worldwide cinema" : "Worldwide digital"/);
