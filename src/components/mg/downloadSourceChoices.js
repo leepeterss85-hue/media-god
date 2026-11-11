@@ -2,7 +2,8 @@ import { rankDownloadSources } from './automaticMediaDownload.js';
 import { readyMediaDownloads } from './readyMediaDownloads.js';
 import { downloadableMedia } from './deviceMediaDownload.js';
 import { magnetFromInput } from './magnetStreamHelpers.js';
-import { smartSourceEvidence, sourceIsConfirmedCachedForPlayback } from './downloadChoiceEvidence.js';
+import { smartSourceEvidence } from './smartSourceSelection.js';
+import { sourceIsConfirmedCachedForPlayback } from './sourceCacheVisibility.js';
 import { fileMatchesSeasonEpisode } from './seasonMediaDownloads.js';
 
 export const MAX_DOWNLOAD_CHOICES = 60;
