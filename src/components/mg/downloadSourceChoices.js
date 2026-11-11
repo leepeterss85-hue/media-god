@@ -13,7 +13,7 @@ const filenameFor = item => String(item?.filename || item?.behaviorHints?.filena
   item?.behavior_hints?.filename || item?.name || item?.title || '').trim();
 
 const sizeFromText = value => {
-  const match = String(value || '').match(/(?:^|[\s([|])(\d+(?:\.\d+)?)\s*(TiB|GiB|MiB|KiB|TB|GB|MB|KB)(?=$|[\s)\]|,])/i);
+  const match = String(value || '').match(/(?:^|[^a-z0-9])(\d+(?:\.\d+)?)\s*(TiB|GiB|MiB|KiB|TB|GB|MB|KB)(?=$|[^a-z0-9])/i);
   if (!match) return 0;
   const units = { kib: 1024, mib: 1024 ** 2, gib: 1024 ** 3, tib: 1024 ** 4,
     kb: 1000, mb: 1000 ** 2, gb: 1000 ** 3, tb: 1000 ** 4 };
@@ -31,7 +31,8 @@ export const downloadSizeBytes = (source = {}, { allowTorrentSize = false } = {}
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 1024 && n <= 100 * 1024 ** 4) return Math.round(n);
   }
-  return sizeFromText([source?.filename, source?.name, source?.title].filter(Boolean).join(' '));
+  return sizeFromText([source?.filename, source?.name, source?.title,
+    source?.size, source?.fileSize, source?.description].filter(Boolean).join(' '));
 };
 
 export const formatDownloadSize = bytes => {
@@ -45,13 +46,13 @@ export const formatDownloadSize = bytes => {
 export const downloadQuality = source => {
   const description = [filenameFor(source), source?.quality, source?.resolution,
     source?.description].filter(Boolean).join(' ');
-  const match = description.match(/(?:^|[\s._\-[(/|])(4320|2160|1440|1080|720|576|480|360)p?(?=$|[\s._\])|/])/i);
+  const match = description.match(/(?:^|[^a-z0-9])(4320|2160|1440|1080|720|576|480|360)p?(?=$|[^a-z0-9])/i);
   if (match) {
     const n = Number(match[1]);
     return { label: n >= 2160 ? (n === 4320 ? '8K' : '4K') : n + 'p', resolution: n };
   }
-  if (/(?:^|[\s._\-[(/|])(?:4k|uhd)(?=$|[\s._\])|/])/i.test(description)) return { label: '4K', resolution: 2160 };
-  if (/(?:^|[\s._\-[(/|])8k(?=$|[\s._\])|/])/i.test(description)) return { label: '8K', resolution: 4320 };
+  if (/(?:^|[^a-z0-9])(?:4k|uhd)(?=$|[^a-z0-9])/i.test(description)) return { label: '4K', resolution: 2160 };
+  if (/(?:^|[^a-z0-9])8k(?=$|[^a-z0-9])/i.test(description)) return { label: '8K', resolution: 4320 };
   return { label: 'Unknown quality', resolution: 0 };
 };
 
@@ -191,7 +192,8 @@ const safeResolvedFile = (result, suggested, context) => {
     matchingFiles.find(entry => String(entry?.path || '').split('/').pop() === file.filename);
   return {
     ...file,
-    sizeBytes: downloadSizeBytes(selected || result) || downloadSizeBytes({filename: file.filename}),
+    sizeBytes: downloadSizeBytes(selected || result, { allowTorrentSize: Boolean(selected) }) ||
+      downloadSizeBytes({filename: file.filename}),
     quality: downloadQuality({ filename: file.filename }).label,
   };
 };
