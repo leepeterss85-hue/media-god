@@ -93,7 +93,7 @@ const mediaActionFromEvent = (event) => {
   return null;
 };
 
-const visible = (element) => {
+const visible = (element, sharedStyles = null) => {
   if (!(element instanceof HTMLElement)) {
     return false;
   }
@@ -129,7 +129,15 @@ const visible = (element) => {
       return false;
     }
 
-    const style = window.getComputedStyle(node);
+    // All cards in a row share most of their ancestors. Keep style reads
+    // local to one synchronous focusable scan, not across events/frames:
+    // this avoids repeated computed-style/layout work on Fire Stick while
+    // keeping hidden/disabled overlays immediately reactive.
+    let style = sharedStyles?.get(node);
+    if (!style) {
+      style = window.getComputedStyle(node);
+      sharedStyles?.set(node, style);
+    }
 
     if (
       style.display === "none" ||
@@ -142,7 +150,7 @@ const visible = (element) => {
     node = node.parentElement;
   }
 
-  return window.getComputedStyle(element).pointerEvents !== "none";
+  return (sharedStyles?.get(element) || window.getComputedStyle(element)).pointerEvents !== "none";
 };
 
 const topOverlay = () => {
@@ -193,9 +201,12 @@ const topOverlay = () => {
     .pop()?.element || null;
 };
 
-const focusables = (scope) =>
-  Array.from(scope?.querySelectorAll?.(FOCUSABLE) || [])
-    .filter(visible);
+const focusables = (scope) => {
+  // Per-scan cache only: a later D-pad press always rechecks visibility.
+  const sharedStyles = new WeakMap();
+  return Array.from(scope?.querySelectorAll?.(FOCUSABLE) || [])
+    .filter(element => visible(element, sharedStyles));
+};
 
 const focusElement = (element) => {
   if (!(element instanceof HTMLElement) || !visible(element)) {
@@ -279,13 +290,19 @@ const nearestByX = (source, candidates) => {
     return candidates[0] || null;
   }
 
+  // A sort measures the same poster geometry many times (O(n log n)).
+  // One linear pass reads each candidate once and keeps the same tie order.
   const sourceX = centre(source).x;
-
-  return [...candidates].sort(
-    (a, b) =>
-      Math.abs(centre(a).x - sourceX) -
-      Math.abs(centre(b).x - sourceX)
-  )[0] || null;
+  let nearest = null;
+  let distance = Infinity;
+  for (const candidate of candidates) {
+    const dx = Math.abs(centre(candidate).x - sourceX);
+    if (dx < distance) {
+      distance = dx;
+      nearest = candidate;
+    }
+  }
+  return nearest;
 };
 
 const activeSidebarTarget = () => {
@@ -309,9 +326,9 @@ const rowAwareTarget = (current, candidates, direction) => {
     return candidates[0] || null;
   }
 
-  const usable = candidates.filter(
-    (candidate) => candidate !== current && visible(candidate)
-  );
+  // This list comes from focusables(scope) in the same key event. Avoid
+  // immediately rechecking the entire list and every ancestor a second time.
+  const usable = candidates.filter(candidate => candidate !== current);
 
   if (!usable.length) {
     return null;
