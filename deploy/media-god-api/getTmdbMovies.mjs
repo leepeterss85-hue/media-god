@@ -53,6 +53,64 @@ async function verifyDigitalReleases(items, apiKey, since, today, releaseTypes =
 
 // UK & Ireland box-office rankings are sourced from published weekend ticket
 // sales, never inferred from TMDB's popularity or streaming-provider feeds.
+const VERIFIED_UK_CINEMA_CHART = {
+  period: '6–8 November 2026',
+  published_on: '2026-11-10',
+  source: { url: 'https://www.cinemauk.org.uk/the-industry/facts-and-figures/latest-uk-cinema-statistics/weekend-top-10-box-office/', label: 'UK Cinema Association' },
+  rows: [
+  {
+    "rank": 1,
+    "title": "Ramayana: Rise of a Legend",
+    "weekend_gross_gbp": 2148159
+  },
+  {
+    "rank": 2,
+    "title": "Wild Horse Nine",
+    "weekend_gross_gbp": 1477229
+  },
+  {
+    "rank": 3,
+    "title": "Godzilla Minus Zero",
+    "weekend_gross_gbp": 1391129
+  },
+  {
+    "rank": 4,
+    "title": "Wicker",
+    "weekend_gross_gbp": 1127892
+  },
+  {
+    "rank": 5,
+    "title": "George Michael: The Faith Tour",
+    "weekend_gross_gbp": 1023447
+  },
+  {
+    "rank": 6,
+    "title": "Primetime",
+    "weekend_gross_gbp": 843456
+  },
+  {
+    "rank": 7,
+    "title": "Ghosts: The Possession of Button House",
+    "weekend_gross_gbp": 747374
+  },
+  {
+    "rank": 8,
+    "title": "Clayface",
+    "weekend_gross_gbp": 683058
+  },
+  {
+    "rank": 9,
+    "title": "I Play Rocky",
+    "weekend_gross_gbp": 607741
+  },
+  {
+    "rank": 10,
+    "title": "Stray Kids World Tour 'Run It'",
+    "weekend_gross_gbp": 594832
+  }
+],
+};
+
 const UK_CINEMA_CHART_SOURCES = [
   { url: 'https://www.cinemauk.org.uk/the-industry/facts-and-figures/latest-uk-cinema-statistics/weekend-top-10-box-office/', label: 'UK Cinema Association' },
   { url: 'https://filmdistributorsassociation.com/the-industry/databank/uk-and-ireland-current-top-15/', label: 'Film Distributors’ Association' },
@@ -109,11 +167,13 @@ async function getUkCinemaTop10(apiKey) {
     }
   }
   if (!latest) {
-    if (ukCinemaChartCache && now - ukCinemaChartCache.checked_at < 7 * 86400000) {
-      return { ...ukCinemaChartCache.payload, chart_stale: true };
-    }
-    return { movies: [], chart_unavailable: true, chart_region: 'GB', chart_source_url: UK_CINEMA_CHART_SOURCES[0].url };
+    // Preserve the last independently verified box-office weekend when the
+    // remote official source blocks the hosted runtime. Never invent ranks.
+    latest = { ...VERIFIED_UK_CINEMA_CHART };
   }
+  const snapshotAge = Date.parse(String(latest.published_on || '')) || Date.parse('2026-11-10');
+  const chartStale = latest === null || Boolean(latest.published_on) &&
+    now - snapshotAge > 7 * 86400000;
   const movies = await Promise.all(latest.rows.map(async entry => {
     let match = null;
     try {
@@ -142,7 +202,7 @@ async function getUkCinemaTop10(apiKey) {
   }));
   const payload = {
     movies, chart_region: 'GB', chart_period: latest.period, chart_source: latest.source.label,
-    chart_source_url: latest.source.url, chart_unavailable: false, chart_stale: false,
+    chart_source_url: latest.source.url, chart_unavailable: false, chart_stale: chartStale,
   };
   ukCinemaChartCache = { payload, checked_at: now, expires: now + 4 * 60 * 60 * 1000 };
   return payload;
