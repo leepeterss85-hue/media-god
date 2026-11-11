@@ -49,6 +49,8 @@ for (const path of paths) {
       6: records([2, '2026-10-01'], [3, '2026-11-10']),
       7: [...records([3, '2026-11-01']), {iso_3166_1:'GB', release_dates:[{type:3,release_date:'2026-12-01'}]}],
       8: records([4, '2026-10-15'], [3, '2026-11-07']),
+      9: [{ iso_3166_1:'IN', release_dates:[{type:3, release_date:'2026-11-06'}] }],
+      10: [{ iso_3166_1:'JP', release_dates:[{type:3, release_date:'2025-08-01'}] }, ...records([3, '2026-11-06'])],
     };
     const context = { Map, Date, Promise, AbortSignal, encodeURIComponent, TMDB_BASE:'https://example.test',
       fetch: async url => ({ok:true, json:async () => ({results:data[new URL(url).pathname.split('/')[2]]})}),
@@ -60,6 +62,8 @@ for (const path of paths) {
     await context.verify(items, 'key', '2026-09-16', '2026-11-11');
     const dates = await context.verify(items, 'key', '2026-10-07', '2026-11-11', [3]);
     assert.deepEqual([...dates.entries()].sort(), [['5','2026-11-05'],['6','2026-11-10'],['7','2026-11-01']]);
+    assert.ok(!dates.has('9'), 'foreign-only cinema debuts are excluded');
+    assert.ok(!dates.has('10'), 'overseas rereleases are excluded');
     assert.match(source, /filter\(m => !cinemaLatest \|\| verifiedCinemaDates.has\(String\(m.id\)\)\)/);
   });
 }

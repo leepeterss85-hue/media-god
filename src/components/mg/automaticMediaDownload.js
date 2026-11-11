@@ -25,7 +25,16 @@ export function rankDownloadSources(sources) {
 }
 
 /** Discover and resolve a file without starting playback. The caller owns the device handoff. */
-export async function discoverMediaDownload(context, { invoke, cancelled = () => false, onProgress = () => {}, pollAttempts = 30, wait = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
+export async function discoverMediaDownloads(context, { invoke, cancelled = () => false, onProgress = () => {}, pollAttempts = 30, maxResults = 3, wait = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
+  const limit = Math.max(1, Math.min(3, Math.trunc(Number(maxResults) || 1)));
+  const files = [];
+  const seen = new Set();
+  const addFile = file => {
+    if (!file || seen.has(file.url)) return false;
+    seen.add(file.url);
+    files.push(file);
+    return true;
+  };
   const check = () => { if (cancelled()) throw new Error('Download cancelled.'); };
   const call = async (name, payload) => {
     check();
@@ -52,20 +61,27 @@ export async function discoverMediaDownload(context, { invoke, cancelled = () =>
       try {
         const result = await call('realDebrid', { action: 'torrent_info', torrent_id: torrent.id, ...identity });
         const file = result.status === 'ready' && validate(result, torrent.filename);
-        if (file) return file;
+        if (file && addFile(file) && files.length >= limit) return files;
       } catch (error) { check(); lastError = error.message; }
     }
   } catch (error) { check(); lastError = error.message; }
 
   onProgress('Finding a suitable download…');
   let imdbId = context.imdbId || (/^tt\d+$/i.test(String(context.tmdbId)) ? context.tmdbId : '');
-  if (!/^tt\d+$/i.test(imdbId)) {
-    const resolved = await call('resolveImdb', { ...identity, tmdb_id: context.tmdbId || '' });
-    imdbId = resolved.imdb_id;
-    if (!/^tt\d+$/i.test(imdbId || '')) throw new Error(resolved.error || 'Could not identify this title. Please retry.');
+  let found = { streams: [] };
+  try {
+    if (!/^tt\d+$/i.test(imdbId)) {
+      const resolved = await call('resolveImdb', { ...identity, tmdb_id: context.tmdbId || '' });
+      imdbId = resolved.imdb_id;
+      if (!/^tt\d+$/i.test(imdbId || '')) throw new Error(resolved.error || 'Could not identify this title. Please retry.');
+    }
+    found = await call('fetchAddonStreams', { ...identity, imdb_id: imdbId, tmdb_id: context.tmdbId || '' });
+    if (found.error && !found.streams?.length) throw new Error(found.error);
+  } catch (error) {
+    check();
+    if (files.length) return files; // Ready files are still usable when addon lookup fails.
+    throw error;
   }
-  const found = await call('fetchAddonStreams', { ...identity, imdb_id: imdbId, tmdb_id: context.tmdbId || '' });
-  if (found.error && !found.streams?.length) throw new Error(found.error);
   let uncachedAttempts = 0;
   for (const source of rankDownloadSources(excludeServerIssuedIpBoundVod(found.streams)).slice(0, 12)) {
     check();
@@ -94,9 +110,11 @@ export async function discoverMediaDownload(context, { invoke, cancelled = () =>
         result = { stream_url: url, filename: source.filename || source.behaviorHints?.filename || decodeURIComponent(path.split('/').pop()) };
       }
       const file = validate(result, nameFor(source));
-      if (file) return file;
+      if (file && addFile(file) && files.length >= limit) return files;
     } catch (error) { check(); lastError = error.message; }
   }
+  // Do not make users wait for an uncached torrent when some ready files exist.
+  if (files.length) return files;
   for (let attempt = 0; pending && attempt < pollAttempts; attempt++) {
     check();
     onProgress('Waiting for Real-Debrid to prepare the file…');
@@ -105,11 +123,17 @@ export async function discoverMediaDownload(context, { invoke, cancelled = () =>
     try {
       const result = await call('realDebrid', { action: 'torrent_info', torrent_id: pending.id, ...identity });
       const file = result.status === 'ready' && validate(result, pending.filename);
-      if (file) return file;
+      if (file) { addFile(file); return files; }
       if (result.status === 'failed' || result.error) break;
     } catch (error) { check(); lastError = error.message; break; }
   }
   throw new Error(pending
     ? 'A matching file is still being prepared by Real-Debrid. Retry when it is ready; no device download has started yet.'
     : lastError || 'No suitable downloadable file was found. Try again later or choose a source manually.');
+}
+
+/** Backwards-compatible single best match used by season bulk downloads. */
+export async function discoverMediaDownload(context, options) {
+  const files = await discoverMediaDownloads(context, { ...options, maxResults: 1 });
+  return files[0];
 }

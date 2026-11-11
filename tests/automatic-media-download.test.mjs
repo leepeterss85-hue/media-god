@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { discoverMediaDownload, rankDownloadSources } from '../src/components/mg/automaticMediaDownload.js';
+import { discoverMediaDownload, discoverMediaDownloads, rankDownloadSources } from '../src/components/mg/automaticMediaDownload.js';
 const context = { title: 'Example', year: 2026, mediaType: 'movie', imdbId: 'tt123456' };
 const video = { status: 'ready', filename: 'Example.2026.English.mkv', stream_url: 'https://files.example/video.mkv' };
 const torrent = { id: 'one', filename: video.filename, status: 'downloaded' };
@@ -78,4 +78,30 @@ test('automatically waits for a preparing file and returns it when ready', async
     return video;
   }});
   assert.equal(file.filename, video.filename);
+});
+
+test('offers up to three distinct ready files without starting any more automatically', async () => {
+  const entries = [1, 2, 3, 4].map(i => ({
+    id: String(i), filename: 'Example.2026.English.' + i + '.mkv', status: 'downloaded',
+  }));
+  const calls = [];
+  const results = await discoverMediaDownloads(context, {invoke: async (_name, payload) => {
+    calls.push(payload.action);
+    return payload.action === 'torrents_list' ? {torrents: entries} : {
+      status:'ready', filename: entries[Number(payload.torrent_id)-1].filename,
+      stream_url: 'https://files.example/' + payload.torrent_id + '.mkv',
+    };
+  }});
+  assert.equal(results.length, 3);
+  assert.equal(new Set(results.map(x => x.url)).size, 3);
+  assert.deepEqual(calls, ['torrents_list', 'torrent_info', 'torrent_info', 'torrent_info']);
+});
+test('returns existing options if addons are temporarily unreachable', async () => {
+  const found = await discoverMediaDownloads(context, {invoke: async(name, payload) => {
+    if (payload.action === 'torrents_list') return {torrents:[torrent]};
+    if (payload.action === 'torrent_info') return video;
+    throw Error('Provider unavailable');
+  }});
+  assert.equal(found.length, 1);
+  assert.equal(found[0].filename, video.filename);
 });

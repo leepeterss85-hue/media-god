@@ -60,7 +60,7 @@ export default function MoviesView() {
   const lastCinemaRefreshRef = useRef({ at: Date.now(), day: new Date().toISOString().slice(0, 10) });
   const [genre, setGenre] = useState("");
   const [year, setYear] = useState("");
-  const [language, setLanguage] = useState("");
+  const [language, setLanguage] = useState("en");
   const [watched, setWatched] = useState({});
   const [selected, setSelected] = useBrowseReturn();
   const { toast } = useToast();
@@ -190,7 +190,9 @@ export default function MoviesView() {
               type="button"
               onClick={() => {
                 setCategory(item.id);
-                if (item.id === "cinema_top10") { setGenre(""); setYear(""); setLanguage(""); }
+                if (item.id === "cinema_latest") setLanguage("en");
+                else if (item.id === "cinema_top10") { setGenre(""); setYear(""); setLanguage(""); }
+                else if (category === "cinema_latest") setLanguage("");
               }}
               className={
                 "min-h-10 3xl:min-h-12 px-3 3xl:px-5 py-1.5 3xl:py-2 rounded-md text-xs sm:text-sm 3xl:text-base 4xl:text-lg font-semibold whitespace-nowrap transition-colors " +
@@ -206,15 +208,17 @@ export default function MoviesView() {
 
         {category === "cinema_latest" && !debouncedQuery.trim() && (
           <p className="text-xs sm:text-sm text-white/50" data-mg-cinema-region="true">
-            First full theatrical releases worldwide from the last five weeks, newest first, including US-first cinema openings.
-            Festival previews, limited-only screenings, digital-first titles and later re-releases are excluded. A cinema release does not mean a streaming source is available.
+            Genuine new UK and US full theatrical openings from the past four weeks, sorted newest first.
+            English-language films are shown by default — use the Language filter to see other languages.
+            Festival previews, limited-only screenings, digital-first titles and re-releases are excluded.
+            A cinema release does not guarantee a playable stream.
           </p>
         )}
         {category === "cinema_top10" && !debouncedQuery.trim() && (
           <p className="text-xs sm:text-sm text-white/60" data-mg-cinema-top10-source="true">
             Actual UK &amp; Ireland weekend cinema ticket-sales Top 10, not TMDB popularity.
             {chartInfo.chart_period ? ` Chart weekend: ${chartInfo.chart_period}.` : " Latest available published chart."}
-            {chartInfo.chart_stale ? " The source is temporarily unavailable, so this is the last verified chart." : ""}
+            {chartInfo.chart_stale ? " Showing the last verified chart until newer figures can be retrieved." : ""}
             {" "}<a href={chartInfo.chart_source_url || "https://www.cinemauk.org.uk/the-industry/facts-and-figures/latest-uk-cinema-statistics/weekend-top-10-box-office/"} target="_blank" rel="noopener noreferrer" className="text-mg-green underline">See official chart</a>.
             A box-office ranking is not a promise that a playable stream exists.
           </p>
