@@ -13,7 +13,7 @@ const filenameFor = item => String(item?.filename || item?.behaviorHints?.filena
   item?.behavior_hints?.filename || item?.name || item?.title || '').trim();
 
 const sizeFromText = value => {
-  const match = String(value || '').match(/(?:^|[^a-z0-9])(\d+(?:\.\d+)?)\s*(TiB|GiB|MiB|KiB|TB|GB|MB|KB)(?=$|[^a-z0-9])/i);
+  const match = String(value || '').match(/(?:^|[^a-z0-9])(\d+(?:\.\d+)?)[\s._-]*(TiB|GiB|MiB|KiB|TB|GB|MB|KB)(?=$|[^a-z0-9])/i);
   if (!match) return 0;
   const units = { kib: 1024, mib: 1024 ** 2, gib: 1024 ** 3, tib: 1024 ** 4,
     kb: 1000, mb: 1000 ** 2, gb: 1000 ** 3, tb: 1000 ** 4 };
