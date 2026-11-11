@@ -4,6 +4,25 @@ const TMDB_BASE = 'https://api.themoviedb.org/3';
 // Discovery is only a candidate list. Verify the first event of the requested
 // release type; later regional rereleases must not reset the date.
 const digitalReleaseCache = new Map();
+const CINEMA_FEATURE_MINUTES = 75;
+
+// A theatrical release type alone is not evidence of a feature film.
+// Unknown runtimes, short films, TV movies and event screenings belong
+// in a separate catalogue, never in the new feature-film feed.
+const cinemaClassification = (details = {}) => {
+  const runtime = Number(details.runtime || 0);
+  if (!Number.isFinite(runtime) || runtime <= 0) return 'runtime_unconfirmed';
+  if (runtime < CINEMA_FEATURE_MINUTES) return 'short';
+  if (details.video === true ||
+      (Array.isArray(details.genres) &&
+        details.genres.some(genre => Number(genre?.id) === 10770))) return 'special';
+  const label = [details.title, details.original_title, details.tagline]
+    .map(value => String(value || '')).join(' ');
+  if (/\b(?:world tour|live concert|concert screening|fan event|fan screening|filmed stage performance|special cinema event)\b/i.test(label)) {
+    return 'event';
+  }
+  return 'feature';
+};
 const firstDigitalReleaseDate = (results, releaseTypes = [4]) => (Array.isArray(results) ? results : [])
   .flatMap(region => Array.isArray(region?.release_dates) ? region.release_dates : [])
   .filter(event => releaseTypes.includes(Number(event?.type)))
@@ -13,7 +32,7 @@ const firstDigitalReleaseDate = (results, releaseTypes = [4]) => (Array.isArray(
     new Date(date + 'T00:00:00Z').toISOString().slice(0, 10) === date)
   .sort()[0] || '';
 
-async function verifyDigitalReleases(items, apiKey, since, today, releaseTypes = [4]) {
+async function verifyDigitalReleases(items, apiKey, since, today, releaseTypes = [4], cinemaGroup = 'feature') {
   const verified = new Map();
   let cursor = 0;
   const deadline = Date.now() + 12000;
@@ -23,42 +42,57 @@ async function verifyDigitalReleases(items, apiKey, since, today, releaseTypes =
       const id = String(item?.id || '');
       if (!/^\d+$/.test(id)) continue;
       const cacheKey = releaseTypes.join(',') + ':' + id;
+      const cinemaEvent = releaseTypes.length === 1 && releaseTypes[0] === 3;
       let cached = digitalReleaseCache.get(cacheKey);
       if (!cached || cached.expires <= Date.now()) {
         try {
-          const response = await fetch(`${TMDB_BASE}/movie/${id}/release_dates?api_key=${encodeURIComponent(apiKey)}`, {
+          // Append release_dates to movie details: one request obtains both
+          // the full runtime and independently reported theatrical events.
+          const url = cinemaEvent
+            ? TMDB_BASE + '/movie/' + id + '?api_key=' + encodeURIComponent(apiKey) + '&append_to_response=release_dates'
+            : TMDB_BASE + '/movie/' + id + '/release_dates?api_key=' + encodeURIComponent(apiKey);
+          const response = await fetch(url, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(Math.max(1, Math.min(4000, deadline - Date.now()))),
           });
           if (!response.ok) continue;
           const data = await response.json();
-          const cinemaEvent = releaseTypes.length === 1 && releaseTypes[0] === 3;
-          const firstDate = firstDigitalReleaseDate(data.results, releaseTypes);
-          const firstDigital = cinemaEvent ? firstDigitalReleaseDate(data.results, [4]) : '';
-          // UK and US full theatrical openings only. A film that premiered
-          // months ago overseas must not become "new" on each regional date.
-          const primaryMarketDates = cinemaEvent
-            ? (Array.isArray(data.results) ? data.results : [])
+          const events = cinemaEvent ? data?.release_dates?.results : data?.results;
+          const firstDate = firstDigitalReleaseDate(events, releaseTypes);
+          const firstDigital = cinemaEvent ? firstDigitalReleaseDate(events, [4]) : '';
+          // UK or US standard theatrical opening must be recent, with no
+          // earlier full release elsewhere. Neither previews nor digital-
+          // first films can start a new cinema premiere clock.
+          const marketDates = cinemaEvent
+            ? (Array.isArray(events) ? events : [])
                 .filter(record => ['GB', 'US'].includes(String(record?.iso_3166_1 || '').toUpperCase()))
                 .flatMap(record => Array.isArray(record.release_dates) ? record.release_dates : [])
                 .filter(event => Number(event?.type) === 3)
                 .map(event => String(event.release_date || '').slice(0, 10))
                 .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date))
             : [];
-          const hasOpening = primaryMarketDates.some(date => date >= since && date <= today);
-          cached = { date: cinemaEvent && (!hasOpening || firstDate < since ||
-            (firstDigital && firstDigital < firstDate)) ? '' : firstDate,
-            expires: Date.now() + 6 * 60 * 60 * 1000 };
+          const hasOpening = marketDates.some(date => date >= since && date <= today);
+          cached = {
+            date: cinemaEvent && (!hasOpening || firstDate < since ||
+              (firstDigital && firstDigital < firstDate)) ? '' : firstDate,
+            runtime: cinemaEvent ? Math.max(0, Number(data.runtime || 0)) : 0,
+            cinema_group: cinemaEvent ? cinemaClassification(data) : '',
+            expires: Date.now() + 6 * 60 * 60 * 1000,
+          };
           if (digitalReleaseCache.size >= 2000) digitalReleaseCache.delete(digitalReleaseCache.keys().next().value);
           digitalReleaseCache.set(cacheKey, cached);
-        } catch { continue; } // Unknown dates never fall back to cinema dates.
+        } catch { continue; }
       }
-      if (cached.date && cached.date >= since && cached.date <= today) verified.set(id, cached.date);
+      if (cached.date && cached.date >= since && cached.date <= today &&
+          (!cinemaEvent || (cinemaGroup === 'other'
+            ? cached.cinema_group !== 'feature'
+            : cached.cinema_group === 'feature'))) {
+        verified.set(id, cached.date);
+      }
     }
   }));
   return verified;
 }
-
 
 // UK & Ireland box-office rankings are sourced from published weekend ticket
 // sales, never inferred from TMDB's popularity or streaming-provider feeds.
