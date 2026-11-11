@@ -1033,9 +1033,28 @@ export default function FireTvFocusMemory() {
       onPlayerVisibility
     );
 
+    // Poster/card CSS animations can generate hundreds of class/style
+    // mutations without changing the active dialog or navigation scope.
+    // Ignore those *attribute-only* updates. Child additions/removals
+    // and overlay/route changes still trigger the existing recovery check.
     const observer =
       new MutationObserver(
-        inspectScopeChange
+        (records) => {
+          const relevant = records.some((record) => {
+            if (record.type !== "attributes") return true;
+            const target = record.target;
+            if (!(target instanceof HTMLElement)) return true;
+            if (target.closest(
+              '[role="dialog"], [aria-modal="true"], [data-mg-player-root="true"], .fixed.inset-0'
+            )) return true;
+            // No focus scope change is possible from a poster badge,
+            // thumbnail fade, or row animation alone.
+            return !target.closest(
+              '.mg-fire-tv-card, .mg-fire-tv-resume-card, [data-mg-tv-row="true"]'
+            );
+          });
+          if (relevant) inspectScopeChange();
+        }
       );
 
     observer.observe(
