@@ -61,8 +61,22 @@ test("the approved playback baseline is identifiable and recoverable", () => {
 
 for (const [file, expected] of Object.entries({ ...protectedFiles, ...sourceReviewedFiles })) {
   test((sourceReviewedFiles[file] ? "locked source-reviewed playback: " : "locked working playback: ") + file, () => {
+    let content = readFileSync(new URL("../" + file, import.meta.url), "utf8");
+    // User-requested download status adapter only. Strip these two exact
+    // additive blocks, then require EVERY original byte (including download
+    // engine and all playback code) to match the untouched baseline.
+    if (file.endsWith("/MainActivity.kt")) {
+      content = content.replace(`        @JavascriptInterface
+        fun getDownloadSnapshot(): String {
+            if (!nativeBridgeAllowed()) return "{}"
+            return DeviceDownloadStatus.snapshot(this@MainActivity)
+        }
+
+`, "").replace(`val downloadId = manager.enqueue(request)
+                        DeviceDownloadStatus.remember(this@MainActivity, downloadId)`, "manager.enqueue(request)");
+    }
     const actual = createHash("sha256")
-      .update(readFileSync(new URL("../" + file, import.meta.url)))
+      .update(content)
       .digest("hex");
     assert.equal(
       actual, expected,

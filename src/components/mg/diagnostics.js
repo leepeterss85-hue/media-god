@@ -110,3 +110,19 @@ export const installGlobalDiagnosticsCapture = () => {
     window.removeEventListener("unhandledrejection", onUnhandled);
   };
 };
+
+// Only fixed categories, timings and coarse device class; never request payloads,
+// titles, URLs, tokens or raw user-agent strings. Uses existing opt-in storage.
+export const recordRequestDiagnostic = (scope, elapsedMs, failed) => {
+  if (!isCrashMonitoringEnabled()) return;
+  const category = String(scope).startsWith("imdb:") ? "identity"
+    : String(scope).startsWith("catalogue:") ? "catalogue"
+      : scope === "public-addon" ? "public sources" : "public request";
+  if (!failed && elapsedMs < 5000) return;
+  const device = typeof window?.MediaGodNative === "object" ? "native" : "browser";
+  const recent = readStored()[0];
+  const context = `${device} ${category}`;
+  // Bound repeated failures on a broken connection to one per category/minute.
+  if (recent?.context === context && Date.now() - Date.parse(recent.time) < 60000) return;
+  recordDiagnosticError(`${failed ? "Request failed" : "Slow request"} after ${Math.round(elapsedMs / 1000)} seconds`, context);
+};

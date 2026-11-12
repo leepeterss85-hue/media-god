@@ -240,7 +240,7 @@ export default function DiagnosticsView() {
                 }}
                 className="h-4 w-4 accent-mg-green"
               />
-              Record app crashes on this device (optional)
+              Record crashes and slow requests on this device (optional)
             </label>
             <p className="mt-1 text-xs text-white/40">
               Off by default. No automatic reporting or uploads.

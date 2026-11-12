@@ -1,3 +1,5 @@
+import { recordRequestDiagnostic } from "../components/mg/diagnostics.js";
+
 /**
  * Coalesce only concurrent requests to public, credential-free endpoints.
  * This is NOT a cache: results (including signed links) are forgotten as
@@ -27,6 +29,7 @@ export function sharePendingPublicLookup(fetchImpl, scope, payload, run, {
   // forgets that stalled operation and lets the next source search retry.
   // No account credentials or user-specific streams are stored here.
   let timer;
+  const startedAt = Date.now();
   const operation = Promise.resolve().then(run);
   const deadline = Number(timeoutMs);
   const task = Number.isFinite(deadline) && deadline > 0
@@ -47,6 +50,9 @@ export function sharePendingPublicLookup(fetchImpl, scope, payload, run, {
   };
   // Both outcomes clear the slot; late network completions cannot replace
   // a newer request or cause an unhandled rejected promise.
-  void task.then(release, release);
+  void task.then(
+    () => { recordRequestDiagnostic(scope, Date.now() - startedAt, false); release(); },
+    () => { recordRequestDiagnostic(scope, Date.now() - startedAt, true); release(); },
+  );
   return task;
 }

@@ -7,7 +7,7 @@ repo="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY must be set}"
 root="${RUNNER_TEMP:-/tmp}/media-god-release-archive"
 mkdir -p "$root"
 
-release_json() { gh api "repos/$repo/releases/tags/$1"; }
+source "$(dirname "${BASH_SOURCE[0]}")/github-release-json.sh"
 mobile="$(release_json android-mobile-latest)"
 firetv="$(release_json firetv-latest)"
 old_mobile_sha="$(jq -r '.target_commitish // ""' <<< "$mobile")"
@@ -35,9 +35,8 @@ archive_independent_previous() {
     return 1
   }
 
-  if gh release view "$archive_tag" --repo "$repo" >/dev/null 2>&1; then
-    local existing
-    existing="$(release_json "$archive_tag")"
+  local existing
+  if existing="$(release_json "$archive_tag")"; then
     jq -e --arg sha "$sha" --arg asset "$asset" '
       .target_commitish == $sha and .draft == false and
       (any(.assets[]?; .name == $asset and .state == "uploaded" and .size > 1000000))
@@ -51,7 +50,8 @@ archive_independent_previous() {
 
   local dir="$root/$archive_tag"
   mkdir -p "$dir"
-  gh release download "$source_tag" --repo "$repo" --pattern "$asset" --dir "$dir"
+  # gh release download repeats the failing tag route; use inspected asset ID.
+  download_release_asset "$data" "$asset" "$dir"
   test -s "$dir/$asset"
   # A successful download command alone does not prove the original APK is
   # complete; compare its byte length with GitHub's published asset metadata.
@@ -87,10 +87,6 @@ if [[ "$old_mobile_sha" != "$old_firetv_sha" ]]; then
   echo "Both independently published previous APKs are safely archived."
   exit 0
 fi
-if [[ "$old_mobile_sha" == "${GITHUB_SHA:-}" ]]; then
-  echo "Current commit is already published on both devices; nothing to archive"
-  exit 0
-fi
 
 for spec in "mobile:$mobile:Media-God-Android-Mobile.apk" "firetv:$firetv:Media-God-Fire-TV.apk"; do
   # Validate asset size and state from the public release API; never archive
@@ -108,8 +104,7 @@ for spec in "mobile:$mobile:Media-God-Android-Mobile.apk" "firetv:$firetv:Media-
 done
 
 archive_tag="stable-${old_mobile_sha:0:12}"
-if gh release view "$archive_tag" --repo "$repo" >/dev/null 2>&1; then
-  existing="$(release_json "$archive_tag")"
+if existing="$(release_json "$archive_tag")"; then
   jq -e --arg sha "$old_mobile_sha" '
     .target_commitish == $sha and
     (any(.assets[]?; .name == "Media-God-Android-Mobile.apk" and .size > 1000000)) and
@@ -121,8 +116,8 @@ fi
 
 dir="$root/$archive_tag"
 mkdir -p "$dir"
-gh release download android-mobile-latest --repo "$repo" --pattern 'Media-God-Android-Mobile.apk' --dir "$dir"
-gh release download firetv-latest --repo "$repo" --pattern 'Media-God-Fire-TV.apk' --dir "$dir"
+download_release_asset "$mobile" Media-God-Android-Mobile.apk "$dir"
+download_release_asset "$firetv" Media-God-Fire-TV.apk "$dir"
 test -s "$dir/Media-God-Android-Mobile.apk"
 test -s "$dir/Media-God-Fire-TV.apk"
 (cd "$dir" && sha256sum Media-God-Android-Mobile.apk Media-God-Fire-TV.apk > SHA256SUMS.txt)

@@ -782,6 +782,12 @@ class MainActivity : FragmentActivity() {
 
     inner class NativeBridge {
         @JavascriptInterface
+        fun getDownloadSnapshot(): String {
+            if (!nativeBridgeAllowed()) return "{}"
+            return DeviceDownloadStatus.snapshot(this@MainActivity)
+        }
+
+        @JavascriptInterface
         fun downloadFile(payloadJson: String): Boolean {
             if (!nativeBridgeAllowed() || payloadJson.length > 4_096) return false
             return try {
@@ -815,7 +821,8 @@ class MainActivity : FragmentActivity() {
                             )
                         }
                         val manager = getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
-                        manager.enqueue(request)
+                        val downloadId = manager.enqueue(request)
+                        DeviceDownloadStatus.remember(this@MainActivity, downloadId)
                         dispatchJavascript("window.dispatchEvent(new CustomEvent('mg:download-started'));")
                     } catch (_: Throwable) {
                         dispatchJavascript("window.dispatchEvent(new CustomEvent('mg:download-failed'));")
