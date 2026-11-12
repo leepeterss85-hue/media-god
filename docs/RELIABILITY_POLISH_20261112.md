@@ -31,11 +31,13 @@ non-draft archive. A mismatch or a release API error stops the workflow
 without changing either latest release or enabling update prompts. Both
 matching and mismatched draft cases have simulated regression tests.
 
-On older, low-capacity Android TV boxes only, opportunistic background
-catalogue hint checks now wait for a two-second quiet period after D-pad
-keyboard or scroll activity. This does not hold, modify or delay key events,
+On low-capacity TVs and identified older Android 9 TV boxes such as the
+MINIX NEO U22-XJ, opportunistic background catalogue hints now run in smaller,
+less frequent batches and wait two seconds after D-pad or scroll activity. This does not hold, modify or delay key events,
 current video playback, user-requested search, addon selection or the real
-stream source list. Normal-capacity device behaviour remains unchanged.
+stream source list. Modern Android TV, physical Fire Stick hardware and phones retain their prior
+behaviour. This legacy classification affects only optional browse scanning,
+not the working decoder, scraper, player or image-quality pathways.
 
 Download history now remembers whether the user manually opened or closed
 its section while progress refreshes. A temporary native bridge read error
