@@ -38,3 +38,9 @@ download_release_asset() {
   done
   echo "Could not verify download: $asset" >&2; return 1
 }
+
+# Recovery may restore old bytes under a newer hosting commit. Keep that
+# provenance when the next run archives them; never relabel their source.
+release_source_sha() {
+  jq -er '((.body // "" | capture("(?m)^Original-APK-Commit: (?<sha>[0-9a-f]{40})$").sha) // .target_commitish)' <<< "$1"
+}

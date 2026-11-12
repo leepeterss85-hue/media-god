@@ -62,9 +62,10 @@ class PublisherTests(unittest.TestCase):
             result=releases[tag]
             canonical=next(a for a in result['assets'] if a['name']==names[i])
             self.assertEqual(canonical['id'], 10+i if fail else 101+i)
-            self.assertEqual(result['target_commitish'],old_sha if fail else 'b'*40)
-            self.assertEqual(refs[tag],old_sha if fail else 'b'*40)
-            self.assertEqual('Verified-APK-Commit:' in result['body'],fail)
+            self.assertEqual(result['target_commitish'],'b'*40)
+            self.assertEqual(refs[tag], old_sha if fail and i == 1 else 'b'*40)
+            self.assertNotIn('Verified-APK-Commit:',result['body'])
+            if fail: self.assertIn('Original-APK-Commit: '+old_sha,result['body'])
             self.assertTrue(any(a['id']==10+i for a in result['assets']))
     def test_success_preserves_old_assets(self): self.run_publish()
     def test_failure_restores_both_devices(self): self.run_publish(True)

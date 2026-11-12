@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Swap verified assets without deleting releases; restore both on failure."""
+"""Swap verified assets without deleting releases; restore old assets on failure."""
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -61,14 +62,15 @@ def publish():
                 return h.digest()
             if digest(asset) != digest(Path(root) / 'verified.apk'):
                 raise RuntimeError('Uploaded candidate differs from signed build')
-            old['_tag_ref'] = api(f'git/ref/tags/{tag}')["object"]["sha"]
+            original = re.search(r'^Original-APK-Commit: ([0-9a-f]{40})$', old.get('body') or '', re.MULTILINE)
+            old['_apk_source'] = original.group(1) if original else old['target_commitish']
             prepared.append((old, prior, candidate, asset, candidate_name))
         try:
             for old, prior, candidate, asset, candidate_name in prepared:
                 # Suppress update prompts throughout the switch. The workflow
                 # restores the ready marker only after verifying both public URLs.
                 changed.append((old, prior, candidate, asset, candidate_name))
-                api(f'releases/{old["id"]}', body='APK publication in progress; readiness pending verification.')
+                api(f'releases/{old["id"]}', target_commitish=SHA, body='APK publication in progress; readiness pending verification.')
                 api(f'releases/assets/{prior["id"]}', name=f'previous-{prior["id"]}-{asset}')
                 api(f'releases/assets/{candidate["id"]}', name=asset)
                 api(f'git/refs/tags/{old["tag_name"]}', sha=SHA, force=True)
@@ -78,8 +80,11 @@ def publish():
                 try:
                     api(f'releases/assets/{candidate["id"]}', name=candidate_name)
                     api(f'releases/assets/{prior["id"]}', name=asset)
-                    api(f'git/refs/tags/{old["tag_name"]}', sha=old['_tag_ref'], force=True)
-                    api(f'releases/{old["id"]}', target_commitish=old['target_commitish'], body=old.get('body') or '')
+                    # Older workflow commits can require permissions unavailable
+                    # to GITHUB_TOKEN. Restore downloads, suppress all update
+                    # prompts, and retain provenance without retargeting backwards.
+                    api(f'releases/{old["id"]}', target_commitish=SHA,
+                        body='Previous APK restored after publication failure.\nOriginal-APK-Commit: ' + old['_apk_source'])
                 except Exception as recovery_error:
                     print(f'Automatic recovery needs attention: {recovery_error}', flush=True)
             raise
