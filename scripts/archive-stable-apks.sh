@@ -166,7 +166,7 @@ if existing="$(release_json "$archive_tag")"; then
     echo "Rollback archive is not publicly available" >&2
     exit 1
   }
-  echo "Known-good published rollback archive already exists: $archive_tag"
+  echo "Known-good rollback archive already exists and is published: $archive_tag"
   exit 0
 fi
 
