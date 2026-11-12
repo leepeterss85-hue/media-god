@@ -13,3 +13,48 @@ Diagnostics: existing optional, local-only capture also records slow/failed publ
 Playback protection: the protected-media baseline is untouched. Both MainActivity additions are solely download-status code. The known-good lock removes only the two exact additive blocks in memory, then verifies all original bytes against the original hashes; no playback hash is refreshed. This protects the original enqueue operation and every player, remote, fullscreen and source-handoff byte. This is source verification, not a claim of testing on physical devices.
 
 Versions: Android phone/tablet 1.0.96 (97), Fire TV 1.4.121 (126). Both manifests match their native packages. GitHub must still compile and run native emulator regression before publication.
+
+
+## Follow-up: unblocking draft rollback and older TV-box polish
+
+The next main workflow (7a41de9) compiled and signed both APKs, passed
+Android/Fire TV emulator checks, and failed at the rollback-archive step
+because stable-b31952157b56 already existed as a **draft**. It had both
+assets and correct provenance, so the archive script returned early, while
+verify-apk-archive.sh correctly rejected the unpublished draft.
+
+If an archive is already a draft, the release job now compares the archived
+binary against the currently published, signed device binary before using
+GitHub's release API to publish the existing draft. The second device's bytes
+are independently compared, and publication requires a publicly readable,
+non-draft archive. A mismatch or a release API error stops the workflow
+without changing either latest release or enabling update prompts. Both
+matching and mismatched draft cases have simulated regression tests.
+
+On older, low-capacity Android TV boxes only, opportunistic background
+catalogue hint checks now wait for a two-second quiet period after D-pad
+keyboard or scroll activity. This does not hold, modify or delay key events,
+current video playback, user-requested search, addon selection or the real
+stream source list. Normal-capacity device behaviour remains unchanged.
+
+Download history now remembers whether the user manually opened or closed
+its section while progress refreshes. A temporary native bridge read error
+retains the last visible history with an unavailable notice, rather than
+showing an empty list. The native download engine is untouched.
+
+### Release and real-device acceptance checklist
+
+1. GitHub PR CI: web regression, device emulator lifecycle, debug compilation,
+   signed-release signature verification and backup archive tests must pass.
+2. Production release job: archive published, new paired APKs staged and
+   hash-verified, both public latest URLs verified, then enable update prompts.
+   If any step fails, leave old latest APKs and prompts intact.
+3. Real phone and Fire Stick: update installs over existing version (no
+   reinstall), existing Continue Watching resumes from the same position and
+   source, scrapers/source list and downloads remain unchanged.
+4. Generic older Android box: remote remains responsive, scrolling and poster
+   loading remain stable, passive catalogue checks do not compete while
+   navigating, and copies of private support reports contain no source URLs,
+   tokens or account secrets.
+5. Broad rollout only after the real-device checks. CI does not replace testing
+   on an actual older Android box.
