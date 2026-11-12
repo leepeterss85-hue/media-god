@@ -9,9 +9,18 @@ export function createRollingSourceChecks(getItems, check, {
   // A low-capacity Android box cannot afford a full batch every 45 seconds.
   intervalMs = isLowCapacityTvDevice() ? ROLLING_SOURCE_CHECK_MS * 2 : ROLLING_SOURCE_CHECK_MS,
   batchSize = isLowCapacityTvDevice() ? 2 : ROLLING_SOURCE_BATCH,
+  // Skip optional background discovery while someone uses an older TV remote.
+  // Never delay a key, playback request or a user-initiated source search.
+  deferDuringNavigation = isLowCapacityTvDevice(),
+  navigationQuietMs = 2000,
+  now = () => Date.now(),
 } = {}) {
   let cursor = 0;
   let stopped = false;
+  let lastNavigationAt = -Infinity;
+  const quietMs = Math.max(0, Number(navigationQuietMs) || 0);
+  const onNavigation = () => { lastNavigationAt = now(); };
+  const navigating = () => deferDuringNavigation && (now() - lastNavigationAt) < quietMs;
   const pending = new Set();
   const limit = Math.max(1, Math.floor(Number(batchSize) || ROLLING_SOURCE_BATCH));
   // Catalogue evidence checks are opportunistic, never a playback dependency.
@@ -23,7 +32,7 @@ export function createRollingSourceChecks(getItems, check, {
     documentObject.querySelector?.('[data-mg-player-root="true"]')
   );
   const canScan = () => !stopped && documentObject.visibilityState !== 'hidden' &&
-    windowObject.navigator?.onLine !== false && !playerActive();
+    windowObject.navigator?.onLine !== false && !playerActive() && !navigating();
   const identity = item => {
     const id = item?.tmdb_id ?? item?.tmdbId ?? item?.id;
     // Browse rows may use media_type, mediaType or type depending on their
@@ -61,6 +70,10 @@ export function createRollingSourceChecks(getItems, check, {
         .finally(() => pending.delete(key));
     }
   };
+  if (deferDuringNavigation) {
+    documentObject.addEventListener('keydown', onNavigation, { passive: true });
+    documentObject.addEventListener('scroll', onNavigation, { capture: true, passive: true });
+  }
   const timer = windowObject.setInterval(scan, intervalMs);
   const onReturn = () => scan();
   windowObject.addEventListener('focus', onReturn);
@@ -73,5 +86,9 @@ export function createRollingSourceChecks(getItems, check, {
     windowObject.removeEventListener('focus', onReturn);
     windowObject.removeEventListener('online', onReturn);
     documentObject.removeEventListener('visibilitychange', onReturn);
+    if (deferDuringNavigation) {
+      documentObject.removeEventListener('keydown', onNavigation);
+      documentObject.removeEventListener('scroll', onNavigation, true);
+    }
   };
 }
