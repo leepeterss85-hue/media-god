@@ -27,7 +27,7 @@ permissions:
 
 concurrency:
   group: media-god-android-apks-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   regression:
@@ -261,51 +261,34 @@ jobs:
       - name: Preserve previous known-good phone and TV APKs
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/archive-stable-apks.sh
+        run: |
+          bash scripts/archive-stable-apks.sh
+          bash scripts/verify-apk-archive.sh
+      - name: Stage and verify permanent APK pair
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/stage-apk-release.sh
       - name: Publish stable phone and Fire TV downloads from this commit
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          ensure_release() {
-            tag="$1"; title="$2"; notes="$3"; asset="$4"
-
-            # Stable "latest" releases are disposable pointers. Recreate them
-            # instead of using --clobber: GitHub can retain a stale asset ID
-            # briefly after a previous upload, causing gh release upload
-            # --clobber to fail with HTTP 404 while deleting that old asset.
-            # Recreating preserves the same public /releases/download/<tag>/
-            # URL while guaranteeing the tag and asset both belong to this SHA.
-            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
-            else
-              git push origin ":refs/tags/$tag" >/dev/null 2>&1 || true
-            fi
-
-            gh release create "$tag" \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" \
-              --title "$title" \
-              --notes "$notes" \
-              "$asset"
-          }
-          ensure_release "android-mobile-latest" "Media God Mobile - Android Phone and Tablet" "Latest tested Media God Android phone/tablet build. Released in lockstep with the Fire TV APK from commit $GITHUB_SHA." "Media-God-Android-Mobile.apk"
-          ensure_release "firetv-latest" "Media God Fire TV" "Latest tested Media God Fire TV/Stick build. Released in lockstep with the phone/tablet APK from commit $GITHUB_SHA." "Media-God-Fire-TV.apk"
+        run: python3 scripts/publish-apk-pointers.py
       - name: Verify both published downloads match signed build
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          source scripts/github-release-json.sh
           mkdir -p "$RUNNER_TEMP/verified-phone" "$RUNNER_TEMP/verified-firetv"
           for item in "android-mobile-latest:Media-God-Android-Mobile.apk:verified-phone" "firetv-latest:Media-God-Fire-TV.apk:verified-firetv"; do
             IFS=: read -r tag asset dir <<< "$item"
-            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$RUNNER_TEMP/$tag.json"
+            release_json "$tag" > "$RUNNER_TEMP/$tag.json"
             jq -e --arg sha "$GITHUB_SHA" --arg asset "$asset" '
               .target_commitish == $sha and .draft == false and
               .published_at != null and
               (any(.assets[]?; .name == $asset and .state == "uploaded" and .size > 1000000))
             ' "$RUNNER_TEMP/$tag.json" >/dev/null
-            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$RUNNER_TEMP/$dir"
+            download_release_asset "$(cat "$RUNNER_TEMP/$tag.json")" "$asset" "$RUNNER_TEMP/$dir"
             cmp "$asset" "$RUNNER_TEMP/$dir/$asset"
           done
           echo "Both signed APKs are published and byte-identical to the tested build"
@@ -314,11 +297,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          source scripts/github-release-json.sh
           # The client requires this marker from the published release notes.
           # Never write it until BOTH public downloads are verified above.
           for spec in "android-mobile-latest:phone/tablet" "firetv-latest:Fire TV/Stick"; do
             tag="${spec%%:*}"
             platform="${spec#*:}"
             printf 'Verified Media God %s release.\n\nVerified-APK-Commit: %s\nBoth phone and Fire TV APKs passed test, signature, and published-download verification.\n' "$platform" "$GITHUB_SHA" > "$RUNNER_TEMP/$tag-verified-notes.txt"
-            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/$tag-verified-notes.txt"
+            release_id="$(release_json "$tag" | jq -er .id)"
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+              --raw-field body="$(cat "$RUNNER_TEMP/$tag-verified-notes.txt")" >/dev/null
           done

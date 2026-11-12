@@ -105,5 +105,5 @@ test("successful identity still persists in its caller-owned public-only cache",
   assert.equal(second.data.imdb_id,"tt7777777");
   assert.equal(calls,1);
   assert.equal(local.length,1);
-  assert.ok(local.key(0).startsWith("mg:public-tmdb-cache:"));
+  assert.ok(local.key(0).startsWith("mg:public-imdb-cache:"));
 });

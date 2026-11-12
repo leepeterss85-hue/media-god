@@ -1,3 +1,4 @@
+import DeviceDownloadsPanel from "./DeviceDownloadsPanel";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -337,6 +338,7 @@ export default function DebridDashboard() {
 
   return (
     <div data-mg-downloads-view="true" className="p-4 md:p-6 max-w-5xl mx-auto w-full">
+      <DeviceDownloadsPanel />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
         <div>
           <div className="flex items-center gap-2">

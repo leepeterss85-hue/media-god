@@ -1,0 +1,15 @@
+# Media God reliability polish — 12 November 2026
+
+The last main build (ecb66dd7) passed regression, both native builds and emulator tests, then failed in archive-stable-apks.sh with a GitHub HTTP 404. Both latest releases remain publicly readable. GitHub documents that creating a release against a historical commit with different workflow files can return 404 with GITHUB_TOKEN. Archive releases now use the current hosting commit and record the original APK source explicitly in Original-APK-Commit and SHA256SUMS; original binaries are unchanged. See https://docs.github.com/en/rest/releases/releases#create-a-release.
+
+Release changes: recover exact-tag lookups through paginated release listings; download inspected asset IDs with byte-count/checksum checks; read back archives before publication; stage a permanent signed pair; verify both candidate uploads before swapping asset names on existing releases. Previous assets remain available. Partial swap failures attempt to restore both original assets and suppress update prompts. They do not attempt permission-restricted backwards tag/metadata updates; the original source SHA remains recorded. Publication is no longer cancelled midway by a new push. Update readiness markers remain withheld until both public downloads match the signed builds.
+
+Source loading: successful public IMDb identities use a separate seven-day cache, capped at 128 small entries with oldest-first eviction. Catalogue browsing no longer evicts these matches. No source ranking, resolved stream URLs or user credentials are cached by this change.
+
+Downloads: the existing DownloadManager enqueue call remains unchanged in behaviour. Only its returned ID is retained (100 IDs maximum) and an origin-guarded read-only status bridge is added. Progress, transfer rate, estimated time, available destination storage and history appear on Downloads. Older APKs and browsers direct users to their system download manager. Unknown sizes/speeds remain unknown rather than showing invented completion estimates. History records start with the updated APK.
+
+Diagnostics: existing optional, local-only capture also records slow/failed public lookups using fixed categories and duration. No URLs, titles, request payloads or account credentials are recorded by the new instrumentation. No automatic upload or central monitoring is enabled.
+
+Playback protection: the protected-media baseline is untouched. Both MainActivity additions are solely download-status code. The known-good lock removes only the two exact additive blocks in memory, then verifies all original bytes against the original hashes; no playback hash is refreshed. This protects the original enqueue operation and every player, remote, fullscreen and source-handoff byte. This is source verification, not a claim of testing on physical devices.
+
+Versions: Android phone/tablet 1.0.96 (97), Fire TV 1.4.121 (126). Both manifests match their native packages. GitHub must still compile and run native emulator regression before publication.

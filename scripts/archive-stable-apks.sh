@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Archive tags use the current workflow commit for GitHub token compatibility.
+# Original-APK-Commit plus SHA256SUMS preserve the original binary provenance.
 # Preserve the last fully published, signed phone + Fire TV release BEFORE
 # latest pointers are replaced. Requires GH_TOKEN and GITHUB_REPOSITORY.
 set -euo pipefail
@@ -7,11 +9,11 @@ repo="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY must be set}"
 root="${RUNNER_TEMP:-/tmp}/media-god-release-archive"
 mkdir -p "$root"
 
-release_json() { gh api "repos/$repo/releases/tags/$1"; }
+source "$(dirname "${BASH_SOURCE[0]}")/github-release-json.sh"
 mobile="$(release_json android-mobile-latest)"
 firetv="$(release_json firetv-latest)"
-old_mobile_sha="$(jq -r '.target_commitish // ""' <<< "$mobile")"
-old_firetv_sha="$(jq -r '.target_commitish // ""' <<< "$firetv")"
+old_mobile_sha="$(release_source_sha "$mobile")"
+old_firetv_sha="$(release_source_sha "$firetv")"
 
 if [[ ! "$old_mobile_sha" =~ ^[0-9a-f]{40}$ ]] ||
    [[ ! "$old_firetv_sha" =~ ^[0-9a-f]{40}$ ]]; then
@@ -35,11 +37,10 @@ archive_independent_previous() {
     return 1
   }
 
-  if gh release view "$archive_tag" --repo "$repo" >/dev/null 2>&1; then
-    local existing
-    existing="$(release_json "$archive_tag")"
+  local existing
+  if existing="$(release_json "$archive_tag")"; then
     jq -e --arg sha "$sha" --arg asset "$asset" '
-      .target_commitish == $sha and .draft == false and
+      (.target_commitish == $sha or (.body // "" | contains("Original-APK-Commit: " + $sha))) and .draft == false and
       (any(.assets[]?; .name == $asset and .state == "uploaded" and .size > 1000000))
     ' <<< "$existing" >/dev/null || {
       echo "Existing $archive_tag is incomplete or has a different commit" >&2
@@ -51,7 +52,8 @@ archive_independent_previous() {
 
   local dir="$root/$archive_tag"
   mkdir -p "$dir"
-  gh release download "$source_tag" --repo "$repo" --pattern "$asset" --dir "$dir"
+  # gh release download repeats the failing tag route; use inspected asset ID.
+  download_release_asset "$data" "$asset" "$dir"
   test -s "$dir/$asset"
   # A successful download command alone does not prove the original APK is
   # complete; compare its byte length with GitHub's published asset metadata.
@@ -66,13 +68,15 @@ archive_independent_previous() {
   cat > "$dir/NOTES.md" <<EOF
 Unmodified previously published Media God $label APK from $source_tag.
 Original immutable commit: $sha
+Original-APK-Commit: $sha
+Archive hosting commit: ${GITHUB_SHA:?} (not the original APK source).
 This is one separately verified device release; the prior mobile and Fire TV
 latest tags were on DIFFERENT commits. Do not treat them as a paired build.
 SHA256SUMS.txt verifies this original signed APK.
 Do not downgrade installed APKs in-place (Android versionCode enforcement).
 EOF
   gh release create "$archive_tag" \
-    --repo "$repo" --target "$sha" --latest=false \
+    --repo "$repo" --target "${GITHUB_SHA:?}" --latest=false \
     --title "Media God $label previous APK ($archive_tag)" \
     --notes-file "$dir/NOTES.md" \
     "$dir/$asset" "$dir/SHA256SUMS.txt"
@@ -85,10 +89,6 @@ if [[ "$old_mobile_sha" != "$old_firetv_sha" ]]; then
   archive_independent_previous firetv "$firetv" "$old_firetv_sha" \
     firetv-latest Media-God-Fire-TV.apk
   echo "Both independently published previous APKs are safely archived."
-  exit 0
-fi
-if [[ "$old_mobile_sha" == "${GITHUB_SHA:-}" ]]; then
-  echo "Current commit is already published on both devices; nothing to archive"
   exit 0
 fi
 
@@ -108,10 +108,9 @@ for spec in "mobile:$mobile:Media-God-Android-Mobile.apk" "firetv:$firetv:Media-
 done
 
 archive_tag="stable-${old_mobile_sha:0:12}"
-if gh release view "$archive_tag" --repo "$repo" >/dev/null 2>&1; then
-  existing="$(release_json "$archive_tag")"
+if existing="$(release_json "$archive_tag")"; then
   jq -e --arg sha "$old_mobile_sha" '
-    .target_commitish == $sha and
+    (.target_commitish == $sha or (.body // "" | contains("Original-APK-Commit: " + $sha))) and
     (any(.assets[]?; .name == "Media-God-Android-Mobile.apk" and .size > 1000000)) and
     (any(.assets[]?; .name == "Media-God-Fire-TV.apk" and .size > 1000000))
   ' <<< "$existing" >/dev/null || { echo "Archive tag exists but is incomplete" >&2; exit 1; }
@@ -121,14 +120,16 @@ fi
 
 dir="$root/$archive_tag"
 mkdir -p "$dir"
-gh release download android-mobile-latest --repo "$repo" --pattern 'Media-God-Android-Mobile.apk' --dir "$dir"
-gh release download firetv-latest --repo "$repo" --pattern 'Media-God-Fire-TV.apk' --dir "$dir"
+download_release_asset "$mobile" Media-God-Android-Mobile.apk "$dir"
+download_release_asset "$firetv" Media-God-Fire-TV.apk "$dir"
 test -s "$dir/Media-God-Android-Mobile.apk"
 test -s "$dir/Media-God-Fire-TV.apk"
 (cd "$dir" && sha256sum Media-God-Android-Mobile.apk Media-God-Fire-TV.apk > SHA256SUMS.txt)
 
 cat > "$dir/NOTES.md" <<EOF
 Known-good Media God recovery APKs from commit $old_mobile_sha.
+Original-APK-Commit: $old_mobile_sha
+Archive hosting commit: ${GITHUB_SHA:?} (not the original APK source).
 These original signed APKs were archived before the latest download pointers changed.
 SHA256SUMS.txt allows the two archive downloads to be verified.
 Do not downgrade an installed Android APK in place: Android versionCode
@@ -138,7 +139,7 @@ EOF
 
 gh release create "$archive_tag" \
   --repo "$repo" \
-  --target "$old_mobile_sha" \
+  --target "${GITHUB_SHA:?}" \
   --latest=false \
   --title "Media God stable recovery ($archive_tag)" \
   --notes-file "$dir/NOTES.md" \

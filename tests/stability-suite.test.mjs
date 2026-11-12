@@ -60,7 +60,7 @@ test("release gate preserves a known-good backup before replacing either latest 
   const workflow = read(".github/workflows/android-apks.yml");
   const archiveScript = read("scripts/archive-stable-apks.sh");
   const gate = read("src/components/mg/nativeReleaseInfo.js");
-  const archiveAt = workflow.indexOf("run: bash scripts/archive-stable-apks.sh");
+  const archiveAt = workflow.indexOf("bash scripts/archive-stable-apks.sh");
   const publishAt = workflow.indexOf("Publish stable phone and Fire TV downloads from this commit");
   const verifyAt = workflow.indexOf("Verify both published downloads match signed build");
   const enableAt = workflow.indexOf("Mark both APK releases ready for update pop-ups");
@@ -82,7 +82,7 @@ test("diagnostics and error screen give privacy-first, accessible recovery contr
   const boundary = read("src/components/mg/PageErrorBoundary.jsx");
   assert.match(diagnostics, /type="checkbox"/);
   assert.match(diagnostics, /checked=\{monitoringEnabled\}/);
-  assert.match(diagnostics, /Record app crashes on this device \(optional\)/);
+  assert.match(diagnostics, /Record crashes and slow requests on this device \(optional\)/);
   assert.match(diagnostics, /No automatic reporting or uploads/);
   assert.match(diagnostics, /aria-live="polite"/);
   assert.match(boundary, /role="alert"/);

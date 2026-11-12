@@ -30,14 +30,15 @@ const shortHash = (value) => {
   }
   return (hash >>> 0).toString(16);
 };
-const keyFor = (payload) => cachePrefix + shortHash(JSON.stringify(payload || {}));
+const prefixFor = (payload) => payload?.__resolver ? "mg:public-imdb-cache:v2:" : cachePrefix;
+const keyFor = (payload) => prefixFor(payload) + shortHash(JSON.stringify(payload || {}));
 
 const readCache = (payload, storage = safeStorage()) => {
   if (!storage) return null;
   try {
     const entry = JSON.parse(storage.getItem(keyFor(payload)) || "null");
     if (!entry || entry.payload !== JSON.stringify(payload || {}) ||
-      Date.now() - Number(entry.savedAt || 0) > CACHE_LIFETIME_MS ||
+      Date.now() - Number(entry.savedAt || 0) > (payload?.__resolver ? 7 * CACHE_LIFETIME_MS : CACHE_LIFETIME_MS) ||
       !entry.data || typeof entry.data !== "object") return null;
     return entry.data;
   } catch {
@@ -47,17 +48,21 @@ const readCache = (payload, storage = safeStorage()) => {
 const saveCache = (payload, data, storage = safeStorage()) => {
   if (!storage || !data || typeof data !== "object") return;
   const body = JSON.stringify({ payload: JSON.stringify(payload || {}), savedAt: Date.now(), data });
-  if (body.length > MAX_LOCAL_BYTES) return;
+  if (body.length > (payload?.__resolver ? 4096 : MAX_LOCAL_BYTES)) return;
   try {
     storage.setItem(keyFor(payload), body);
     const keys = [];
     for (let i = 0; i < storage.length; i += 1) {
       const key = storage.key(i);
-      if (key?.startsWith(cachePrefix)) keys.push(key);
+      if (key?.startsWith(prefixFor(payload))) keys.push(key);
     }
     // Only remove our own public catalogue cache. Never delete history,
     // profiles, credentials, or any Base44 data.
-    while (keys.length > MAX_STORED_KEYS) {
+    keys.sort((a, b) => {
+      try { return JSON.parse(storage.getItem(a)).savedAt - JSON.parse(storage.getItem(b)).savedAt; }
+      catch { return 0; }
+    });
+    while (keys.length > (payload?.__resolver ? 128 : MAX_STORED_KEYS)) {
       const old = keys.shift();
       if (old && old !== keyFor(payload)) storage.removeItem(old);
     }
