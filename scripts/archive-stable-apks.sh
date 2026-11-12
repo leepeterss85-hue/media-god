@@ -46,7 +46,13 @@ archive_independent_previous() {
       echo "Existing $archive_tag is incomplete or has a different commit" >&2
       return 1
     }
-    echo "Previous $label APK already archived: $archive_tag"
+    publish_verified_draft_archive "$archive_tag" "$existing" "$data" "$asset"
+    existing="$(release_json "$archive_tag")"
+    jq -e '.draft == false and .published_at != null' <<< "$existing" >/dev/null || {
+      echo "Previous $label archive is not publicly available" >&2
+      return 1
+    }
+    echo "Previous $label APK already archived and published: $archive_tag"
     return 0
   fi
 
@@ -83,6 +89,33 @@ EOF
   echo "Archived prior $label build: $archive_tag"
 }
 
+# A previous workflow may have uploaded both rollback APKs and then stopped
+# before marking its release public. A draft is not a usable rollback. Compare
+# its original signed bytes against the still-published latest asset *before*
+# promoting it; any mismatch leaves the live releases and update prompts alone.
+publish_verified_draft_archive() {
+  local tag="$1" archived="$2" source_data="$3" asset="$4"
+  if [[ "$(jq -r '.draft' <<< "$archived")" != "true" ]]; then return 0; fi
+  jq -e --arg asset "$asset" '
+    .draft == false and .published_at != null and
+    (any(.assets[]?; .name == $asset and .state == "uploaded" and .size > 1000000))
+  ' <<< "$source_data" >/dev/null || {
+    echo "Cannot validate original published $asset; refusing to promote draft" >&2
+    return 1
+  }
+  local dir="$root/draft-check-$tag"
+  download_release_asset "$source_data" "$asset" "$dir/original"
+  download_release_asset "$archived" "$asset" "$dir/archive"
+  cmp "$dir/original/$asset" "$dir/archive/$asset" || {
+    echo "Draft $tag differs from its original published $asset; refusing promotion" >&2
+    return 1
+  }
+  local release_id
+  release_id="$(jq -er '.id | select(type == "number" and . > 0)' <<< "$archived")"
+  gh api --method PATCH "repos/$repo/releases/$release_id" -F draft=false >/dev/null
+  echo "Published byte-verified rollback draft $tag ($asset)"
+}
+
 if [[ "$old_mobile_sha" != "$old_firetv_sha" ]]; then
   archive_independent_previous mobile "$mobile" "$old_mobile_sha" \
     android-mobile-latest Media-God-Android-Mobile.apk
@@ -114,7 +147,26 @@ if existing="$(release_json "$archive_tag")"; then
     (any(.assets[]?; .name == "Media-God-Android-Mobile.apk" and .size > 1000000)) and
     (any(.assets[]?; .name == "Media-God-Fire-TV.apk" and .size > 1000000))
   ' <<< "$existing" >/dev/null || { echo "Archive tag exists but is incomplete" >&2; exit 1; }
-  echo "Known-good rollback archive already exists: $archive_tag"
+  publish_verified_draft_archive "$archive_tag" "$existing" "$mobile" Media-God-Android-Mobile.apk
+  # Re-read after a possible draft promotion to ensure the public archive is
+  # visible before trusting it. Check the TV bytes independently as well.
+  existing="$(release_json "$archive_tag")"
+  if [[ "$(jq -r '.draft' <<< "$existing")" == "true" ]]; then
+    echo "Rollback archive remains a draft; keeping latest APKs unchanged" >&2
+    exit 1
+  fi
+  dir="$root/existing-archive-verify"
+  download_release_asset "$firetv" Media-God-Fire-TV.apk "$dir/original"
+  download_release_asset "$existing" Media-God-Fire-TV.apk "$dir/archive"
+  cmp "$dir/original/Media-God-Fire-TV.apk" "$dir/archive/Media-God-Fire-TV.apk" || {
+    echo "Rollback archive TV APK does not match current known-good release" >&2
+    exit 1
+  }
+  jq -e '.draft == false and .published_at != null' <<< "$existing" >/dev/null || {
+    echo "Rollback archive is not publicly available" >&2
+    exit 1
+  }
+  echo "Known-good published rollback archive already exists: $archive_tag"
   exit 0
 fi
 
