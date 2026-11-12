@@ -1,17 +1,17 @@
 /* Continuous, small foreground discovery batches. Do not run an unlimited
  * scraper loop or a timer while the application is backgrounded. */
-import { isLowCapacityTvDevice } from "./deviceCapacity.js";
+import { isLowCapacityTvDevice, isLegacyAndroidTvBox } from "./deviceCapacity.js";
 
 export const ROLLING_SOURCE_CHECK_MS = 45_000;
 export const ROLLING_SOURCE_BATCH = 4;
 export function createRollingSourceChecks(getItems, check, {
   windowObject = window, documentObject = document,
   // A low-capacity Android box cannot afford a full batch every 45 seconds.
-  intervalMs = isLowCapacityTvDevice() ? ROLLING_SOURCE_CHECK_MS * 2 : ROLLING_SOURCE_CHECK_MS,
-  batchSize = isLowCapacityTvDevice() ? 2 : ROLLING_SOURCE_BATCH,
+  intervalMs = isLowCapacityTvDevice() || isLegacyAndroidTvBox() ? ROLLING_SOURCE_CHECK_MS * 2 : ROLLING_SOURCE_CHECK_MS,
+  batchSize = isLowCapacityTvDevice() ? 2 : isLegacyAndroidTvBox() ? 2 : ROLLING_SOURCE_BATCH,
   // Skip optional background discovery while someone uses an older TV remote.
   // Never delay a key, playback request or a user-initiated source search.
-  deferDuringNavigation = isLowCapacityTvDevice(),
+  deferDuringNavigation = isLowCapacityTvDevice() || isLegacyAndroidTvBox(),
   navigationQuietMs = 2000,
   now = () => Date.now(),
 } = {}) {
