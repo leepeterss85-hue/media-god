@@ -1,3 +1,4 @@
+import { tvScraperSandbox } from "@/components/mg/tvScraperSandbox";
 import React from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import SafeEmbedStage from "@/components/mg/SafeEmbedStage";
@@ -33,6 +34,7 @@ export default function ExtraEmbedPlayer({ url, title, providerLabel = "Web", on
 
         <SafeEmbedStage>
           <iframe
+                sandbox={tvScraperSandbox()}
             key={url}
             src={url}
             title={providerLabel + ": " + title}

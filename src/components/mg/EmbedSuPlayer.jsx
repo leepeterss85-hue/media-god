@@ -1,3 +1,4 @@
+import { tvScraperSandbox } from "@/components/mg/tvScraperSandbox";
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -149,6 +150,7 @@ export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "
 
         <SafeEmbedStage>
           <iframe
+                sandbox={tvScraperSandbox()}
             key={active.url}
             src={active.url}
             title={active.label + ": " + title}
