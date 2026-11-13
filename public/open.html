@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Open Media God</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080d16;color:#f5f7fa;font:17px/1.6 system-ui,sans-serif;padding:24px}main{max-width:520px;margin:8vh auto}h1{font-size:30px;line-height:1.2}p{color:#c5cedb}.actions{display:flex;gap:12px;flex-wrap:wrap}a,button{display:inline-block;padding:12px 18px;border-radius:10px;border:1px solid #536171;background:#142130;color:white;font:inherit;text-decoration:none;cursor:pointer}a.primary{background:#8bdb55;color:#101510;border-color:#8bdb55}input{width:100%;padding:12px;background:#142130;color:white;border:1px solid #536171;border-radius:8px;font:inherit}label{display:block;margin-top:24px}#status{min-height:1.6em}a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #8bdb55;outline-offset:3px}[hidden]{display:none!important}
+</style>
+</head>
+<body><main>
+<h1>Open Media God</h1>
+<p>If a link opened from WhatsApp, Facebook or another app fails, copy it below and paste it directly into Chrome, Safari or your usual browser.</p>
+<div class="actions">
+<a class="primary" href="https://mysterious-media-vault-pro.base44.app/">Continue to Media God</a>
+<a id="chrome" hidden href="intent://mysterious-media-vault-pro.base44.app/#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2Fmysterious-media-vault-pro.base44.app%2Fopen.html;end">Try opening in Chrome</a>
+</div>
+<label for="link">Website address</label>
+<input id="link" readonly value="https://mysterious-media-vault-pro.base44.app/">
+<p><button id="copy" type="button" hidden>Copy website link</button></p>
+<p id="status" role="status" aria-live="polite"></p>
+<p>On iPhone or iPad, use the app’s menu to open in Safari, or paste the address into Safari yourself.</p>
+<p>If this help page cannot load either, copy the website address directly from the message into your browser.</p>
+<noscript><p>You can copy the address above without JavaScript. Enable JavaScript in your browser to use Media God.</p></noscript>
+</main>
+<script>
+(function () {
+  var link = document.getElementById('link');
+  var copy = document.getElementById('copy');
+  var status = document.getElementById('status');
+  copy.hidden = false;
+  if (/Android/i.test(navigator.userAgent) && !/MediaGod|AndroidMobile|FireTV|AmazonWebAppPlatform/i.test(navigator.userAgent)) {
+    document.getElementById('chrome').hidden = false;
+  }
+  copy.addEventListener('click', function () {
+    function selectForCopy() {
+      link.focus(); link.select(); link.setSelectionRange(0, link.value.length);
+      status.textContent = 'Press and hold the selected address, choose Copy, then paste it into your browser.';
+    }
+    if (!navigator.clipboard || !navigator.clipboard.writeText) { selectForCopy(); return; }
+    navigator.clipboard.writeText(link.value).then(function () {
+      status.textContent = 'Link copied. Paste it directly into Chrome, Safari or your usual browser.';
+    }, selectForCopy);
+  });
+})();
+</script></body></html>
