@@ -26,7 +26,6 @@ class ExternalWebActivity : Activity() {
     private lateinit var root: FrameLayout
     private lateinit var webView: WebView
     private var customView: View? = null
-    private val fullscreenWakeRecovery = FullscreenWakeRecovery({ root }, { customView })
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -170,11 +169,9 @@ class ExternalWebActivity : Activity() {
         enterImmersiveMode()
         webView.onResume()
         webView.resumeTimers()
-        fullscreenWakeRecovery.onResume()
     }
 
     override fun onPause() {
-        fullscreenWakeRecovery.onPause()
         webView.onPause()
         webView.pauseTimers()
         super.onPause()
@@ -201,7 +198,6 @@ class ExternalWebActivity : Activity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        fullscreenWakeRecovery.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
             enterImmersiveMode()
         }
@@ -240,7 +236,6 @@ class ExternalWebActivity : Activity() {
     }
 
     private fun hideCustomView() {
-        fullscreenWakeRecovery.clear()
         val activeCustomView = customView ?: return
         customView = null
 
