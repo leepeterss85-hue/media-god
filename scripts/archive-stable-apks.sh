@@ -40,12 +40,13 @@ archive_independent_previous() {
   local existing
   if existing="$(release_json "$archive_tag")"; then
     jq -e --arg sha "$sha" --arg asset "$asset" '
-      (.target_commitish == $sha or (.body // "" | contains("Original-APK-Commit: " + $sha))) and .draft == false and
+      (.target_commitish == $sha or (.body // "" | contains("Original-APK-Commit: " + $sha))) and
       (any(.assets[]?; .name == $asset and .state == "uploaded" and .size > 1000000))
     ' <<< "$existing" >/dev/null || {
       echo "Existing $archive_tag is incomplete or has a different commit" >&2
       return 1
     }
+    complete_archive_draft "$existing" "$sha" "$archive_tag" "$data" "$asset"
     echo "Previous $label APK already archived: $archive_tag"
     return 0
   fi
@@ -83,6 +84,35 @@ EOF
   echo "Archived prior $label build: $archive_tag"
 }
 
+# A failed GitHub create can leave a fully uploaded draft. Never mistake that
+# for a public rollback. Verify every preserved byte before completing it.
+complete_archive_draft() {
+  local existing="$1" sha="$2" tag="$3"
+  shift 3
+  [[ "$(jq -r '.draft' <<< "$existing")" == true ]] || return 0
+  local data asset dir="$root/draft-$tag" id body updated
+  while (( $# )); do
+    data="$1"; asset="$2"; shift 2
+    download_release_asset "$data" "$asset" "$dir/original"
+    download_release_asset "$existing" "$asset" "$dir/archive"
+    cmp "$dir/original/$asset" "$dir/archive/$asset" || {
+      echo "Draft archive differs from original: $asset; refusing publication" >&2
+      return 1
+    }
+  done
+  id="$(jq -er '.id' <<< "$existing")"
+  [[ "$id" =~ ^[0-9]+$ ]] || return 1
+  body="$(jq -r '.body // ""' <<< "$existing")"
+  body+=$'\nOriginal-APK-Commit: '"$sha"
+  body+=$'\nArchive hosting commit: '"${GITHUB_SHA:?}"' (not the original APK source).'
+  # GITHUB_TOKEN can create the tag at its own workflow commit. The body keeps
+  # the source of the archived binaries explicit instead of relabelling them.
+  updated="$(gh api --method PATCH "repos/$repo/releases/$id" \
+    -f target_commitish="$GITHUB_SHA" -f body="$body" -F draft=false)"
+  jq -e '.draft == false and .published_at != null' <<< "$updated" >/dev/null
+  echo "Completed and verified interrupted archive: $tag"
+}
+
 if [[ "$old_mobile_sha" != "$old_firetv_sha" ]]; then
   archive_independent_previous mobile "$mobile" "$old_mobile_sha" \
     android-mobile-latest Media-God-Android-Mobile.apk
@@ -114,6 +144,8 @@ if existing="$(release_json "$archive_tag")"; then
     (any(.assets[]?; .name == "Media-God-Android-Mobile.apk" and .size > 1000000)) and
     (any(.assets[]?; .name == "Media-God-Fire-TV.apk" and .size > 1000000))
   ' <<< "$existing" >/dev/null || { echo "Archive tag exists but is incomplete" >&2; exit 1; }
+  complete_archive_draft "$existing" "$old_mobile_sha" "$archive_tag" \
+    "$mobile" Media-God-Android-Mobile.apk "$firetv" Media-God-Fire-TV.apk
   echo "Known-good rollback archive already exists: $archive_tag"
   exit 0
 fi
