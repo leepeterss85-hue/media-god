@@ -45,6 +45,11 @@ const protectedFiles = {
 // acceptance claims. Preserve the original observed hashes above for recovery.
 // See docs/PLAYBACK_SOURCE_REVIEW_20261108.md. Exact hashes still reject drift.
 const sourceReviewedFiles = {
+  // Explicit 14 November release instruction: reviewed wake recovery; physical
+  // Fire Stick acceptance remains unverified. See FIRETV_WAKE_RELEASE_20261114.md.
+  "firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt": "0f32ad5413f8a355c59fc9dc3da3c0a1e6532c7545a62edb516f6b03d6c9a82a",
+  "firetv-android/app/src/main/java/com/mediagod/firetv/ExternalWebActivity.kt": "bfbbc01ae407e7bc08196df4f4cccc1f78085424a07602621e7af14863b43d38",
+  "firetv-android/app/src/main/java/com/mediagod/firetv/FullscreenWakeRecovery.kt": "6353d568bfa8b6e04ef5a3f669d48d781d15102eb9e7de4c740fc8cfa549802e",
   "src/components/mg/MediaStreamSourcesBox.jsx": "70a666f14ce3223ff11d7de510e9efb40eaf13c793abd07d4ad48558d1cd1ed7",
   "src/components/mg/FireTvRemote.jsx": "46c4b7c4693d3d0da3e73db5829e3f1d359612a45f83cb15918cc22e0f0aa1cb",
 };

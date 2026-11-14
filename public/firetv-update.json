@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 126,
-  "versionName": "1.4.121",
+  "versionCode": 127,
+  "versionName": "1.4.122",
   "title": "Media God Fire TV",
-  "message": "Media God 1.4.121: reliable APK publishing, faster repeated identity lookups, device download progress and storage, and optional local slow-request diagnostics.",
+  "message": "Media God 1.4.122: restores embedded fullscreen video after Fire Stick screensaver wake, plus faster Home loading and browser-opening help.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

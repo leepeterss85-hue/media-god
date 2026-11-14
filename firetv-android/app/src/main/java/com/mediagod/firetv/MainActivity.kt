@@ -91,6 +91,7 @@ class MainActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var webRoot: FrameLayout
     private var embeddedFullscreenView: View? = null
+    private val fullscreenWakeRecovery = FullscreenWakeRecovery({ webRoot }, { embeddedFullscreenView })
     private var embeddedFullscreenCallback: WebChromeClient.CustomViewCallback? = null
     private var embeddedFullscreenFromScraper = false
     private var swallowScraperMenuRelease = false
@@ -291,6 +292,7 @@ class MainActivity : Activity() {
         enterImmersiveMode()
         webView.onResume()
         webView.resumeTimers()
+        fullscreenWakeRecovery.onResume()
         injectFireTvBootstrap()
 
         pendingNativeResultScript?.let { script ->
@@ -304,6 +306,7 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        fullscreenWakeRecovery.onPause()
         if (::appUpdater.isInitialized) {
             appUpdater.onHostPaused()
         }
@@ -337,6 +340,7 @@ class MainActivity : Activity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
+        fullscreenWakeRecovery.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
             enterImmersiveMode()
         }
@@ -496,6 +500,7 @@ class MainActivity : Activity() {
     }
 
     private fun exitEmbeddedFullscreen() {
+        fullscreenWakeRecovery.clear()
         val activeView = embeddedFullscreenView ?: return
         embeddedFullscreenView = null
         embeddedFullscreenFromScraper = false
