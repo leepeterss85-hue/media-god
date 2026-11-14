@@ -1,3 +1,4 @@
+import { loadHomeSections } from "@/components/mg/progressiveHomeLoading";
 import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
@@ -377,7 +378,6 @@ class HomeDetailErrorBoundary extends React.Component {
 
 export default function HomeDashboard({ onOpenTvService }) {
   const [rows, setRows] = useState(/** @type {any} */ ({}));
-  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useBrowseReturn();
   const [watched, setWatched] = useState({});
   const [historyRows, setHistoryRows] = useState([]);
@@ -538,158 +538,124 @@ export default function HomeDashboard({ onOpenTvService }) {
       }
     };
 
-    Promise.all([
-      fetchRow({
-        media_type: "movie",
-        category: "movie_released_today",
-        date: todayKey,
-        region: streamingRegion,
-        include_global_releases: true,
-      }, "movie"),
-
-      fetchRow({
-        media_type: "tv",
-        category: "tv_airing_today",
-        region: streamingRegion,
-        timezone: streamingTimezone,
-      }, "tv"),
-
-      fetchRow({
-        media_type: "movie",
-        category: "now_playing",
-        region: streamingRegion,
-        include_global_releases: true,
-      }, "movie"),
-
-      fetchRow({
-        media_type: "tv",
-        category: "tv_on_the_air",
-        region: streamingRegion,
-        timezone: streamingTimezone,
-      }, "tv"),
-
-      fetchRow({
-        category: "trending",
-      }),
-
-      fetchRow({
-        media_type: "movie",
-        category: "popular",
-        region: streamingRegion,
-      }, "movie"),
-
-      fetchRow({
-        media_type: "tv",
-        category: "tv_popular",
-      }, "tv"),
-
-      fetchRow({
-        media_type: "movie",
-        category: "top_rated",
-        region: streamingRegion,
-      }, "movie"),
-
-      fetchWatchlist(),
-      fetchFavorites(),
-      fetchHistory(),
-    ]).then(
-      async ([
-        todayMoviesRaw,
-        todayTVRaw,
-        newMoviesRaw,
-        newTVRaw,
-        trending,
-        popularMovies,
-        popularTV,
-        topRated,
-        watchlist,
-        favorites,
-        history,
-      ]) => {
-        if (cancelled) {
-          return;
-        }
-
-        const todayMovies = dedupeMedia(todayMoviesRaw).filter(
-          (item) => releaseDateOf(item) === todayKey
-        );
-
-        const todayTV = dedupeMedia(todayTVRaw);
-
-        const tvPremieresToday = todayTV.filter(
-          (item) => releaseDateOf(item) === todayKey
-        );
-
-        const moreTVToday = todayTV.filter(
-          (item) => releaseDateOf(item) !== todayKey
-        );
-
-        const newMovies = sortNewestFirst(
-          dedupeMedia([
-            ...(newMoviesRaw || []),
-            ...(todayMovies || []),
-          ])
-        );
-
-        const newTV = sortNewestFirst(
-          dedupeMedia([
-            ...(newTVRaw || []),
-            ...(tvPremieresToday || []),
-          ])
-        );
-
-        const normalisedWatchlist = (watchlist || []).map((item) =>
-          normaliseLibraryItem(item)
-        );
-
-        const normalisedFavorites = (favorites || []).map((item) =>
-          normaliseLibraryItem(
-            item,
-            item?.media_type || "movie"
-          )
-        );
-
-        const seed = await resolveRecommendationSeed({
-          historyRows: history,
-          favorites: normalisedFavorites,
-          watchlist: normalisedWatchlist,
-        });
-
-        if (cancelled) {
-          return;
-        }
-
-        setRows({
-          todayMovies,
-          tvPremieresToday,
-          moreTVToday,
-          newMovies,
-          newTV,
-          trending,
-          popularMovies,
-          popularTV,
-          topRated,
-          watchlist: normalisedWatchlist,
-          favorites: normalisedFavorites,
-        });
-
-        setHistoryRows(history || []);
-        setRecommendationSeed(seed);
-
-        const watchMap = {};
-
-        normalisedWatchlist.forEach((item) => {
-          const key = item?.tmdb_id || item?.id;
-
-          if (key != null) {
-            watchMap[key] = true;
-          }
-        });
-
-        setWatched(watchMap);
-        setLoading(false);
-      }
+    const catalogueValues = {};
+    const normaliseSaved = (items) => (items || []).map((item) =>
+      normaliseLibraryItem(item, item?.media_type || "movie")
     );
+    const publishCatalogue = (key, value) => {
+      catalogueValues[key] = value;
+      let patch;
+      if (key === "todayMoviesRaw" || key === "newMoviesRaw") {
+        const todayMovies = dedupeMedia(catalogueValues.todayMoviesRaw || []).filter(
+          (item) => releaseDateOf(item) === todayKey
+        );
+        patch = {
+          todayMovies,
+          newMovies: sortNewestFirst(dedupeMedia([
+            ...(catalogueValues.newMoviesRaw || []), ...todayMovies,
+          ])),
+        };
+      } else if (key === "todayTVRaw" || key === "newTVRaw") {
+        const todayTV = dedupeMedia(catalogueValues.todayTVRaw || []);
+        const tvPremieresToday = todayTV.filter((item) => releaseDateOf(item) === todayKey);
+        patch = {
+          tvPremieresToday,
+          moreTVToday: todayTV.filter((item) => releaseDateOf(item) !== todayKey),
+          newTV: sortNewestFirst(dedupeMedia([
+            ...(catalogueValues.newTVRaw || []), ...tvPremieresToday,
+          ])),
+        };
+      } else {
+        patch = { [key]: value };
+      }
+      setRows((previous) => ({ ...previous, ...patch }));
+    };
+
+    loadHomeSections({
+      catalogue: {
+        todayMoviesRaw: fetchRow({
+          media_type: "movie",
+          category: "movie_released_today",
+          date: todayKey,
+          region: streamingRegion,
+          include_global_releases: true,
+        }, "movie"),
+
+        todayTVRaw: fetchRow({
+          media_type: "tv",
+          category: "tv_airing_today",
+          region: streamingRegion,
+          timezone: streamingTimezone,
+        }, "tv"),
+
+        newMoviesRaw: fetchRow({
+          media_type: "movie",
+          category: "now_playing",
+          region: streamingRegion,
+          include_global_releases: true,
+        }, "movie"),
+
+        newTVRaw: fetchRow({
+          media_type: "tv",
+          category: "tv_on_the_air",
+          region: streamingRegion,
+          timezone: streamingTimezone,
+        }, "tv"),
+
+        trending: fetchRow({
+          category: "trending",
+        }),
+
+        popularMovies: fetchRow({
+          media_type: "movie",
+          category: "popular",
+          region: streamingRegion,
+        }, "movie"),
+
+        popularTV: fetchRow({
+          media_type: "tv",
+          category: "tv_popular",
+        }, "tv"),
+
+        topRated: fetchRow({
+          media_type: "movie",
+          category: "top_rated",
+          region: streamingRegion,
+        }, "movie"),
+
+      },
+      library: {
+        watchlist: fetchWatchlist(),
+        favorites: fetchFavorites(),
+        history: fetchHistory(),
+      },
+      isActive: () => !cancelled,
+      onCatalogue: publishCatalogue,
+      onLibrary: (key, items) => {
+        if (key === "history") {
+          setHistoryRows(items || []);
+          return;
+        }
+        const normalised = key === "watchlist"
+          ? (items || []).map((item) => normaliseLibraryItem(item))
+          : normaliseSaved(items);
+        setRows((previous) => ({ ...previous, [key]: normalised }));
+        if (key === "watchlist") {
+          const watchMap = {};
+          normalised.forEach((item) => {
+            const id = item?.tmdb_id || item?.id;
+            if (id != null) watchMap[id] = true;
+          });
+          setWatched(watchMap);
+        }
+      },
+      resolveSeed: ({ history, favorites, watchlist }) => resolveRecommendationSeed({
+        historyRows: history,
+        favorites: normaliseSaved(favorites),
+        watchlist: (watchlist || []).map((item) => normaliseLibraryItem(item)),
+      }),
+      onSeed: setRecommendationSeed,
+    });
 
     return () => {
       cancelled = true;
@@ -805,7 +771,7 @@ export default function HomeDashboard({ onOpenTvService }) {
       (item) => catalogueSourceChecker.check(item)
     );
     return () => { stopListening(); stopChecks(); };
-  }, [rows.newMovies, rows.trending]);
+  }, [rows.todayMovies, rows.newMovies, rows.trending, rows.popularMovies, rows.topRated]);
 
   const completedHistoryTitles = useMemo(() => {
     const titles = new Set();
@@ -1258,24 +1224,6 @@ export default function HomeDashboard({ onOpenTvService }) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="p-3 sm:p-5 md:p-6 3xl:p-8 4xl:p-10">
-        <div className="w-full h-[38svh] sm:h-[42vh] 3xl:h-[50vh] bg-mg-card rounded-xl animate-pulse mb-5 3xl:mb-8" />
-
-        <div className="grid grid-cols-2 min-[420px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 3xl:grid-cols-9 4xl:grid-cols-10 gap-3 3xl:gap-4 4xl:gap-5">
-          {Array.from({
-            length: 20,
-          }).map((_, index) => (
-            <div
-              key={index}
-              className="aspect-[2/3] bg-mg-card rounded-md animate-pulse"
-            />
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full min-w-0" data-mg-home-dashboard="true">
