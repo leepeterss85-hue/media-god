@@ -106,3 +106,48 @@ test('fresh objects for the same film share a pending slot, without starving oth
   assert.deepEqual(checked, [1, 2, 3]);
   stop(); complete.forEach(resolve => resolve()); await flush();
 });
+
+
+test('low-spec TV skips only passive source checks while remote keys and scrolling are active', async () => {
+  const win = new FakeEvents(), doc = new FakeEvents();
+  let clock = 1000;
+  const checked = [];
+  const stop = createRollingSourceChecks(
+    () => [1, 2, 3, 4],
+    item => checked.push(item),
+    { windowObject: win, documentObject: doc, batchSize: 1,
+      deferDuringNavigation: true, navigationQuietMs: 2000, now: () => clock }
+  );
+  await flush();
+  assert.deepEqual(checked, [1]);
+  doc.dispatchEvent(new Event('keydown'));
+  clock = 2000;
+  win.tick(); await flush();
+  assert.deepEqual(checked, [1], 'remote navigation must pause optional catalogue lookups');
+  doc.dispatchEvent(new Event('scroll'));
+  clock = 3999;
+  win.tick(); await flush();
+  assert.deepEqual(checked, [1], 'scrolling also defers background work');
+  clock = 4000;
+  win.tick(); await flush();
+  assert.deepEqual(checked, [1, 2], 'checks resume once the device is quiet');
+  stop();
+  doc.dispatchEvent(new Event('keydown'));
+  win.tick(); await flush();
+  assert.deepEqual(checked, [1, 2]);
+});
+
+test('normal device browsing keeps optional source checks responsive', async () => {
+  const win = new FakeEvents(), doc = new FakeEvents();
+  let clock = 1000;
+  const checked = [];
+  const stop = createRollingSourceChecks(() => [1, 2],
+    item => checked.push(item),
+    { windowObject: win, documentObject: doc, batchSize: 1,
+      deferDuringNavigation: false, now: () => clock });
+  await flush();
+  doc.dispatchEvent(new Event('keydown'));
+  clock = 1001; win.tick(); await flush();
+  assert.deepEqual(checked, [1, 2]);
+  stop();
+});

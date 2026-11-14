@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -59,4 +59,14 @@ test('release 404 recovers only the exact tag from paginated releases', () => {
 test('APK publication preserves old assets and restores both devices after a partial failure', () => {
   const result = spawnSync('python3', ['tests/apk-publisher-behaviour.py'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+
+test('download history respects manual collapse and transient native bridge failures', () => {
+  const panel = readFileSync(resolve('src/components/mg/DeviceDownloadsPanel.jsx'), 'utf8');
+  assert.match(panel, /detailsRef\.current\.open = snapshot\.items\.some/);
+  assert.match(panel, /initialDetailsOpenSet\.current/);
+  assert.doesNotMatch(panel, /<details[^>]+open=\{snapshot\.items/);
+  assert.match(panel, /setSnapshot\(previous => \(\{ \.\.\.\(previous \|\| \{ items: \[\] \}\), unavailable: true \}\)\)/);
+  assert.match(panel, /labelForStatus\(item\.status\)/);
 });

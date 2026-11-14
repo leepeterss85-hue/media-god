@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { isLowCapacityTvDevice } from "../src/components/mg/deviceCapacity.js";
+import { isLowCapacityTvDevice, isLegacyAndroidTvBox } from "../src/components/mg/deviceCapacity.js";
 
 const withNavigator = (userAgent, run, maxTouchPoints = 0) => {
   // Newer Node exposes navigator as a getter-only global, so swap the
@@ -64,4 +64,31 @@ test("capacity limits are applied to caches, scans and poster decoding", () => {
   const image = read("src/components/ui/image.jsx");
   assert.match(image, /const lowCapacity = fireTv && isLowCapacityTvDevice\(\)/);
   assert.match(image, /maxDpr = lowCapacity \? 1\.5/);
+});
+
+test("MINIX NEO U22-XJ Android 9 receives only legacy background-browse safeguards", () => {
+  const agent = "Mozilla/5.0 (Linux; Android 9; NEO U22-XJ Build/PQ3A) AppleWebKit/537.36 wv MediaGodFireTV/1.0 AmazonWebAppPlatform FireTV";
+  withNavigator(agent, () => {
+    const nav = { userAgent: agent, deviceMemory: 4, hardwareConcurrency: 6 };
+    assert.equal(isLowCapacityTvDevice({ nav }), false, "a 4 GB, six-core box does not meet the RAM heuristic");
+    assert.equal(isLegacyAndroidTvBox({ nav }), true, "Android 9 non-Amazon hardware still needs quieter optional scans");
+  });
+  const rolling = read("src/components/mg/rollingSourceChecks.js");
+  assert.match(rolling, /isLegacyAndroidTvBox\(\)/);
+  assert.match(rolling, /deferDuringNavigation = isLowCapacityTvDevice\(\) \|\| isLegacyAndroidTvBox\(\)/);
+});
+
+test("working Fire Sticks, newer TV boxes and Android phones avoid the legacy box mode", () => {
+  const fireAgent = "Mozilla/5.0 (Linux; Android 9; AFTT Build/PS7321) MediaGodFireTV/1.0 AmazonWebAppPlatform FireTV";
+  withNavigator(fireAgent, () => {
+    assert.equal(isLegacyAndroidTvBox({ nav: { userAgent: fireAgent, deviceMemory: 2, hardwareConcurrency: 4 } }), false);
+  });
+  const modern = "Mozilla/5.0 (Linux; Android 12; NEO U22-XJ Build/PQ3A) MediaGodFireTV/1.0";
+  withNavigator(modern, () => {
+    assert.equal(isLegacyAndroidTvBox({ nav: { userAgent: modern } }), false);
+  });
+  const phone = "Mozilla/5.0 (Linux; Android 9; Pixel 3) Mobile";
+  withNavigator(phone, () => {
+    assert.equal(isLegacyAndroidTvBox({ nav: { userAgent: phone } }), false);
+  }, 5);
 });

@@ -38,3 +38,26 @@ export const isLowCapacityTvDevice = ({
 };
 
 export default isLowCapacityTvDevice;
+
+/**
+ * Older Android 9 TV-box WebViews can be sluggish despite advertising 4 GB of
+ * memory and six or more cores (for example, the MINIX NEO U22-XJ). Treat
+ * those as *legacy* for optional browse checks only. Do not lower image
+ * resolution or change playback based on Android version alone.
+ *
+ * The native TV shell appends MediaGodFireTV/AmazonWebAppPlatform to its UA,
+ * including on non-Amazon hardware. Those app tokens are not proof that the
+ * underlying device is an actual Fire Stick; exclude real AFT/Silk hardware
+ * signatures instead.
+ */
+export const isLegacyAndroidTvBox = ({
+  nav = typeof navigator !== "undefined" ? navigator : null,
+} = {}) => {
+  if (!isFireTvRuntime()) return false;
+  const agent = String(nav?.userAgent || "");
+  const version = /\bAndroid[ /](\d+)(?:\.\d+)?/i.exec(agent);
+  const major = Number(version?.[1]);
+  if (!version || major < 4 || major > 9) return false;
+  if (/\bAFT[A-Z0-9]*\b|\bSilk\b|\bFire OS\b/i.test(agent)) return false;
+  return /\bMINIX\b|\bNEO[ _-]*U22[ _-]*XJ\b|\bAndroid[ _-]*TV\b|\bGoogle[ _-]*TV\b|\bAmlogic\b|\bRockchip\b|\bMecool\b|\bUgoos\b|\bTV[ _-]*Box\b/i.test(agent);
+};
