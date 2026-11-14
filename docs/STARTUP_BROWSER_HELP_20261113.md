@@ -22,3 +22,13 @@ Approximately 22% less initial JavaScript (21.6% by local gzip estimate). Home s
 Full regression suite passed, including build, lint, protected playback checks and native structural checks. Added tests cover browser detection, native exclusions, token-free copying, and clipboard failure. A local Chromium smoke run could not start because the runtime prohibits its process-singleton socket; visual and real-device browser-launch behaviour are not claimed as tested.
 
 Physical checks: open from WhatsApp/Facebook on Android and iOS; use help, copy link, dismiss, sign in, and enter Home. Confirm the phone APK and Fire TV show no browser prompt. Test a slow connection and an interrupted Home chunk download.
+
+## Progressive Home loading and episode refresh (14 November)
+
+Home now mounts its existing layout immediately and publishes each catalogue/library result independently. Paired cinema/today and TV/today results are merged in either arrival order with the existing date filters, deduplication and sorting. The source-availability observer follows every progressively arriving movie collection. Continue Watching retains its fixed position and can load without waiting for the catalogue.
+
+Recommendation seed lookup begins after the initial requests settle, with no global loading gate. Slow or failed recommendation work cannot hide already loaded rows. Leaving Home suppresses late updates and new recommendation work.
+
+Episode focus/visibility events share a one-second refresh gate; background events and events during an active load are ignored. The periodic refresh still works, and seed/date/region changes still trigger their own loads. Failed unexpected refreshes retain the previous successful list.
+
+Added deterministic tests cover a held-open slow request, recommendation delay/failure, per-row failure isolation, unmount races, out-of-order release merging, and duplicate/background/in-flight episode events. These demonstrate the scheduling behaviour, not a claimed real-device latency or FPS improvement.

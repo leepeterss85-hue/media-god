@@ -1,5 +1,6 @@
+import { createVisibleRefreshGate } from "@/components/mg/visibleRefreshGate";
 import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarClock, Play, Tv2 } from "lucide-react";
 
 import { getCatalogueMovies } from "@/components/mg/catalogueRequests";
@@ -181,10 +182,17 @@ export default function NewEpisodesRow({
   const player = usePlayer();
 
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const refreshInFlight = useRef(false);
+  const refreshGate = useRef(null);
+  if (!refreshGate.current) {
+    refreshGate.current = createVisibleRefreshGate({
+      refresh: () => setRefreshVersion((value) => value + 1),
+      isVisible: () => document.visibilityState !== 'hidden',
+      isBusy: () => refreshInFlight.current,
+    });
+  }
   useEffect(() => {
-    const refreshVisible = () => {
-      if (document.visibilityState !== 'hidden') setRefreshVersion((value) => value + 1);
-    };
+    const refreshVisible = () => refreshGate.current.request();
     // Refresh upcoming and newly aired episodes during active browsing,
     // without turning each newly published season into a torrent search.
     const interval = window.setInterval(refreshVisible, 2 * 60 * 1000);
@@ -225,6 +233,7 @@ export default function NewEpisodesRow({
     const load = async () => {
       if (!seeds.length) {
         setItems([]);
+        setLoading(false);
         return;
       }
 
@@ -322,10 +331,20 @@ export default function NewEpisodesRow({
       setLoading(false);
     };
 
-    load();
+    refreshInFlight.current = true;
+    refreshGate.current.markStarted();
+    void load().catch(() => {
+      // Keep the last successful list if a refresh fails unexpectedly.
+    }).finally(() => {
+      if (!cancelled) {
+        refreshInFlight.current = false;
+        setLoading(false);
+      }
+    });
 
     return () => {
       cancelled = true;
+      refreshInFlight.current = false;
     };
   }, [seedKey, region, todayKey, refreshVersion]);
 
